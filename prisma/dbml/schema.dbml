@@ -1,0 +1,248 @@
+//// ------------------------------------------------------
+//// THIS FILE WAS AUTOMATICALLY GENERATED (DO NOT MODIFY)
+//// ------------------------------------------------------
+
+Table User {
+  id String [pk]
+  name String [not null]
+  username String [not null]
+  email String [unique]
+  emailVerified DateTime
+  image String
+  password String
+  role String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  restarrants Restaurant [not null]
+  employees Employee [not null]
+}
+
+Table Role {
+  id String [pk]
+  name String [not null]
+  restaurantId String [not null]
+  restaurant Restaurant [not null]
+  permissions Permission [not null]
+  employees Employee [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Permission {
+  id String [pk]
+  name String [not null]
+  role Role
+  roleId String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Restaurant {
+  id String [pk]
+  name String [not null]
+  slug String [unique, not null]
+  subdomain String [unique, not null]
+  logoUrl String
+  logoKey String
+  ownerId String [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  owner User [not null]
+  roles Role [not null]
+  menus MenuCategory [not null]
+  menuItems MenuItem [not null]
+  orders Order [not null]
+  payments Payment [not null]
+  employees Employee [not null]
+  customers Customer [not null]
+}
+
+Table Employee {
+  id String [pk]
+  restaurantId String [not null]
+  userId String [not null]
+  roleId String [not null]
+  restaurant Restaurant [not null]
+  user User [not null]
+  role Role [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table MenuCategory {
+  id String [pk]
+  name String [not null]
+  restaurantId String [not null]
+  items MenuItem [not null]
+  restaurant Restaurant [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table MenuItem {
+  id String [pk]
+  name String [not null]
+  imageUrl String
+  imageKey String
+  price Float [not null]
+  categoryId String [not null]
+  restaurantId String [not null]
+  category MenuCategory [not null]
+  restaurant Restaurant [not null]
+  orderItems OrderItem [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Customer {
+  id String [pk]
+  name String [not null]
+  email String
+  phone String [not null]
+  restaurantId String [not null]
+  orders Order [not null]
+  restaurant Restaurant [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Order {
+  id String [pk]
+  restaurantId String [not null]
+  customerId String
+  status String [not null]
+  total Float [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  items OrderItem [not null]
+  payments Payment [not null]
+  restaurant Restaurant [not null]
+  customer Customer
+}
+
+Table OrderItem {
+  id String [pk]
+  orderId String [not null]
+  menuItemId String [not null]
+  quantity Int [not null]
+  price Float [not null]
+  order Order [not null]
+  menuItem MenuItem [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Payment {
+  id String [pk]
+  orderId String [not null]
+  amount Float [not null]
+  status String [not null]
+  method String [not null]
+  order Order [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  restaurant Restaurant
+  restaurantId String
+}
+
+Table ProductStock {
+  id String [pk]
+  name String [not null]
+  imageProduct String
+  price Float [not null]
+  stock Float [not null]
+  cat CatProduct [not null]
+  Product Product [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Product {
+  id String [pk]
+  productId String [unique, not null]
+  productstock ProductStock [not null]
+  sellprice Float [not null]
+  OnSaleProduct OnSaleProduct [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table OnSaleProduct {
+  id String [pk]
+  productId String [not null]
+  quantity Int [not null]
+  saledate DateTime [default: `now()`, not null]
+  transactionId String [not null]
+  product Product [not null]
+  transaction Transaction [not null]
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Table Transaction {
+  id String [pk]
+  totalAmount Decimal
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+  isComplete Boolean [not null, default: false]
+  products OnSaleProduct [not null]
+}
+
+Table ShopData {
+  id String [pk]
+  tax Int
+  name String
+  createdAt DateTime [default: `now()`, not null]
+  updatedAt DateTime [not null]
+}
+
+Enum UserRole {
+  OWNER
+  WORKER
+  UNKNOW
+}
+
+Enum CatProduct {
+  ELECTRO
+  DRINK
+  FOOD
+  FASHION
+}
+
+Ref: Role.restaurantId > Restaurant.id
+
+Ref: Permission.roleId > Role.id
+
+Ref: Restaurant.ownerId > User.id
+
+Ref: Employee.restaurantId > Restaurant.id
+
+Ref: Employee.userId > User.id
+
+Ref: Employee.roleId > Role.id
+
+Ref: MenuCategory.restaurantId > Restaurant.id
+
+Ref: MenuItem.categoryId > MenuCategory.id
+
+Ref: MenuItem.restaurantId > Restaurant.id
+
+Ref: Customer.restaurantId > Restaurant.id
+
+Ref: Order.restaurantId > Restaurant.id
+
+Ref: Order.customerId > Customer.id
+
+Ref: OrderItem.orderId > Order.id
+
+Ref: OrderItem.menuItemId > MenuItem.id
+
+Ref: Payment.orderId > Order.id
+
+Ref: Payment.restaurantId > Restaurant.id
+
+Ref: Product.productId > ProductStock.id [delete: Cascade]
+
+Ref: OnSaleProduct.productId > Product.productId [delete: Cascade]
+
+Ref: OnSaleProduct.transactionId > Transaction.id [delete: Cascade]

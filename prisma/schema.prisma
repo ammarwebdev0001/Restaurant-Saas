@@ -1,0 +1,257 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+generator custom_generator {
+  provider = "prisma-generator-fake-data"
+}
+
+generator dbml {
+  provider = "prisma-dbml-generator"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  OWNER
+  WORKER
+  UNKNOW
+}
+
+enum CatProduct {
+  ELECTRO
+  DRINK
+  FOOD
+  FASHION
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  username      String
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String?
+  role          String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  restarrants Restaurant[]
+  employees   Employee[]
+}
+
+model Role {
+  id           String @id @default(uuid())
+  name         String
+  restaurantId String
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  permissions Permission[]
+  employees   Employee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Permission {
+  id     String  @id @default(uuid())
+  name   String
+  role   Role?   @relation(fields: [roleId], references: [id])
+  roleId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Restaurant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  subdomain String   @unique
+  logoUrl   String?
+  logoKey   String?
+  ownerId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  owner     User           @relation(fields: [ownerId], references: [id])
+  roles     Role[]
+  menus     MenuCategory[]
+  menuItems MenuItem[]
+  orders    Order[]
+  payments  Payment[]
+  employees Employee[]
+  customers Customer[]
+}
+
+model Employee {
+  id           String @id @default(uuid())
+  restaurantId String
+  userId       String
+  roleId       String
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  user       User       @relation(fields: [userId], references: [id])
+  role       Role       @relation(fields: [roleId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MenuCategory {
+  id           String @id @default(uuid())
+  name         String
+  restaurantId String
+
+  items      MenuItem[]
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MenuItem {
+  id           String  @id @default(uuid())
+  name         String
+  imageUrl     String?
+  imageKey     String?
+  price        Float
+  categoryId   String
+  restaurantId String
+
+  category   MenuCategory @relation(fields: [categoryId], references: [id])
+  restaurant Restaurant   @relation(fields: [restaurantId], references: [id])
+  orderItems OrderItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Customer {
+  id           String  @id @default(uuid())
+  name         String
+  email        String?
+  phone        String
+  restaurantId String
+
+  orders     Order[]
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Order {
+  id           String   @id @default(uuid())
+  restaurantId String
+  customerId   String?
+  status       String
+  total        Float
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  items      OrderItem[]
+  payments   Payment[]
+  restaurant Restaurant  @relation(fields: [restaurantId], references: [id])
+  customer   Customer?   @relation(fields: [customerId], references: [id])
+}
+
+model OrderItem {
+  id         String @id @default(uuid())
+  orderId    String
+  menuItemId String
+  quantity   Int
+  price      Float
+
+  order    Order    @relation(fields: [orderId], references: [id])
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Payment {
+  id      String @id @default(uuid())
+  orderId String
+  amount  Float
+  status  String
+  method  String
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  restaurantId String?
+}
+
+model ProductStock {
+  id           String     @id @unique
+  name         String
+  imageProduct String?
+  price        Float
+  stock        Float
+  cat          CatProduct
+
+  Product Product[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  productId     String
+  productstock  ProductStock    @relation(fields: [productId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sellprice     Float
+  OnSaleProduct OnSaleProduct[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([productId])
+}
+
+model OnSaleProduct {
+  id            String      @id @default(cuid())
+  productId     String
+  quantity      Int
+  saledate      DateTime    @default(now())
+  transactionId String
+  product       Product     @relation(fields: [productId], references: [productId], onDelete: Cascade, onUpdate: Cascade)
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([productId, transactionId])
+}
+
+model Transaction {
+  id          String          @id @default(cuid())
+  totalAmount Decimal?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  isComplete  Boolean         @default(false)
+  products    OnSaleProduct[]
+}
+
+model ShopData {
+  id        String   @id @default(cuid())
+  tax       Int?
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
