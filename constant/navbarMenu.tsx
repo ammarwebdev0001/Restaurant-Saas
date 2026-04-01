@@ -4,14 +4,15 @@ import {
   ShoppingCart,
   Archive,
   Settings,
-  Star,
+  FolderTree,
+  Sparkles,
 } from 'lucide-react';
 import { NavItem } from '@/types/Navbar';
 
 export const NAVBAR_ITEMS: NavItem[] = [
   {
-    title: 'Home',
-    path: '/home',
+    title: 'Dashboard',
+    path: '/dashboard',
     icon: <Home className="h-4 w-4" />,
   },
   {
@@ -20,9 +21,19 @@ export const NAVBAR_ITEMS: NavItem[] = [
     icon: <ShoppingCart className="h-4 w-4" />,
   },
   {
-    title: 'Product',
+    title: 'Categories',
+    path: '/categories',
+    icon: <FolderTree className="h-4 w-4" />,
+  },
+  {
+    title: 'Products',
     path: '/product',
     icon: <Package className="h-4 w-4" />,
+  },
+  {
+    title: 'Recommendations',
+    path: '/recommendations',
+    icon: <Sparkles className="h-4 w-4" />,
   },
   {
     title: 'Records',
@@ -33,10 +44,5 @@ export const NAVBAR_ITEMS: NavItem[] = [
     title: 'Settings',
     path: '/settings',
     icon: <Settings className="h-4 w-4" />,
-  },
-  {
-    title: 'Technologies',
-    path: '/technologies',
-    icon: <Star className="h-4 w-4" />,
   },
 ];

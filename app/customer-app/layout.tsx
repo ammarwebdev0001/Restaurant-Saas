@@ -1,4 +1,6 @@
 import type { ReactNode } from 'react';
+import { Header } from '@/components/customer-app/header';
+import { Footer } from '@/components/customer-app/footer';
 
 export const metadata = {
   title: 'Enjoy Tacos',
@@ -7,10 +9,14 @@ export const metadata = {
 
 export default function CustomerLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-zinc-950 text-white antialiased">
-        {children}
-      </body>
-    </html>
+    <div className="min-h-screen bg-gradient-to-b from-purple-950 via-purple-900 to-zinc-950 text-white antialiased">
+      <div className="flex min-h-screen flex-col">
+        <Header />
+
+        <main className="flex-1">{children}</main>
+
+        <Footer />
+      </div>
+    </div>
   );
 }

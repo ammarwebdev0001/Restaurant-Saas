@@ -30,6 +30,8 @@ export function ScrollAreaDemo() {
         {/* Toggle button text based on visibility */}
         {isScrollAreaVisible ? 'Hide Charts Menu' : 'Show Charts Menu'}
       </Button>
+
+
       {/* Render scroll area if visible */}
       {isScrollAreaVisible && (
         <ScrollArea className="h-auto rounded-md border mt-4 bg-white dark:bg-chartbody">

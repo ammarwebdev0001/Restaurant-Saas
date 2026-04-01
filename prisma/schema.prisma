@@ -12,9 +12,11 @@ generator custom_generator {
   provider = "prisma-generator-fake-data"
 }
 
-generator dbml {
-  provider = "prisma-dbml-generator"
-}
+// Disabled because prisma-dbml-generator currently crashes on this schema.
+// Re-enable once the generator issue is fixed.
+// generator dbml {
+//   provider = "prisma-dbml-generator"
+// }
 
 datasource db {
   provider = "postgresql"
@@ -25,6 +27,24 @@ enum UserRole {
   OWNER
   WORKER
   UNKNOW
+}
+
+enum AttributeSelectionType {
+  SINGLE
+  MULTIPLE
+}
+
+enum SubscriptionPlan {
+  STARTER
+  GROWTH
+  SCALE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  TRIAL
+  PAST_DUE
+  CANCELED
 }
 
 enum CatProduct {
@@ -82,6 +102,8 @@ model Restaurant {
   subdomain String   @unique
   logoUrl   String?
   logoKey   String?
+  mainBannerUrl String?
+  menuBannerUrls String[] @default([])
   ownerId   String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -94,6 +116,45 @@ model Restaurant {
   payments  Payment[]
   employees Employee[]
   customers Customer[]
+  branches  Branch[]
+  subscription RestaurantSubscription?
+}
+
+model Branch {
+  id             String   @id @default(uuid())
+  restaurantId   String
+  name           String
+  address        String?
+  phone          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId])
+}
+
+model RestaurantSubscription {
+  id               String             @id @default(uuid())
+  restaurantId     String             @unique
+  plan             SubscriptionPlan   @default(STARTER)
+  status           SubscriptionStatus @default(TRIAL)
+  trialEndsAt      DateTime?
+  currentPeriodEnd DateTime?
+  notes            String?
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PlatformSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Employee {
@@ -115,8 +176,9 @@ model MenuCategory {
   name         String
   restaurantId String
 
-  items      MenuItem[]
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  items                   MenuItem[]
+  restaurant              Restaurant @relation(fields: [restaurantId], references: [id])
+  linkedByAttributeGroups MenuItemAttributeGroup[] @relation("AttributeLinkedCategory")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -125,18 +187,59 @@ model MenuCategory {
 model MenuItem {
   id           String  @id @default(uuid())
   name         String
+  description  String?
   imageUrl     String?
   imageKey     String?
   price        Float
+  salePrice    Float?
   categoryId   String
   restaurantId String
 
-  category   MenuCategory @relation(fields: [categoryId], references: [id])
-  restaurant Restaurant   @relation(fields: [restaurantId], references: [id])
-  orderItems OrderItem[]
+  category          MenuCategory             @relation(fields: [categoryId], references: [id])
+  restaurant        Restaurant               @relation(fields: [restaurantId], references: [id])
+  orderItems        OrderItem[]
+  attributeGroups   MenuItemAttributeGroup[]
+  orderAddonChoices OrderItemModifier[]      @relation("OrderAddonProduct")
+
+  offersFromThis MenuItemOffer[] @relation("BaseItemOffers")
+  offeredAs     MenuItemOffer[]  @relation("OfferedItems")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model MenuItemOffer {
+  id            String @id @default(uuid())
+  baseItemId    String
+  offeredItemId String
+  sortOrder     Int    @default(0)
+
+  baseItem    MenuItem @relation("BaseItemOffers", fields: [baseItemId], references: [id], onDelete: Cascade)
+  offeredItem MenuItem @relation("OfferedItems", fields: [offeredItemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([baseItemId])
+}
+
+model MenuItemAttributeGroup {
+  id               String                 @id @default(uuid())
+  menuItemId       String
+  name             String
+  sortOrder        Int                    @default(0)
+  selectionType    AttributeSelectionType @default(SINGLE)
+  required         Boolean                @default(false)
+  linkedCategoryId String
+
+  menuItem       MenuItem     @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+  linkedCategory MenuCategory @relation("AttributeLinkedCategory", fields: [linkedCategoryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([menuItemId])
+  @@index([linkedCategoryId])
 }
 
 model Customer {
@@ -175,11 +278,29 @@ model OrderItem {
   quantity   Int
   price      Float
 
-  order    Order    @relation(fields: [orderId], references: [id])
-  menuItem MenuItem @relation(fields: [menuItemId], references: [id])
+  order     Order                 @relation(fields: [orderId], references: [id])
+  menuItem  MenuItem              @relation(fields: [menuItemId], references: [id])
+  modifiers OrderItemModifier[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model OrderItemModifier {
+  id          String @id @default(uuid())
+  orderItemId String
+  menuItemId  String
+  name        String
+  unitPrice   Float
+  quantity    Int    @default(1)
+
+  orderItem OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+  addonItem MenuItem  @relation("OrderAddonProduct", fields: [menuItemId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orderItemId])
 }
 
 model Payment {

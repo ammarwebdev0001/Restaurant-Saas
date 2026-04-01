@@ -1,15 +1,24 @@
-import React from 'react';
-import TableProduct from '@/components/tableproduct/table';
-import { PageProps } from '@/types/paginations';
+'use client';
+
+import { ProductsTab } from '@/components/dashboard/menu-manager/products-tab';
+import { MenuPageShell } from '@/components/dashboard/menu-manager/menu-page-shell';
+import { useRestaurantMenu } from '@/components/dashboard/menu-manager/use-restaurant-menu';
 import ErrorBoundary from '@/components/toaster/toaster';
-const page = async (props: PageProps) => {
+
+export default function ProductPage() {
+  const { loading, categories, load } = useRestaurantMenu();
+
   return (
-    <div className="w-full h-full">
+    <div className="w-full">
       <ErrorBoundary>
-        <TableProduct {...props} />
+        <MenuPageShell
+          title="Products"
+          description="Add menu items with photos, pricing, optional sale price, and descriptions."
+          loading={loading}
+        >
+          <ProductsTab categories={categories} onRefresh={load} />
+        </MenuPageShell>
       </ErrorBoundary>
     </div>
   );
-};
-
-export default page;
+}

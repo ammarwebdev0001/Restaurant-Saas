@@ -1,3 +1,4 @@
+'use server';
 import { db } from '@/lib/db';
 import isOnline from 'is-online';
 
@@ -17,7 +18,6 @@ export const fetchProduct = async ({
     return;
   }
 
-  ('use server');
   try {
     const results = await db.product.findMany({
       where: {

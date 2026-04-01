@@ -1,116 +1,179 @@
 'use client';
+
 import React, { useState, useEffect } from 'react';
 import NextTopLoader from 'nextjs-toploader';
-interface RootLayoutProps {
-  children: React.ReactNode;
-}
 import Link from 'next/link';
-import { Menu, TriangleAlert } from 'lucide-react';
+import { Menu, PanelLeft, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetTrigger } from '@/components/ui/sheet';
+import { Sheet } from '@/components/ui/sheet';
 import { ModeToggle } from '@/components/darkmode/darkmode';
-import { ThemeProvider } from '@/components/theme-provider';
 import Navbar from '@/components/dashboard/navbar';
 import { NavbarSheet } from '@/components/dashboard/NavbarSheet';
+import UserMenu from '@/components/dashboard/UserMenu';
 import Bread from '@/components/dashboard/breadcrumb';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import eventBus from '@/lib/even';
+import { cn } from '@/lib/utils';
+
+const SIDEBAR_STORAGE_KEY = 'dashboard-sidebar-open';
+
+interface RootLayoutProps {
+  children: React.ReactNode;
+}
+
 const RootLayout = ({ children }: RootLayoutProps) => {
-  const [storeName, setStoreName] = useState<string | null>(null);
+  const [restaurantName, setRestaurantName] = useState<string>('Restaurant');
+  const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-    const fetchShopData = async () => {
-      try {
-        const isOnline = navigator.onLine;
+    try {
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (stored !== null) {
+        setSidebarOpen(stored === 'true');
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
-        if (!isOnline) {
-          toast.error(
-            'You are offline. Please check your internet connection.'
-          );
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_STORAGE_KEY, String(sidebarOpen));
+    } catch {
+      /* ignore */
+    }
+  }, [sidebarOpen]);
+
+  const toggleNav = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+      setSidebarOpen((o) => !o);
+    } else {
+      setMobileNavOpen((o) => !o);
+    }
+  };
+
+  useEffect(() => {
+    const fetchRestaurant = async () => {
+      try {
+        if (!navigator.onLine) {
+          toast.error('You are offline.');
           return;
         }
 
-        const response = await axios.get('/api/shopdata');
-        const shopdata = response.data.data;
-
-        if (response.status === 200) {
-          setStoreName(shopdata.name);
-        } else {
-          toast.error('Failed to fetch data: ' + shopdata.error);
-        }
+        const response = await axios.get('/api/restaurant');
+        const name = response?.data?.data?.name as string | undefined;
+        const logoUrl = response?.data?.data?.logoUrl as string | undefined;
+        setRestaurantName(name ?? 'Restaurant');
+        setRestaurantLogoUrl(logoUrl ?? null);
       } catch (error: any) {
-        toast.error(
-          'Failed to fetch data: ' +
-            (error.response?.data.error || error.message)
-        );
+        setRestaurantName('Restaurant');
+        setRestaurantLogoUrl(null);
+        toast.error(error.response?.data?.error || error.message);
       }
     };
 
-    fetchShopData();
+    fetchRestaurant();
 
-    const handleEventBusEvent = () => {
-      fetchShopData();
-    };
+    const handler = () => fetchRestaurant();
+    eventBus.on('fetchStoreData', handler);
 
-    eventBus.on('fetchStoreData', handleEventBusEvent);
-
-    // Clean up event listener
     return () => {
-      eventBus.removeListener('fetchStoreData', handleEventBusEvent);
+      eventBus.removeListener('fetchStoreData', handler);
     };
   }, []);
+
   return (
-    <div className="bg-gray-300 dark:bg-black">
-      <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
-        <div className="hidden border-r bg-muted/40 md:block">
-          <div className="flex h-full max-h-screen flex-col gap-2">
-            <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
-              <Link href="/" className="flex items-center gap-2 font-semibold">
-                <TriangleAlert className="h-6 w-6" />
-                <span className="">{storeName} Inc</span>
-              </Link>
+    <>
+      <NextTopLoader showSpinner={false} />
+      <div className="bg-gray-300 dark:bg-black">
+        <div
+          className={cn(
+            'grid min-h-screen w-full',
+            sidebarOpen
+              ? 'md:grid-cols-[minmax(0,220px)_1fr] lg:grid-cols-[minmax(0,280px)_1fr]'
+              : 'grid-cols-1'
+          )}
+        >
+          {/* Sidebar */}
+          <div
+            className={cn(
+              'hidden border-r bg-muted/40 md:flex md:flex-col',
+              !sidebarOpen && 'md:hidden'
+            )}
+          >
+            <div className="flex h-full flex-col gap-2">
+              <div className="flex h-14 items-center border-b px-4">
+                <Link href="/" className="flex items-center gap-2 font-semibold">
+                  <div className="relative flex h-7 w-7 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-xs font-semibold uppercase">
+                    {restaurantLogoUrl ? (
+                      <img
+                        src={restaurantLogoUrl}
+                        alt={restaurantName}
+                        className="h-full w-full object-cover"
+                        onError={(e) => {
+                          const img = e.currentTarget;
+                          img.style.display = 'none';
+                        }}
+                      />
+                    ) : (
+                      <span>{restaurantName.charAt(0)}</span>
+                    )}
+                  </div>
+                  <span>{restaurantName}</span>
+                </Link>
+              </div>
+              <Navbar />
+              <div className="mt-auto px-2 pb-4">
+                <UserMenu className="w-full justify-start" />
+              </div>
             </div>
-            <Navbar />
+          </div>
+
+          {/* Main */}
+          <div className="flex flex-col">
+            <header className="flex h-14 items-center gap-2 border-b bg-muted/40 px-4 sm:gap-4">
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                className="shrink-0"
+                aria-label="Toggle navigation"
+                title="Show or hide the sidebar with navigation links"
+                onClick={toggleNav}
+              >
+                <span className="hidden md:inline-flex" aria-hidden>
+                  {sidebarOpen ? (
+                    <PanelLeftClose className="h-5 w-5" />
+                  ) : (
+                    <PanelLeft className="h-5 w-5" />
+                  )}
+                </span>
+                <span className="inline-flex md:hidden" aria-hidden>
+                  <Menu className="h-5 w-5" />
+                </span>
+              </Button>
+
+              <Sheet open={mobileNavOpen} onOpenChange={setMobileNavOpen}>
+                <NavbarSheet onNavigate={() => setMobileNavOpen(false)} />
+              </Sheet>
+
+              <Bread />
+              <ModeToggle />
+              <div className={cn('ml-auto flex items-center gap-2', sidebarOpen && 'md:hidden')}>
+                <UserMenu />
+              </div>
+            </header>
+
+            <main className="flex flex-1 flex-col gap-4 p-4">
+              {children}
+            </main>
           </div>
         </div>
-        <div className="flex flex-col">
-          <header className="flex h-14 items-center gap-4 border-b bg-muted/40 px-4 lg:h-[60px] lg:px-6">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="shrink-0 md:hidden"
-                >
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Toggle navigation menu</span>
-                </Button>
-              </SheetTrigger>
-              <NavbarSheet />
-            </Sheet>
-            <Bread />
-            <ModeToggle />
-          </header>
-          <main className="flex flex-1 flex-col gap-4 p-4 lg:gap-6 lg:p-6">
-            <div
-              className="flex flex-1 items-center justify-center rounded-lg border border-dashed shadow-sm"
-              x-chunk="dashboard-02-chunk-1"
-            >
-              <ThemeProvider
-                attribute="class"
-                defaultTheme="system"
-                enableSystem
-                disableTransitionOnChange
-              >
-                <NextTopLoader showSpinner={false} />
-                {children}
-              </ThemeProvider>
-            </div>
-          </main>
-        </div>
       </div>
-    </div>
+    </>
   );
 };
 

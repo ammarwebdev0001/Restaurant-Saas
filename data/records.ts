@@ -1,3 +1,4 @@
+'use server';
 import { db } from '@/lib/db';
 import isOnline from 'is-online';
 export const fetchRecords = async ({
@@ -15,7 +16,6 @@ export const fetchRecords = async ({
     throw new Error('No internet connection');
     return;
   }
-  ('use server');
   try {
     const results = await db.transaction.findMany({
       where: {
