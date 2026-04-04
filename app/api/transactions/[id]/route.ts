@@ -6,9 +6,9 @@ const prisma = new PrismaClient();
 // GET request handler to fetch onSaleProducts by transactionId
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     // Fetch transaction with the given id
@@ -74,10 +74,11 @@ export async function GET(
 // PATCH request handler to update transaction and product stocks
 export const PATCH = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
     const prisma = new PrismaClient();
+    const { id: transactionId } = await params;
 
     const body = await request.json();
 
@@ -125,7 +126,7 @@ export const PATCH = async (
     // Update transaction with totalAmount and mark as complete
     const editTransaction = await prisma.transaction.update({
       where: {
-        id: String(params.id),
+        id: String(transactionId),
       },
       data: {
         totalAmount,
@@ -149,13 +150,14 @@ export const PATCH = async (
 // DELETE request handler to delete a transaction
 export const DELETE = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params;
     // Delete transaction by id
     const transaction = await prisma.transaction.delete({
       where: {
-        id: String(params.id),
+        id: String(id),
       },
     });
 

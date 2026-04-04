@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export default function ResetPasswordPage() {
+function ResetPasswordPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const tokenFromUrl = searchParams.get("token");
@@ -181,3 +181,18 @@ export default function ResetPasswordPage() {
   );
 }
 
+export default function ResetPasswordPageWithSuspense() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-[calc(100vh-0px)] items-center justify-center bg-gray-200 px-4 py-10 dark:bg-black">
+          <div className="text-center text-sm text-muted-foreground">
+            Loading…
+          </div>
+        </main>
+      }
+    >
+      <ResetPasswordPage />
+    </Suspense>
+  );
+}

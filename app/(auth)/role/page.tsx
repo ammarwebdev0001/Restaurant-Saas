@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { Suspense, useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
@@ -11,7 +11,7 @@ type Role = "OWNER" | "WORKER";
 
 const ALLOWED: Role[] = ["OWNER", "WORKER"];
 
-export default function RolePage() {
+function RolePage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -115,3 +115,18 @@ export default function RolePage() {
   );
 }
 
+export default function RolePageWithSuspense() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-[calc(100vh-0px)] items-center justify-center bg-gray-200 px-4 py-10 dark:bg-black">
+          <div className="text-center text-sm text-muted-foreground">
+            Loading…
+          </div>
+        </main>
+      }
+    >
+      <RolePage />
+    </Suspense>
+  );
+}

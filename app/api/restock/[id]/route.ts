@@ -7,16 +7,17 @@ const prisma = new PrismaClient();
 
 export const PATCH = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params;
     // Parse the request body as JSON
     const body = await request.json();
 
     // Get the current stock of the product
     const currentProduct = await prisma.productStock.findUnique({
       where: {
-        id: String(params.id),
+        id: String(id),
       },
     });
 
@@ -26,7 +27,7 @@ export const PATCH = async (
     // Update the product's stock
     const updatedProduct = await prisma.productStock.update({
       where: {
-        id: String(params.id),
+        id: String(id),
       },
       data: {
         stock: newStock,

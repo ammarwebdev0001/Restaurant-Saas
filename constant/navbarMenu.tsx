@@ -6,43 +6,27 @@ import {
   Settings,
   FolderTree,
   Sparkles,
+  type LucideIcon,
 } from 'lucide-react';
+import { DASHBOARD_MODULES } from '@/constant/dashboardModules';
 import { NavItem } from '@/types/Navbar';
 
-export const NAVBAR_ITEMS: NavItem[] = [
-  {
-    title: 'Dashboard',
-    path: '/dashboard',
-    icon: <Home className="h-4 w-4" />,
-  },
-  {
-    title: 'Orders',
-    path: '/orders',
-    icon: <ShoppingCart className="h-4 w-4" />,
-  },
-  {
-    title: 'Categories',
-    path: '/categories',
-    icon: <FolderTree className="h-4 w-4" />,
-  },
-  {
-    title: 'Products',
-    path: '/product',
-    icon: <Package className="h-4 w-4" />,
-  },
-  {
-    title: 'Recommendations',
-    path: '/recommendations',
-    icon: <Sparkles className="h-4 w-4" />,
-  },
-  {
-    title: 'Records',
-    path: '/records',
-    icon: <Archive className="h-4 w-4" />,
-  },
-  {
-    title: 'Settings',
-    path: '/settings',
-    icon: <Settings className="h-4 w-4" />,
-  },
-];
+const MODULE_ICONS: Record<(typeof DASHBOARD_MODULES)[number]['moduleKey'], LucideIcon> = {
+  dashboard: Home,
+  orders: ShoppingCart,
+  categories: FolderTree,
+  product: Package,
+  recommendations: Sparkles,
+  records: Archive,
+  settings: Settings,
+};
+
+export const NAVBAR_ITEMS: NavItem[] = DASHBOARD_MODULES.map((m) => {
+  const Icon = MODULE_ICONS[m.moduleKey];
+  return {
+    title: m.title,
+    path: m.path,
+    moduleKey: m.moduleKey,
+    icon: <Icon className="h-4 w-4" />,
+  };
+});

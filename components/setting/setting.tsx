@@ -4,6 +4,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import ShopnameCard from './components/shopname';
 import TaxrateCard from './components/taxrate';
+import RolesCard from './components/roles';
 import eventBus from '@/lib/even';
 export function Setting() {
   const [storeName, setStoreName] = useState<string | null>(null);
@@ -61,6 +62,7 @@ export function Setting() {
           <div className="grid gap-6">
             <ShopnameCard storeName={storeName} storeId={storeId} />
             <TaxrateCard tax={taxRate} storeId={storeId} />
+            <RolesCard />
           </div>
         </div>
       </div>

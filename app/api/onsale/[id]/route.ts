@@ -7,15 +7,16 @@ const prisma = new PrismaClient();
 // Handler function for PATCH request
 export const PATCH = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params;
     const body = await request.json();
 
     // Update the quantity of the order product with the specified id
     const editedOrderProduct = await prisma.onSaleProduct.update({
       where: {
-        id: String(params.id),
+        id: String(id),
       },
       data: {
         quantity: body.qTy,
@@ -36,13 +37,14 @@ export const PATCH = async (
 // Handler function for DELETE request
 export const DELETE = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params;
     // Delete the order product with the specified id
     const deletedOrderProduct = await prisma.onSaleProduct.delete({
       where: {
-        id: String(params.id),
+        id: String(id),
       },
     });
 

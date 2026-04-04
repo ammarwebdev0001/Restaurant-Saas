@@ -31,13 +31,12 @@ interface Recordsdata {
 }
 
 export async function Records(props: PageProps) {
-  const pageNumber = Number(props?.searchParams?.page || 1); // Get the page number. Default to 1 if not provided.
+  const searchParams = (await props.searchParams) ?? {};
+  const pageNumber = Number(searchParams.page || 1); // Get the page number. Default to 1 if not provided.
   const take = 5;
   const skip = (pageNumber - 1) * take;
   const search =
-    typeof props?.searchParams?.search === 'string'
-      ? props?.searchParams?.search
-      : undefined;
+    typeof searchParams.search === 'string' ? searchParams.search : undefined;
   const result = await fetchRecords({ take, skip, query: search });
   if (!result) {
     // Handle the case where fetchProduct returns undefined, e.g., show an error message

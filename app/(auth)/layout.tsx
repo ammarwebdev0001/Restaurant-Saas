@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
+import React, { Suspense, useEffect, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import { toast } from "react-toastify";
 
@@ -22,11 +22,7 @@ function getErrorMessage(error?: string | null) {
   }
 }
 
-export default function AuthLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function AuthErrorToasts({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
   const error = searchParams.get("error");
   const lastShownRef = useRef<string | null>(null);
@@ -42,5 +38,17 @@ export default function AuthLayout({
   }, [error]);
 
   return <>{children}</>;
+}
+
+export default function AuthLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <Suspense fallback={<>{children}</>}>
+      <AuthErrorToasts>{children}</AuthErrorToasts>
+    </Suspense>
+  );
 }
 

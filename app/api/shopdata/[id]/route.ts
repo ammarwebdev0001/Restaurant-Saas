@@ -6,9 +6,10 @@ const prisma = new PrismaClient();
 
 export const PATCH = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params;
     // Parse the request body as JSON
     const body = await request.json();
 
@@ -16,7 +17,7 @@ export const PATCH = async (
     if ('storeName' in body) {
       const updatedStorename = await prisma.shopData.update({
         where: {
-          id: String(params.id),
+          id: String(id),
         },
         data: {
           name: body.storeName,
@@ -29,7 +30,7 @@ export const PATCH = async (
     if ('tax' in body) {
       const updatedStoretax = await prisma.shopData.update({
         where: {
-          id: String(params.id),
+          id: String(id),
         },
         data: {
           tax: body.tax,

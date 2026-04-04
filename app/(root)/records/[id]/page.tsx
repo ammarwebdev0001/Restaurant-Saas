@@ -15,9 +15,11 @@ import axios from 'axios';
 import { useEffect, useRef, useState } from 'react';
 import { TransactionData } from '@/types/transaction';
 import { useReactToPrint } from 'react-to-print';
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 
-export default function DetailPage({ params }: { params: { id: string } }) {
+export default function DetailPage() {
+  const params = useParams<{ id: string }>();
+  const id = params.id;
   // State variables
   const [taxRate, setTaxRate] = useState<number>(0);
   const [transactionData, setTransactionData] = useState<TransactionData[]>([]);
@@ -79,10 +81,10 @@ export default function DetailPage({ params }: { params: { id: string } }) {
     const fetchTransactionData = async () => {
       if (isMounted) {
         try {
-          if (!params.id) {
+          if (!id) {
             return;
           }
-          const response = await axios.get(`/api/transactions/${params.id}`);
+          const response = await axios.get(`/api/transactions/${id}`);
           if (response.status === 200 && isMounted) {
             const data = response.data;
             setTransactionData(Array.isArray(data) ? data : [data]);
@@ -114,7 +116,7 @@ export default function DetailPage({ params }: { params: { id: string } }) {
     return () => {
       isMounted = false;
     };
-  }, [params.id]);
+  }, [id]);
 
   // Render the component
   return (
@@ -148,7 +150,7 @@ export default function DetailPage({ params }: { params: { id: string } }) {
         <CardHeader className="flex flex-row items-start bg-muted/50 print-card-header">
           <div className="grid gap-0.5">
             <CardTitle className="group flex items-center gap-2 text-lg">
-              {params.id}
+              {id}
             </CardTitle>
             <CardDescription>Date: November 23, 2023</CardDescription>
           </div>

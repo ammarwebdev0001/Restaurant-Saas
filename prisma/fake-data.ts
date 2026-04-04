@@ -1,4 +1,4 @@
-import { UserRole, AttributeSelectionType, SubscriptionPlan, SubscriptionStatus, CatProduct } from '@prisma/client';
+import { AttributeSelectionType, SubscriptionPlan, SubscriptionStatus, CatProduct } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import Decimal from 'decimal.js';
 

@@ -7,15 +7,16 @@ const prisma = new PrismaClient();
 // Handler function for PATCH request
 export const PATCH = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params;
     const body = await request.json();
 
     // Update the product details and related product information
     const editProduct = await prisma.productStock.update({
       where: {
-        id: String(params.id),
+        id: String(id),
       },
       data: {
         name: body.productName,
@@ -25,7 +26,7 @@ export const PATCH = async (
         Product: {
           update: {
             where: {
-              productId: String(params.id),
+              productId: String(id),
             },
             data: {
               sellprice: body.sellPrice,
@@ -52,13 +53,14 @@ export const PATCH = async (
 // Handler function for DELETE request
 export const DELETE = async (
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) => {
   try {
+    const { id } = await params;
     // Delete the product with the specified id
     const product = await prisma.productStock.delete({
       where: {
-        id: String(params.id),
+        id: String(id),
       },
     });
 
