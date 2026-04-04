@@ -1,4 +1,4 @@
-import { AttributeSelectionType, SubscriptionPlan, SubscriptionStatus, CatProduct } from '@prisma/client';
+import { UserRole, AttributeSelectionType, SubscriptionPlan, SubscriptionStatus, CatProduct } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import Decimal from 'decimal.js';
 
@@ -12,7 +12,6 @@ export function fakeUser() {
     emailVerified: undefined,
     image: undefined,
     password: undefined,
-    role: faker.lorem.words(5),
     updatedAt: faker.date.anytime(),
   };
 }
@@ -25,7 +24,7 @@ export function fakeUserComplete() {
     emailVerified: undefined,
     image: undefined,
     password: undefined,
-    role: faker.lorem.words(5),
+    role: UserRole.UNKNOW,
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
   };
