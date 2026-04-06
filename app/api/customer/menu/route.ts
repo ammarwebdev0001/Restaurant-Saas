@@ -19,15 +19,102 @@ function getSubdomainFromHost(hostname: string) {
   return null;
 }
 
+const menuInclude = {
+  orderBy: { name: 'asc' as const },
+  select: {
+    id: true,
+    name: true,
+    items: {
+      orderBy: { name: 'asc' as const },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        imageUrl: true,
+        price: true,
+        salePrice: true,
+        categoryId: true,
+        attributeGroups: {
+          orderBy: { sortOrder: 'asc' as const },
+          select: {
+            id: true,
+            name: true,
+            selectionType: true,
+            required: true,
+            sortOrder: true,
+            linkedCategory: {
+              select: {
+                id: true,
+                name: true,
+                items: {
+                  orderBy: { name: 'asc' as const },
+                  select: {
+                    id: true,
+                    name: true,
+                    description: true,
+                    imageUrl: true,
+                    price: true,
+                    salePrice: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        offersFromThis: {
+          orderBy: { sortOrder: 'asc' as const },
+          select: {
+            id: true,
+            sortOrder: true,
+            offeredItem: {
+              select: {
+                id: true,
+                name: true,
+                description: true,
+                imageUrl: true,
+                price: true,
+                salePrice: true,
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+} as const;
+
 export async function GET(req: NextRequest) {
   try {
+    const slug = req.nextUrl.searchParams.get('slug')?.trim();
     const fromQuery = req.nextUrl.searchParams.get('subdomain');
     const host = (req.headers.get('host') || '').split(':')[0];
     const fromHost = getSubdomainFromHost(host);
+
+    if (slug) {
+      const restaurant = await db.restaurant.findUnique({
+        where: { slug },
+        select: {
+          id: true,
+          name: true,
+          logoUrl: true,
+          subdomain: true,
+          slug: true,
+          menus: menuInclude,
+        },
+      });
+      if (!restaurant) {
+        return NextResponse.json({ data: null }, { status: 200 });
+      }
+      return NextResponse.json({ data: restaurant }, { status: 200 });
+    }
+
     const subdomain = fromQuery || fromHost;
 
     if (!subdomain) {
-      return NextResponse.json({ error: 'Missing subdomain.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Missing subdomain or slug.' },
+        { status: 400 }
+      );
     }
 
     const restaurant = await db.restaurant.findUnique({
@@ -37,77 +124,20 @@ export async function GET(req: NextRequest) {
         name: true,
         logoUrl: true,
         subdomain: true,
-        menus: {
-          orderBy: { name: 'asc' },
-          select: {
-            id: true,
-            name: true,
-            items: {
-              orderBy: { name: 'asc' },
-              select: {
-                id: true,
-                name: true,
-                description: true,
-                imageUrl: true,
-                price: true,
-                salePrice: true,
-                categoryId: true,
-                attributeGroups: {
-                  orderBy: { sortOrder: 'asc' },
-                  select: {
-                    id: true,
-                    name: true,
-                    selectionType: true,
-                    required: true,
-                    sortOrder: true,
-                    linkedCategory: {
-                      select: {
-                        id: true,
-                        name: true,
-                        items: {
-                          orderBy: { name: 'asc' },
-                          select: {
-                            id: true,
-                            name: true,
-                            description: true,
-                            imageUrl: true,
-                            price: true,
-                            salePrice: true,
-                          },
-                        },
-                      },
-                    },
-                  },
-                },
-                offersFromThis: {
-                  orderBy: { sortOrder: 'asc' },
-                  select: {
-                    id: true,
-                    sortOrder: true,
-                    offeredItem: {
-                      select: {
-                        id: true,
-                        name: true,
-                        description: true,
-                        imageUrl: true,
-                        price: true,
-                        salePrice: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        },
+        slug: true,
+        menus: menuInclude,
       },
     });
 
-    if (!restaurant) return NextResponse.json({ data: null }, { status: 200 });
+    if (!restaurant) {
+      return NextResponse.json({ data: null }, { status: 200 });
+    }
     return NextResponse.json({ data: restaurant }, { status: 200 });
   } catch (error) {
     console.error('customer menu', error);
-    return NextResponse.json({ error: 'Failed to load menu.' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to load menu.' },
+      { status: 500 }
+    );
   }
 }
-

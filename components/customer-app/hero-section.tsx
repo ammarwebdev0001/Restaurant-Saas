@@ -1,6 +1,17 @@
 import { Button } from '@/components/ui/button';
 
-export function HeroSection() {
+type HeroSectionProps = {
+  restaurantName?: string;
+  headline?: string;
+  subheadline?: string;
+};
+
+export function HeroSection({
+  restaurantName = 'Restaurant',
+  headline = 'Order fresh favorites',
+  subheadline = 'Delivery & pickup — menu powered by your restaurant slug.',
+}: HeroSectionProps) {
+  const initial = (restaurantName || 'R').charAt(0).toUpperCase();
   return (
     <section className="relative flex flex-col overflow-hidden rounded-3xl p-10 shadow-2xl">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(252,211,77,0.3),transparent_55%)]" />
@@ -11,15 +22,13 @@ export function HeroSection() {
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-xl font-bold text-primary-foreground ring-1 ring-primary/20">
-                  E
+                  {initial}
                 </span>
                 <span className="text-lg font-semibold tracking-wide text-foreground">
-                  Enjoy Tacos
+                  {restaurantName}
                 </span>
               </div>
-              <p className="text-sm text-muted-foreground">
-                Sundae or sweet tacos for €2
-              </p>
+              <p className="text-sm text-muted-foreground">{subheadline}</p>
             </div>
             <Button variant="secondary" size="sm" className="rounded-full">
               MENU
@@ -28,15 +37,16 @@ export function HeroSection() {
 
           <div className="rounded-3xl border border-border bg-card p-8 backdrop-blur">
             <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-              sundae or sweet tacos
+              Today&apos;s picks
             </p>
             <div className="mt-4 flex items-end gap-4">
-              <p className="text-6xl font-black leading-none tracking-tight text-foreground md:text-7xl">
-                Just <span className="text-9xl text-primary">2</span>€
+              <p className="text-3xl font-black leading-tight tracking-tight text-foreground md:text-4xl">
+                {headline}
               </p>
             </div>
             <p className="mt-4 text-sm text-muted-foreground">
-              When you buy a tacos menu with fries and a drink
+              Browse categories below — sizes, add-ons, and combo offers come
+              from your menu data.
             </p>
           </div>
 

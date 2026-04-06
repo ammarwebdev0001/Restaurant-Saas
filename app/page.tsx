@@ -64,7 +64,7 @@ export default function Home() {
               variant="outline"
               asChild
             >
-              <Link href="/demo-store">View Demo Store</Link>
+              <Link href="/web-app/restaurant">View Demo Store</Link>
             </Button>
           </div>
 

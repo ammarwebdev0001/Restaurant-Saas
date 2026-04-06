@@ -75,6 +75,8 @@ type SidebarProps = {
   setAddressName: (value: string) => void;
   selectedStoreId: string | null;
   setSelectedStoreId: (id: string | null) => void;
+  /** When set (e.g. `/web-app/{slug}`), order flow loads menu via `restaurantSlug` query. */
+  restaurantSlug?: string;
 };
 
 export function Sidebar({
@@ -90,6 +92,7 @@ export function Sidebar({
   setAddressName,
   selectedStoreId,
   setSelectedStoreId,
+  restaurantSlug,
 }: SidebarProps) {
   const activeStores = useMemo(() => stores, []);
 
@@ -101,7 +104,7 @@ export function Sidebar({
 
     const selectedStore = activeStores.find((s) => s.id === selectedStoreId);
 
-    const params = new URLSearchParams({
+    const paramsObj: Record<string, string> = {
       mode,
       storeId: selectedStoreId || '',
       storeName: selectedStore?.name || '',
@@ -110,7 +113,11 @@ export function Sidebar({
       apartment: apartmentDoorNumber,
       gateCode,
       addressName,
-    }).toString();
+    };
+    if (restaurantSlug?.trim()) {
+      paramsObj.restaurantSlug = restaurantSlug.trim();
+    }
+    const params = new URLSearchParams(paramsObj).toString();
 
     const path =
       mode === 'delivery'

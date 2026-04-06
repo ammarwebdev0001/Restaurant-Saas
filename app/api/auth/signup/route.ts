@@ -3,8 +3,7 @@ import { z } from 'zod';
 
 import { db } from '@/lib/db';
 import { hashPassword, isStrongPassword } from '@/lib/auth/password';
-
-const ALLOWED_ROLES = ['OWNER', 'WORKER'] as const;
+import { REGISTER_ROLE_SLUG } from '@/lib/global-roles';
 
 const signupSchema = z.object({
   name: z
@@ -22,11 +21,9 @@ const signupSchema = z.object({
     .string({ required_error: 'Password is required.' })
     .min(8, 'Password must be at least 8 characters.')
     .max(200, 'Password must be at most 200 characters.'),
-  role: z.enum(ALLOWED_ROLES, {
-    errorMap: () => ({
-      message: 'Role must be either OWNER or WORKER.',
-    }),
-  }),
+  roleId: z
+    .string({ required_error: 'Role is required.' })
+    .uuid('Select a valid role.'),
 });
 
 export async function POST(req: Request) {
@@ -40,14 +37,29 @@ export async function POST(req: Request) {
     );
   }
 
-  const { name, username, email, password, role } = parsed.data;
-
+  const { name, username, email, password, roleId } = parsed.data;
 
   const existing = await db.user.findUnique({ where: { email } });
   if (existing) {
     return NextResponse.json(
       { error: 'Email is already in use.' },
       { status: 409 }
+    );
+  }
+
+  const allowedSlugs = new Set(Object.values(REGISTER_ROLE_SLUG));
+  const accountRole = await db.role.findFirst({
+    where: {
+      id: roleId,
+      restaurantId: null,
+      slug: { in: [...allowedSlugs] },
+    },
+    select: { id: true },
+  });
+  if (!accountRole) {
+    return NextResponse.json(
+      { error: 'Invalid or unavailable role selected.' },
+      { status: 400 }
     );
   }
 
@@ -59,7 +71,7 @@ export async function POST(req: Request) {
       username,
       email,
       password: passwordHash,
-      role,
+      roleId: accountRole.id,
       image: null,
       emailVerified: new Date(),
     },

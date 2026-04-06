@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
     roles: roles.map((r) => ({
       id: r.id,
       name: r.name,
+      slug: r.slug,
       permissions: r.permissions.map((p) => p.name),
     })),
   });
@@ -73,6 +74,7 @@ export async function POST(req: NextRequest) {
       role: {
         id: role.id,
         name: role.name,
+        slug: role.slug,
         permissions: role.permissions.map((p) => p.name),
       },
     },

@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { signIn } from 'next-auth/react';
@@ -10,8 +10,15 @@ import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { REGISTER_ROLE_SLUG } from '@/lib/global-roles';
 
-type Role = 'OWNER' | 'WORKER';
+type GoogleSignupRole = 'OWNER' | 'WORKER';
+
+type RegisterRoleOption = {
+  id: string;
+  name: string;
+  slug: string | null;
+};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -20,8 +27,42 @@ export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState<Role>('WORKER');
+  const [roleId, setRoleId] = useState('');
+  const [registerRoles, setRegisterRoles] = useState<RegisterRoleOption[]>(
+    []
+  );
+  const [rolesLoading, setRolesLoading] = useState(true);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/auth/register-roles');
+        const data = await res.json().catch(() => ({}));
+        const roles: RegisterRoleOption[] = Array.isArray(data?.roles)
+          ? data.roles
+          : [];
+        if (!cancelled) {
+          setRegisterRoles(roles);
+          if (roles.length > 0) {
+            setRoleId((prev) => prev || roles[0].id);
+          }
+        }
+      } catch {
+        if (!cancelled) {
+          toast.error('Could not load roles.');
+        }
+      } finally {
+        if (!cancelled) {
+          setRolesLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleEmailSignup(e: React.FormEvent) {
     e.preventDefault();
@@ -31,7 +72,7 @@ export default function RegisterPage() {
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, username, email, password, role }),
+        body: JSON.stringify({ name, username, email, password, roleId }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -82,8 +123,11 @@ export default function RegisterPage() {
       }
 
       toast.success('Signup successful.');
-      if (role === 'OWNER') {
+      const slug = registerRoles.find((r) => r.id === roleId)?.slug;
+      if (slug === REGISTER_ROLE_SLUG.OWNER) {
         router.push('/onboarding/1');
+      } else if (slug === REGISTER_ROLE_SLUG.USER) {
+        router.push('/customer-app');
       } else {
         router.push('/dashboard');
       }
@@ -94,7 +138,7 @@ export default function RegisterPage() {
     }
   }
 
-  async function handleGoogleSignup(targetRole: Role) {
+  async function handleGoogleSignup(targetRole: GoogleSignupRole) {
     setLoading(true);
     try {
       await signIn('google', { callbackUrl: `/role?role=${targetRole}` });
@@ -112,10 +156,10 @@ export default function RegisterPage() {
           Create account
         </h1>
         <p className="mb-6 text-center text-sm text-muted-foreground">
-          Signup with Google or email + password.
+          Signup with your official information
         </p>
 
-        <div className="flex flex-col gap-2">
+        {/* <div className="flex flex-col gap-2">
           <Button
             onClick={() => handleGoogleSignup('OWNER')}
             disabled={loading}
@@ -130,7 +174,7 @@ export default function RegisterPage() {
           >
             Sign up with Google (Worker)
           </Button>
-        </div>
+        </div> */}
 
         <div className="my-6 border-t" />
 
@@ -185,17 +229,30 @@ export default function RegisterPage() {
             <Label htmlFor="role">Role</Label>
             <select
               id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
+              value={roleId}
+              onChange={(e) => setRoleId(e.target.value)}
               className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
               required
+              disabled={rolesLoading || registerRoles.length === 0}
             >
-              <option value="OWNER">Owner</option>
-              <option value="WORKER">Worker</option>
+              {registerRoles.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
             </select>
+            {!rolesLoading && registerRoles.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                No signup roles found. Ensure the database is seeded (Owner and
+                User global roles).
+              </p>
+            ) : null}
           </div>
 
-          <Button disabled={loading} type="submit">
+          <Button
+            disabled={loading || rolesLoading || registerRoles.length === 0}
+            type="submit"
+          >
             {loading ? 'Creating...' : 'Sign up'}
           </Button>
 

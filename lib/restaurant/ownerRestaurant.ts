@@ -2,11 +2,17 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 import { db } from "@/lib/db";
+import { getRestaurantForUser } from "@/lib/restaurant-owner";
 
 const secret =
   process.env.NEXTAUTH_SECRET ??
   (process.env.NODE_ENV === "production" ? undefined : "dev-nextauth-secret");
 
+/**
+ * Resolves the dashboard restaurant for the signed-in user: either they own it
+ * (`Restaurant.ownerId`) or they are on the team (`Employee` row). `User` has
+ * no `restaurantId` column; the link is always through those relations.
+ */
 export async function getRestaurantForOwnerRequest(req: NextRequest) {
   const token = await getToken({ req, secret });
   const email = (token as { email?: string } | null)?.email;
@@ -18,10 +24,7 @@ export async function getRestaurantForOwnerRequest(req: NextRequest) {
   });
   if (!user) return { error: "User not found" as const, status: 404 };
 
-  const restaurant = await db.restaurant.findFirst({
-    where: { ownerId: user.id },
-    orderBy: { createdAt: "asc" },
-  });
+  const restaurant = await getRestaurantForUser(user.id);
 
   if (!restaurant) {
     return { error: "No restaurant found for this account" as const, status: 404 };

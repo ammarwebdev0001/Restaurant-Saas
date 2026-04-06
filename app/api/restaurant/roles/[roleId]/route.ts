@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { normalizeDashboardPermissions } from '@/lib/dashboard-permissions';
 import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
+import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
 
 const patchSchema = z.object({
   name: z.string().min(1).max(80).trim().optional(),
@@ -88,6 +89,7 @@ export async function PATCH(
     role: {
       id: updated.id,
       name: updated.name,
+      slug: updated.slug,
       permissions: updated.permissions.map((p) => p.name),
     },
   });
@@ -112,6 +114,16 @@ export async function DELETE(
   });
   if (!existing) {
     return NextResponse.json({ error: 'Role not found' }, { status: 404 });
+  }
+
+  if (
+    existing.slug === RESTAURANT_ROLE_SLUG.OWNER ||
+    existing.slug === RESTAURANT_ROLE_SLUG.ADMIN
+  ) {
+    return NextResponse.json(
+      { error: 'Preset roles (Owner, Admin) cannot be deleted.' },
+      { status: 403 }
+    );
   }
 
   const assigned = await db.employee.count({ where: { roleId } });

@@ -5,6 +5,7 @@ import axios from 'axios';
 import ShopnameCard from './components/shopname';
 import TaxrateCard from './components/taxrate';
 import RolesCard from './components/roles';
+import RestaurantUsersCard from './components/restaurant-users';
 import eventBus from '@/lib/even';
 export function Setting() {
   const [storeName, setStoreName] = useState<string | null>(null);
@@ -62,6 +63,7 @@ export function Setting() {
           <div className="grid gap-6">
             <ShopnameCard storeName={storeName} storeId={storeId} />
             <TaxrateCard tax={taxRate} storeId={storeId} />
+            <RestaurantUsersCard />
             <RolesCard />
           </div>
         </div>

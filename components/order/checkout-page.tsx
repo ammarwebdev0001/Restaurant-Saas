@@ -5,16 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-type OrderInfo = {
-  mode: 'delivery' | 'pickUp';
-  storeId?: string;
-  storeName?: string;
-  storeAddress?: string;
-  address?: string;
-  apartment?: string;
-  gateCode?: string;
-  addressName?: string;
-};
+import type { OrderInfo } from '@/components/order/order-types';
+import { orderPathWithQuery } from '@/lib/order-search-params';
 
 type CheckoutPageProps = {
   orderType: 'delivery' | 'pickUp';
@@ -130,7 +122,14 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground mb-4">Your cart is empty.</p>
-            <Button onClick={() => router.push(`/order/${orderType}/${orderId}`)} type="button">
+            <Button
+              onClick={() =>
+                router.push(
+                  orderPathWithQuery(`/order/${orderType}/${orderId}`, orderInfo)
+                )
+              }
+              type="button"
+            >
               Back to Menu
             </Button>
           </CardContent>

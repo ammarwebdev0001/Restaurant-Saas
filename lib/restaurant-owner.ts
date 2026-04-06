@@ -7,12 +7,23 @@ const secret =
   process.env.NEXTAUTH_SECRET ??
   (process.env.NODE_ENV === 'production' ? undefined : 'dev-nextauth-secret');
 
+export type RestaurantRequestAuth =
+  | { ok: true; restaurantId: string; userId: string }
+  | { ok: false; status: number; error: string };
+
+/** First restaurant where the user is owner or an employee (via `Employee`). */
+export async function getRestaurantForUser(userId: string) {
+  return db.restaurant.findFirst({
+    where: {
+      OR: [{ ownerId: userId }, { employees: { some: { userId } } }],
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+}
+
 export async function getRestaurantIdForRequest(
   req: NextRequest
-): Promise<
-  | { ok: true; restaurantId: string }
-  | { ok: false; status: number; error: string }
-> {
+): Promise<RestaurantRequestAuth> {
   const token = await getToken({ req, secret });
   const email = (token as { email?: string } | null)?.email;
   if (!email) {
@@ -27,14 +38,10 @@ export async function getRestaurantIdForRequest(
     return { ok: false, status: 404, error: 'User not found' };
   }
 
-  const restaurant = await db.restaurant.findFirst({
-    where: { ownerId: user.id },
-    select: { id: true },
-    orderBy: { createdAt: 'asc' },
-  });
+  const restaurant = await getRestaurantForUser(user.id);
   if (!restaurant) {
     return { ok: false, status: 404, error: 'Restaurant not found' };
   }
 
-  return { ok: true, restaurantId: restaurant.id };
+  return { ok: true, restaurantId: restaurant.id, userId: user.id };
 }

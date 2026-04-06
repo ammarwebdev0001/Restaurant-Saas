@@ -1,10 +1,14 @@
 import { PrismaClient } from '@prisma/client';
-import { fakeTransactionComplete, fakeProductStockComplete } from './fake-data';
+import { fakeProductStockComplete } from './fake-data';
+import { seedDemoRestaurant } from './seed-demo-restaurant';
+import { seedDefaultGlobalRoles } from './seed-roles';
 
 const prisma = new PrismaClient();
 
-// A `main` function so that we can use async/await
 async function main() {
+  await seedDefaultGlobalRoles(prisma);
+  await seedDemoRestaurant(prisma);
+
   await prisma.productStock.deleteMany({});
   const fakerRounds = 40;
   for (let i = 0; i < fakerRounds; i++) {
@@ -13,7 +17,7 @@ async function main() {
         ...fakeProductStockComplete(),
       },
     });
-    console.log(`Created transactions with id ${product.id} and name`);
+    console.log(`Created product stock with id ${product.id}`);
   }
 }
 

@@ -14,16 +14,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 
-type OrderInfo = {
-  mode: 'delivery' | 'pickUp';
-  storeId?: string;
-  storeName?: string;
-  storeAddress?: string;
-  address?: string;
-  apartment?: string;
-  gateCode?: string;
-  addressName?: string;
-};
+import type { OrderInfo } from '@/components/order/order-types';
+import {
+  buildCustomerMenuRequestUrl,
+  inferHostSubdomainForMenu,
+} from '@/lib/customer-menu-client';
+import { orderPathWithQuery } from '@/lib/order-search-params';
 
 type CartModifierSelection = {
   attributeGroupId: string;
@@ -231,43 +227,25 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
   }, [offeredProducts.length]);
 
   useEffect(() => {
-    const inferSubdomainFromHost = () => {
-      const hostname = window.location.hostname || '';
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
-      if (rootDomain) {
-        const suffix = `.${rootDomain}`;
-        if (hostname.endsWith(suffix)) {
-          const sub = hostname.slice(0, -suffix.length);
-          return sub && sub !== 'www' ? sub : null;
-        }
-      }
-
-      if (hostname.endsWith('.localhost')) {
-        const sub = hostname.replace('.localhost', '');
-        return sub && sub !== 'www' ? sub : null;
-      }
-
-      const parts = hostname.split('.');
-      return parts.length >= 3 ? parts[0] : null;
-    };
-
     const loadMenu = async () => {
       try {
-        const hostSubdomain = inferSubdomainFromHost();
+        const hostSubdomain = inferHostSubdomainForMenu();
         const queryStoreId =
           orderInfo?.storeId && orderInfo.storeId.trim().length > 0
             ? orderInfo.storeId.trim()
             : null;
-        const subdomain = hostSubdomain || queryStoreId;
+        const menuUrl = buildCustomerMenuRequestUrl(
+          orderInfo?.restaurantSlug,
+          queryStoreId,
+          hostSubdomain
+        );
 
-        if (!subdomain) {
+        if (!menuUrl) {
           setMenuRestaurant(null);
           return;
         }
 
-        const res = await fetch(
-          `/api/customer/menu?subdomain=${encodeURIComponent(subdomain)}`
-        );
+        const res = await fetch(menuUrl);
         if (!res.ok) {
           setMenuRestaurant(null);
           return;
@@ -285,7 +263,7 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
     };
 
     void loadMenu();
-  }, [orderInfo?.storeId]);
+  }, [orderInfo?.storeId, orderInfo?.restaurantSlug]);
 
   const handleAddOffered = (p: OfferedProduct) => {
     const line: CartLine = {
@@ -360,7 +338,15 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
           <Card>
             <CardContent className="py-8 text-center">
               <p className="text-muted-foreground">Your cart is empty.</p>
-              <Button className="mt-4" onClick={() => router.push(`/order/${orderType}/${orderId}`)} type="button">
+              <Button
+                className="mt-4"
+                onClick={() =>
+                  router.push(
+                    orderPathWithQuery(`/order/${orderType}/${orderId}`, orderInfo)
+                  )
+                }
+                type="button"
+              >
                 Continue Shopping
               </Button>
             </CardContent>
@@ -451,7 +437,12 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
                 <Button
                   className="w-full"
                   onClick={() =>
-                    router.push(`/order/${orderType}/${orderId}/checkout`)
+                    router.push(
+                      orderPathWithQuery(
+                        `/order/${orderType}/${orderId}/checkout`,
+                        orderInfo
+                      )
+                    )
                   }
                   type="button"
                 >

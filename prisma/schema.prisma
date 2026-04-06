@@ -23,11 +23,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  OWNER
-  WORKER
-  UNKNOW
-}
 
 enum AttributeSelectionType {
   SINGLE
@@ -47,6 +42,12 @@ enum SubscriptionStatus {
   CANCELED
 }
 
+enum EmployeeInviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
 enum CatProduct {
   ELECTRO
   DRINK
@@ -62,27 +63,36 @@ model User {
   emailVerified DateTime?
   image         String?
   password      String?
-  role          UserRole @default(UNKNOW)
+  roleId        String?
+  accountRole   Role?     @relation("UserAccountRole", fields: [roleId], references: [id])
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   restarrants Restaurant[]
-  employees   Employee[]
+  employees            Employee[]
+  employeeInvitesSent  EmployeeInvite[] @relation("EmployeeInvitesSent")
 }
 
 model Role {
-  id           String @id @default(uuid())
+  id           String  @id @default(uuid())
   name         String
-  restaurantId String
+  // Preset: owner | admin (per restaurant); platform: platform_admin | pending_owner | pending_worker
+  slug         String?
+  // Null = platform-wide role (SaaS admin, pending signup roles)
+  restaurantId String?
 
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
   permissions Permission[]
-  employees   Employee[]
+  employees       Employee[]
+  employeeInvites EmployeeInvite[]
+  accountUsers    User[]     @relation("UserAccountRole")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([restaurantId, slug])
 }
 
 model Permission {
@@ -96,38 +106,39 @@ model Permission {
 }
 
 model Restaurant {
-  id        String   @id @default(uuid())
-  name      String
-  slug      String   @unique
-  subdomain String   @unique
-  logoUrl   String?
-  logoKey   String?
-  mainBannerUrl String?
+  id             String   @id @default(uuid())
+  name           String
+  slug           String   @unique
+  subdomain      String   @unique
+  logoUrl        String?
+  logoKey        String?
+  mainBannerUrl  String?
   menuBannerUrls String[] @default([])
-  ownerId   String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  ownerId        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  owner     User           @relation(fields: [ownerId], references: [id])
-  roles     Role[]
-  menus     MenuCategory[]
-  menuItems MenuItem[]
-  orders    Order[]
-  payments  Payment[]
-  employees Employee[]
-  customers Customer[]
-  branches  Branch[]
-  subscription RestaurantSubscription?
+  owner        User                    @relation(fields: [ownerId], references: [id])
+  roles        Role[]
+  menus        MenuCategory[]
+  menuItems    MenuItem[]
+  orders       Order[]
+  payments     Payment[]
+  employees       Employee[]
+  employeeInvites EmployeeInvite[]
+  customers       Customer[]
+  branches        Branch[]
+  subscription    RestaurantSubscription?
 }
 
 model Branch {
-  id             String   @id @default(uuid())
-  restaurantId   String
-  name           String
-  address        String?
-  phone          String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id           String   @id @default(uuid())
+  restaurantId String
+  name         String
+  address      String?
+  phone        String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
@@ -169,6 +180,28 @@ model Employee {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@unique([userId, restaurantId])
+}
+
+// Pending join for an existing account; new users get Employee + set-password email immediately.
+model EmployeeInvite {
+  id             String               @id @default(uuid())
+  restaurantId   String
+  email          String
+  roleId         String
+  token          String               @unique
+  status         EmployeeInviteStatus @default(PENDING)
+  invitedById    String
+  expiresAt      DateTime
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  invitedBy  User       @relation("EmployeeInvitesSent", fields: [invitedById], references: [id], onDelete: Cascade)
+
+  @@index([restaurantId, email])
 }
 
 model MenuCategory {
@@ -177,7 +210,7 @@ model MenuCategory {
   restaurantId String
 
   items                   MenuItem[]
-  restaurant              Restaurant @relation(fields: [restaurantId], references: [id])
+  restaurant              Restaurant               @relation(fields: [restaurantId], references: [id])
   linkedByAttributeGroups MenuItemAttributeGroup[] @relation("AttributeLinkedCategory")
 
   createdAt DateTime @default(now())
@@ -202,7 +235,7 @@ model MenuItem {
   orderAddonChoices OrderItemModifier[]      @relation("OrderAddonProduct")
 
   offersFromThis MenuItemOffer[] @relation("BaseItemOffers")
-  offeredAs     MenuItemOffer[]  @relation("OfferedItems")
+  offeredAs      MenuItemOffer[] @relation("OfferedItems")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -278,8 +311,8 @@ model OrderItem {
   quantity   Int
   price      Float
 
-  order     Order                 @relation(fields: [orderId], references: [id])
-  menuItem  MenuItem              @relation(fields: [menuItemId], references: [id])
+  order     Order               @relation(fields: [orderId], references: [id])
+  menuItem  MenuItem            @relation(fields: [menuItemId], references: [id])
   modifiers OrderItemModifier[]
 
   createdAt DateTime @default(now())

@@ -5,7 +5,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { IconMenu2 } from '@tabler/icons-react';
 import { ModeToggle } from '../darkmode/darkmode';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 
 type RestaurantBrand = {
   name: string | null;
@@ -14,8 +14,13 @@ type RestaurantBrand = {
 
 export function Header() {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const queryStoreId = searchParams.get('storeId') ?? undefined;
   const queryStoreName = searchParams.get('storeName') ?? undefined;
+  const querySlug = searchParams.get('slug') ?? undefined;
+  const pathSlug =
+    pathname?.match(/^\/web-app\/([^/]+)/)?.[1] ?? undefined;
+  const slugForApi = querySlug ?? pathSlug;
 
   const [brand, setBrand] = useState<RestaurantBrand>({
     name: queryStoreName ?? 'Restaurant',
@@ -46,17 +51,22 @@ export function Header() {
 
   useEffect(() => {
     const run = async () => {
-      const subdomain = inferredSubdomain;
-      if (!subdomain) return;
-
       try {
-        const res = await fetch(
-          `/api/customer/restaurant?subdomain=${encodeURIComponent(subdomain)}`
-        );
+        let url: string | null = null;
+        if (slugForApi) {
+          url = `/api/customer/restaurant?slug=${encodeURIComponent(slugForApi)}`;
+        } else {
+          const subdomain = inferredSubdomain;
+          if (!subdomain) return;
+          url = `/api/customer/restaurant?subdomain=${encodeURIComponent(subdomain)}`;
+        }
+
+        const res = await fetch(url);
         const data = await res.json().catch(() => ({}));
         if (!res.ok) return;
 
         const r = data?.data;
+        if (!r) return;
         setBrand({
           name: r?.name ?? queryStoreName ?? 'Restaurant',
           logoUrl: r?.logoUrl ?? null,
@@ -68,7 +78,7 @@ export function Header() {
     };
 
     void run();
-  }, [inferredSubdomain, queryStoreName]);
+  }, [inferredSubdomain, queryStoreName, slugForApi]);
 
   return (
     <header className="border-b bg-primary px-6 py-4 backdrop-blur">

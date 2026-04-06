@@ -42,11 +42,14 @@ import {
   rowsFromPermissions,
   toggleModuleAction,
 } from '@/lib/dashboard-permissions';
+import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
 import type { PermissionAction } from '@/constant/dashboardModules';
 
 type RoleRow = {
   id: string;
   name: string;
+  /** Preset roles: `owner` | `admin`; custom roles omit */
+  slug?: string | null;
   permissions: string[];
 };
 
@@ -67,7 +70,9 @@ export default function RolesCard() {
     }
     setLoading(true);
     try {
-      const res = await axios.get<{ roles: RoleRow[] }>('/api/restaurant/roles');
+      const res = await axios.get<{ roles: RoleRow[] }>(
+        '/api/restaurant/roles'
+      );
       const list = res.data.roles ?? [];
       setRoles(list);
       const nextDrafts: Record<string, RoleRow> = {};
@@ -197,9 +202,21 @@ export default function RolesCard() {
   ) => {
     const cur = drafts[roleId];
     if (!cur) return;
-    const next = toggleModuleAction(cur.permissions, moduleKey, action, enabled);
+    const next = toggleModuleAction(
+      cur.permissions,
+      moduleKey,
+      action,
+      enabled
+    );
     updateDraft(roleId, { permissions: next });
   };
+
+  /** Preset Owner/Admin are fixed; only list custom + other presets (e.g. Employee). */
+  const editableRoles = roles.filter(
+    (r) =>
+      r.slug !== RESTAURANT_ROLE_SLUG.OWNER &&
+      r.slug !== RESTAURANT_ROLE_SLUG.ADMIN
+  );
 
   return (
     <>
@@ -207,8 +224,8 @@ export default function RolesCard() {
         <CardHeader>
           <CardTitle>Roles &amp; module access</CardTitle>
           <CardDescription>
-            Create custom roles, choose which dashboard modules each role can
-            open, and set separate edit and delete rights per module.
+            Add roles below for staff, assign them under Employees when that
+            flow is connected.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -247,19 +264,28 @@ export default function RolesCard() {
             <p className="text-sm text-muted-foreground">
               No roles yet. Add one to assign to employees later.
             </p>
+          ) : editableRoles.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Create a custom role above to configure staff access.
+            </p>
           ) : (
             <div className="space-y-3">
-              {roles.map((r) => {
+              {editableRoles.map((r) => {
                 const draft = drafts[r.id];
                 if (!draft) return null;
                 const dirty = isDirty(r.id);
                 return (
-                  <Collapsible key={r.id} defaultOpen={roles.length <= 3}>
+                  <Collapsible key={r.id} defaultOpen={false}>
                     <div className="rounded-lg border bg-card">
                       <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                         <CollapsibleTrigger className="flex w-full items-center gap-2 text-left font-medium hover:underline sm:w-auto [&[data-state=open]_svg]:rotate-180">
                           <ChevronDown className="h-4 w-4 shrink-0 transition-transform" />
                           <span>{draft.name || 'Untitled role'}</span>
+                          {r.slug ? (
+                            <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                              Preset
+                            </span>
+                          ) : null}
                           {dirty ? (
                             <span className="text-xs font-normal text-amber-600 dark:text-amber-400">
                               Unsaved changes
@@ -267,16 +293,18 @@ export default function RolesCard() {
                           ) : null}
                         </CollapsibleTrigger>
                         <div className="flex flex-wrap gap-2 pl-6 sm:pl-0">
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="text-destructive hover:bg-destructive/10"
-                            onClick={() => setDeleteId(r.id)}
-                          >
-                            <Trash2 className="mr-1 h-3.5 w-3.5" />
-                            Delete
-                          </Button>
+                          {!r.slug ? (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="text-destructive hover:bg-destructive/10"
+                              onClick={() => setDeleteId(r.id)}
+                            >
+                              <Trash2 className="mr-1 h-3.5 w-3.5" />
+                              Delete
+                            </Button>
+                          ) : null}
                           <Button
                             type="button"
                             size="sm"
@@ -329,12 +357,13 @@ export default function RolesCard() {
                                   return DASHBOARD_MODULES.map((m) => {
                                     const row = permRows.get(m.moduleKey)!;
                                     return (
-                                    <TableRow key={m.moduleKey}>
-                                      <TableCell className="font-medium">
-                                        {m.title}
-                                      </TableCell>
-                                      {(['access', 'edit', 'delete'] as const).map(
-                                        (action) => (
+                                      <TableRow key={m.moduleKey}>
+                                        <TableCell className="font-medium">
+                                          {m.title}
+                                        </TableCell>
+                                        {(
+                                          ['access', 'edit', 'delete'] as const
+                                        ).map((action) => (
                                           <TableCell
                                             key={action}
                                             className="text-center"
@@ -359,19 +388,18 @@ export default function RolesCard() {
                                               }
                                             />
                                           </TableCell>
-                                        )
-                                      )}
-                                    </TableRow>
-                                  );
+                                        ))}
+                                      </TableRow>
+                                    );
                                   });
                                 })()}
                               </TableBody>
                             </Table>
                           </div>
                           <p className="mt-2 text-xs text-muted-foreground">
-                            Access lets the role open the module. Edit and delete
-                            are enforced when you wire employee sessions to these
-                            roles.
+                            Access lets the role open the module. Edit and
+                            delete are enforced when you wire employee sessions
+                            to these roles.
                           </p>
                         </div>
                       </CollapsibleContent>

@@ -1,4 +1,4 @@
-import { UserRole, AttributeSelectionType, SubscriptionPlan, SubscriptionStatus, CatProduct } from '@prisma/client';
+import { AttributeSelectionType, SubscriptionPlan, SubscriptionStatus, EmployeeInviteStatus, CatProduct } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import Decimal from 'decimal.js';
 
@@ -24,7 +24,7 @@ export function fakeUserComplete() {
     emailVerified: undefined,
     image: undefined,
     password: undefined,
-    role: UserRole.UNKNOW,
+    roleId: undefined,
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
   };
@@ -32,6 +32,7 @@ export function fakeUserComplete() {
 export function fakeRole() {
   return {
     name: faker.person.fullName(),
+    slug: undefined,
     updatedAt: faker.date.anytime(),
   };
 }
@@ -39,7 +40,8 @@ export function fakeRoleComplete() {
   return {
     id: faker.string.uuid(),
     name: faker.person.fullName(),
-    restaurantId: faker.string.uuid(),
+    slug: undefined,
+    restaurantId: undefined,
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
   };
@@ -152,6 +154,28 @@ export function fakeEmployeeComplete() {
     restaurantId: faker.string.uuid(),
     userId: faker.string.uuid(),
     roleId: faker.string.uuid(),
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeEmployeeInvite() {
+  return {
+    email: faker.internet.email(),
+    token: faker.lorem.words(5),
+    expiresAt: faker.date.anytime(),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeEmployeeInviteComplete() {
+  return {
+    id: faker.string.uuid(),
+    restaurantId: faker.string.uuid(),
+    email: faker.internet.email(),
+    roleId: faker.string.uuid(),
+    token: faker.lorem.words(5),
+    status: EmployeeInviteStatus.PENDING,
+    invitedById: faker.string.uuid(),
+    expiresAt: faker.date.anytime(),
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
   };

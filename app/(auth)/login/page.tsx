@@ -1,9 +1,9 @@
 /* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
@@ -12,8 +12,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
-export default function LoginPage() {
+function safeCallbackUrl(raw: string | null): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('//')) {
+    return '/dashboard';
+  }
+  return raw;
+}
+
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const callbackUrl = safeCallbackUrl(searchParams.get('callbackUrl'));
   const { status } = useSession();
 
   const [email, setEmail] = useState('');
@@ -22,14 +31,14 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.replace('/dashboard');
+      router.replace(callbackUrl);
     }
-  }, [status, router]);
+  }, [status, router, callbackUrl]);
 
   async function handleGoogle() {
     setLoading(true);
     try {
-      await signIn('google', { callbackUrl: '/role' });
+      await signIn('google', { callbackUrl });
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to sign in with Google.');
     } finally {
@@ -54,16 +63,16 @@ export default function LoginPage() {
         email,
         password,
         redirect: false,
-        callbackUrl: '/dashboard',
+        callbackUrl,
       });
 
       if (!result?.ok) {
         const err = (result as any)?.error;
-        const status = (result as any)?.status;
-        console.log("[login][credentials] signIn response:", {
+        const statusCode = (result as any)?.status;
+        console.log('[login][credentials] signIn response:', {
           ok: (result as any)?.ok,
           error: err,
-          status,
+          status: statusCode,
         });
         toast.error(
           err === 'CredentialsSignin'
@@ -72,14 +81,14 @@ export default function LoginPage() {
               ? 'Access denied.'
               : err
                 ? `Login failed: ${err}`
-                : status === 401
+                : statusCode === 401
                   ? 'Unauthorized (invalid credentials).'
-                : 'Login failed.'
+                  : 'Login failed.'
         );
         return;
       }
 
-      router.push(result.url ?? '/home');
+      router.push(result.url ?? callbackUrl);
     } catch (e: any) {
       toast.error(e?.message ?? 'Login failed (server error).');
     } finally {
@@ -145,5 +154,19 @@ export default function LoginPage() {
         </form>
       </div>
     </main>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-[calc(100vh-0px)] items-center justify-center">
+          <p className="text-sm text-muted-foreground">Loading…</p>
+        </main>
+      }
+    >
+      <LoginForm />
+    </Suspense>
   );
 }

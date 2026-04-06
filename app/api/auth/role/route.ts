@@ -4,6 +4,7 @@ import { z } from "zod";
 import { getToken } from "next-auth/jwt";
 
 import { db } from "@/lib/db";
+import { GLOBAL_ROLE_SLUG, getGlobalRoleIdBySlug } from "@/lib/global-roles";
 
 const roleSchema = z.enum(["OWNER", "WORKER", "UNKNOW"]);
 
@@ -33,11 +34,31 @@ export async function POST(req: NextRequest) {
 
   const role = parsed.data;
 
+  let roleId: string | null = null;
+  if (role === "OWNER") {
+    const id = await getGlobalRoleIdBySlug(GLOBAL_ROLE_SLUG.PENDING_OWNER);
+    if (!id) {
+      return NextResponse.json(
+        { error: "Pending Owner role is missing. Run migrations." },
+        { status: 503 }
+      );
+    }
+    roleId = id;
+  } else if (role === "WORKER") {
+    const id = await getGlobalRoleIdBySlug(GLOBAL_ROLE_SLUG.PENDING_WORKER);
+    if (!id) {
+      return NextResponse.json(
+        { error: "Pending Worker role is missing. Run migrations." },
+        { status: 503 }
+      );
+    }
+    roleId = id;
+  }
+
   await db.user.update({
     where: { email: tokenEmail },
-    data: { role },
+    data: { roleId },
   });
 
   return NextResponse.json({ ok: true, role });
 }
-

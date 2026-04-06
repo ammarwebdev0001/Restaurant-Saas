@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { getSessionEmail, getSessionUserId } from "@/lib/onboarding/auth";
+import { legacyRoleFromAccountRole } from "@/lib/auth/account-role";
+import { ensurePresetRolesAndOwnerEmployee } from "@/lib/restaurant-roles";
 
 const bodySchema = z.object({
   name: z.string().min(2).max(120),
@@ -28,8 +30,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await db.user.findUnique({ where: { email } });
-  if (!user || user.role !== "OWNER") {
+  const user = await db.user.findUnique({
+    where: { email },
+    include: {
+      accountRole: { select: { slug: true, name: true, restaurantId: true } },
+    },
+  });
+  if (
+    !user ||
+    legacyRoleFromAccountRole(user.accountRole ?? null) !== "OWNER"
+  ) {
     return NextResponse.json(
       { error: "Only restaurant owners can complete onboarding." },
       { status: 403 }
@@ -81,6 +91,8 @@ export async function POST(req: NextRequest) {
       ownerId: user.id,
     },
   });
+
+  await ensurePresetRolesAndOwnerEmployee(restaurant.id, user.id);
 
   return NextResponse.json({ restaurant });
 }

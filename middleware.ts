@@ -25,10 +25,10 @@ export function middleware(req: NextRequest) {
   const hostname = (req.headers.get("host") || "").split(":")[0];
   const subdomain = getSubdomainFromHost(hostname);
 
-  // No subdomain => marketing/auth/dashboard, but order URLs live under /customer-app
+  // No subdomain => marketing/auth/dashboard; short /order URLs map to web-app routes.
   if (!subdomain) {
     if (pathname.startsWith("/order")) {
-      url.pathname = `/customer-app${pathname}`;
+      url.pathname = `/web-app${pathname}`;
       return NextResponse.rewrite(url);
     }
     return NextResponse.next();
@@ -37,11 +37,11 @@ export function middleware(req: NextRequest) {
   // Keep API untouched so handlers can read host/subdomain directly.
   if (pathname.startsWith("/api")) return NextResponse.next();
 
-  // Avoid rewriting already-prefixed customer paths.
-  if (pathname.startsWith("/customer-app")) return NextResponse.next();
+  // Already under storefront app — no second rewrite.
+  if (pathname.startsWith("/web-app")) return NextResponse.next();
 
-  // Subdomain traffic serves the customer app.
-  url.pathname = `/customer-app${pathname}`;
+  // Subdomain traffic serves the same Next routes as /web-app/*.
+  url.pathname = `/web-app${pathname}`;
   return NextResponse.rewrite(url);
 }
 

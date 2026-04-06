@@ -5,8 +5,7 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
-
-const ALLOWED_ROLES = ["OWNER", "WORKER", "UNKNOW", "ADMIN"] as const;
+import { legacyRoleFromAccountRole } from "@/lib/auth/account-role";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -29,6 +28,11 @@ const providers = [
 
       const user = await db.user.findUnique({
         where: { email: parsed.data.email },
+        include: {
+          accountRole: {
+            select: { slug: true, name: true, restaurantId: true },
+          },
+        },
       });
 
       if (!user?.password) {
@@ -50,7 +54,7 @@ const providers = [
         id: user.id,
         email: user.email,
         name: user.name,
-        role: user.role,
+        role: legacyRoleFromAccountRole(user.accountRole ?? null),
       };
     },
   }),
@@ -105,7 +109,6 @@ export const authOptions: NextAuthOptions = {
               username,
               email,
               image: picture ?? null,
-              role: "UNKNOW",
             },
           });
         }
@@ -123,20 +126,25 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         const u = user as any;
         if (u.id) token.id = String(u.id);
-        if (u.role && ALLOWED_ROLES.includes(u.role)) token.role = u.role;
+        if (u.role) token.role = String(u.role);
         if (u.email) token.email = u.email;
       }
 
-      if (!token.id || !token.role) {
-        const email = token.email;
-        if (email) {
-          const existing = await db.user.findUnique({ where: { email } });
-          if (existing) {
-            token.id = existing.id;
-            token.role = existing.role;
-            token.name = existing.name;
-            if (existing.email) token.email = existing.email;
-          }
+      const email = token.email as string | undefined;
+      if (email) {
+        const existing = await db.user.findUnique({
+          where: { email },
+          include: {
+            accountRole: {
+              select: { slug: true, name: true, restaurantId: true },
+            },
+          },
+        });
+        if (existing) {
+          token.id = existing.id;
+          token.role = legacyRoleFromAccountRole(existing.accountRole ?? null);
+          token.name = existing.name;
+          if (existing.email) token.email = existing.email;
         }
       }
 
@@ -149,7 +157,8 @@ export const authOptions: NextAuthOptions = {
       const { session, token } = params as { session: any; token: any };
       if (session.user) {
         if (token.id) session.user.id = String(token.id);
-        if (token.role) session.user.role = String(token.role);
+        if (token.role !== undefined)
+          session.user.role = String(token.role);
         if (token.email) session.user.email = token.email as string;
         if (token.name) session.user.name = String(token.name);
       }

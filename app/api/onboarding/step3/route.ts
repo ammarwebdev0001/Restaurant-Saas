@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
+import { legacyRoleFromAccountRole } from "@/lib/auth/account-role";
 import { db } from "@/lib/db";
 import { getSessionEmail } from "@/lib/onboarding/auth";
 
@@ -22,8 +23,16 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const user = await db.user.findUnique({ where: { email } });
-  if (!user || user.role !== "OWNER") {
+  const user = await db.user.findUnique({
+    where: { email },
+    include: {
+      accountRole: { select: { slug: true, name: true, restaurantId: true } },
+    },
+  });
+  if (
+    !user ||
+    legacyRoleFromAccountRole(user.accountRole ?? null) !== "OWNER"
+  ) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

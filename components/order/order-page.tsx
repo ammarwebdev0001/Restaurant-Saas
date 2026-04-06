@@ -18,17 +18,12 @@ import {
   type AttributeGroup,
   type MenuOption,
 } from '@/components/order/product-customize-dialog';
-
-type OrderInfo = {
-  mode: 'delivery' | 'pickUp';
-  storeId?: string;
-  storeName?: string;
-  storeAddress?: string;
-  address?: string;
-  apartment?: string;
-  gateCode?: string;
-  addressName?: string;
-};
+import type { OrderInfo } from '@/components/order/order-types';
+import {
+  buildCustomerMenuRequestUrl,
+  inferHostSubdomainForMenu,
+} from '@/lib/customer-menu-client';
+import { orderPathWithQuery } from '@/lib/order-search-params';
 
 export type OrderPageProps = {
   orderType: 'delivery' | 'pickUp';
@@ -416,48 +411,28 @@ export default function OrderPageClient({
   useEffect(() => {
     if (!mounted) return;
 
-    const inferSubdomainFromHost = () => {
-      const hostname = window.location.hostname || '';
-      const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
-      if (rootDomain) {
-        const suffix = `.${rootDomain}`;
-        if (hostname.endsWith(suffix)) {
-          const sub = hostname.slice(0, -suffix.length);
-          return sub && sub !== 'www' ? sub : null;
-        }
-      }
-
-      if (hostname.endsWith('.localhost')) {
-        const sub = hostname.replace('.localhost', '');
-        return sub && sub !== 'www' ? sub : null;
-      }
-
-      const parts = hostname.split('.');
-      return parts.length >= 3 ? parts[0] : null;
-    };
-
     const loadMenu = async () => {
       try {
         setMenuLoading(true);
 
-        // Prefer active host subdomain (current storefront), then fallback to order storeId.
-        const hostSubdomain = inferSubdomainFromHost();
+        const hostSubdomain = inferHostSubdomainForMenu();
         const queryStoreId =
           orderInfo?.storeId && orderInfo.storeId.trim().length > 0
             ? orderInfo.storeId.trim()
             : null;
-        const subdomain = hostSubdomain || queryStoreId;
+        const menuUrl = buildCustomerMenuRequestUrl(
+          orderInfo?.restaurantSlug,
+          queryStoreId,
+          hostSubdomain
+        );
 
-        if (!subdomain) {
-          // No restaurant context; show empty menu as requested (no mock).
+        if (!menuUrl) {
           setCategories([]);
           setProducts([]);
           return;
         }
 
-        const res = await fetch(
-          `/api/customer/menu?subdomain=${encodeURIComponent(subdomain)}`
-        );
+        const res = await fetch(menuUrl);
 
         if (!res.ok) {
           console.error('Failed to load menu', await res.text());
@@ -774,7 +749,12 @@ export default function OrderPageClient({
                 size="sm"
                 className="mt-2 w-full"
                 onClick={() =>
-                  router.push(`/order/${orderType}/${orderId}/cart`)
+                  router.push(
+                    orderPathWithQuery(
+                      `/order/${orderType}/${orderId}/cart`,
+                      orderInfo
+                    )
+                  )
                 }
                 type="button"
                 disabled={cart.length === 0}

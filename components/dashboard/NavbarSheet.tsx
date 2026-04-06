@@ -3,9 +3,9 @@ import Link from 'next/link';
 import { TriangleAlert } from 'lucide-react';
 import { ScrollAreaDemo } from '../scrollarea/scrollarea';
 import { SheetContent } from '@/components/ui/sheet';
-import { NAVBAR_ITEMS } from '@/constant/navbarMenu';
 import { usePathname } from 'next/navigation';
 import UserMenu from './UserMenu';
+import { useDashboardNavItems } from './use-dashboard-nav-items';
 
 type NavbarSheetProps = {
   /** Called when a nav link is used (e.g. to close the mobile sheet). */
@@ -14,6 +14,7 @@ type NavbarSheetProps = {
 
 export function NavbarSheet({ onNavigate }: NavbarSheetProps) {
   const pathname = usePathname();
+  const navItems = useDashboardNavItems();
 
   return (
     <SheetContent side="left" className="flex flex-col">
@@ -28,7 +29,7 @@ export function NavbarSheet({ onNavigate }: NavbarSheetProps) {
           </Link>
 
           {/* Map through NAVBAR_ITEMS to create navigation links */}
-          {NAVBAR_ITEMS.map((item) => (
+          {navItems.map((item) => (
             <Link
               key={item.path}
               href={item.path}
