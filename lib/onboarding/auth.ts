@@ -1,19 +1,27 @@
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { getServerSession } from "next-auth/next";
 
-const secret =
-  process.env.NEXTAUTH_SECRET ??
-  (process.env.NODE_ENV === "production" ? undefined : "dev-nextauth-secret");
+import { authOptions } from "@/lib/auth-options";
 
-export async function getSessionEmail(req: NextRequest) {
-  const token = await getToken({ req, secret });
-  const email = (token as { email?: string } | null)?.email;
+/**
+ * App Router: resolve session via `next/headers` cookies — same path as the
+ * `/api/auth/session` handler. `getToken({ req })` with `NextRequest` often
+ * returns null in production builds.
+ */
+async function sessionFromCookies() {
+  return getServerSession(authOptions);
+}
+
+/** @param _req unused — kept so call sites can stay `getSessionEmail(req)` */
+export async function getSessionEmail(_req?: NextRequest) {
+  const session = await sessionFromCookies();
+  const email = session?.user?.email;
   return typeof email === "string" ? email : null;
 }
 
-export async function getSessionUserId(req: NextRequest) {
-  const token = await getToken({ req, secret });
-  const id = (token as { id?: string; sub?: string } | null)?.id;
-  const sub = (token as { sub?: string } | null)?.sub;
-  return id ?? sub ?? null;
+/** @param _req unused — kept so call sites can stay `getSessionUserId(req)` */
+export async function getSessionUserId(_req?: NextRequest) {
+  const session = await sessionFromCookies();
+  const id = session?.user?.id;
+  return typeof id === "string" && id.length > 0 ? id : null;
 }

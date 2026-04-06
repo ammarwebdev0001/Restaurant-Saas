@@ -41,6 +41,7 @@ export default function OnboardingStep1Page() {
     try {
       const res = await fetch("/api/onboarding/step1", {
         method: "POST",
+        credentials: "include",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: name.trim(),
