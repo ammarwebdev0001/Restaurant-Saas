@@ -1,20 +1,16 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 
+import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
 import { getEffectiveDashboardPermissionNames } from '@/lib/restaurant-roles';
 import { getRestaurantForUser } from '@/lib/restaurant-owner';
 
-const secret =
-  process.env.NEXTAUTH_SECRET ??
-  (process.env.NODE_ENV === 'production' ? undefined : 'dev-nextauth-secret');
-
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
-    const token = await getToken({ req, secret });
-    const email = (token as { email?: string } | null)?.email;
-    if (!email) {
+    const session = await getAppSession();
+    const email = session?.user?.email;
+    if (!email || typeof email !== 'string') {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 

@@ -1,23 +1,19 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 import { z } from 'zod';
 
+import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-
-const secret =
-  process.env.NEXTAUTH_SECRET ??
-  (process.env.NODE_ENV === 'production' ? undefined : 'dev-nextauth-secret');
 
 const bodySchema = z.object({
   token: z.string().min(16),
 });
 
 export async function POST(req: NextRequest) {
-  const session = await getToken({ req, secret });
+  const session = await getAppSession();
   const userId =
-    typeof session?.sub === 'string' && session.sub.length > 0
-      ? session.sub
+    typeof session?.user?.id === 'string' && session.user.id.length > 0
+      ? session.user.id
       : null;
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

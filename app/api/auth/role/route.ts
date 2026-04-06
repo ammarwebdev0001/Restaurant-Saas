@@ -1,24 +1,16 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { getToken } from "next-auth/jwt";
 
+import { getAppSession } from "@/lib/auth/app-session";
 import { db } from "@/lib/db";
 import { GLOBAL_ROLE_SLUG, getGlobalRoleIdBySlug } from "@/lib/global-roles";
 
 const roleSchema = z.enum(["OWNER", "WORKER", "UNKNOW"]);
 
 export async function POST(req: NextRequest) {
-  const token = await getToken({
-    req,
-    secret:
-      process.env.NEXTAUTH_SECRET ??
-      (process.env.NODE_ENV === "production"
-        ? undefined
-        : "dev-nextauth-secret"),
-  });
-
-  const tokenEmail = (token as any)?.email;
+  const session = await getAppSession();
+  const tokenEmail = session?.user?.email;
   if (!tokenEmail || typeof tokenEmail !== "string") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

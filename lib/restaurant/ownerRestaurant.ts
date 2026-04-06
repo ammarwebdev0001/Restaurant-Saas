@@ -1,22 +1,22 @@
 import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
 
+import { getAppSession } from "@/lib/auth/app-session";
 import { db } from "@/lib/db";
 import { getRestaurantForUser } from "@/lib/restaurant-owner";
-
-const secret =
-  process.env.NEXTAUTH_SECRET ??
-  (process.env.NODE_ENV === "production" ? undefined : "dev-nextauth-secret");
 
 /**
  * Resolves the dashboard restaurant for the signed-in user: either they own it
  * (`Restaurant.ownerId`) or they are on the team (`Employee` row). `User` has
  * no `restaurantId` column; the link is always through those relations.
+ *
+ * @param _req optional — kept for call-site compatibility; session is read from cookies.
  */
-export async function getRestaurantForOwnerRequest(req: NextRequest) {
-  const token = await getToken({ req, secret });
-  const email = (token as { email?: string } | null)?.email;
-  if (!email) return { error: "Unauthorized" as const, status: 401 };
+export async function getRestaurantForOwnerRequest(_req?: NextRequest) {
+  const session = await getAppSession();
+  const email = session?.user?.email;
+  if (!email || typeof email !== "string") {
+    return { error: "Unauthorized" as const, status: 401 };
+  }
 
   const user = await db.user.findUnique({
     where: { email },
@@ -27,7 +27,10 @@ export async function getRestaurantForOwnerRequest(req: NextRequest) {
   const restaurant = await getRestaurantForUser(user.id);
 
   if (!restaurant) {
-    return { error: "No restaurant found for this account" as const, status: 404 };
+    return {
+      error: "No restaurant found for this account" as const,
+      status: 404,
+    };
   }
 
   return { restaurant, user };

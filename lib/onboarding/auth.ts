@@ -1,15 +1,13 @@
 import type { NextRequest } from "next/server";
-import { getServerSession } from "next-auth/next";
 
-import { authOptions } from "@/lib/auth-options";
+import { getAppSession } from "@/lib/auth/app-session";
 
 /**
- * App Router: resolve session via `next/headers` cookies — same path as the
- * `/api/auth/session` handler. `getToken({ req })` with `NextRequest` often
- * returns null in production builds.
+ * App Router: session from `next/headers` cookies — same path as
+ * `/api/auth/session`. Avoid `getToken({ req })` with `NextRequest` in production.
  */
 async function sessionFromCookies() {
-  return getServerSession(authOptions);
+  return getAppSession();
 }
 
 /** @param _req unused — kept so call sites can stay `getSessionEmail(req)` */

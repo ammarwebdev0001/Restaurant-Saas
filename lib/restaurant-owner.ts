@@ -1,11 +1,7 @@
 import type { NextRequest } from 'next/server';
-import { getToken } from 'next-auth/jwt';
 
+import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-
-const secret =
-  process.env.NEXTAUTH_SECRET ??
-  (process.env.NODE_ENV === 'production' ? undefined : 'dev-nextauth-secret');
 
 export type RestaurantRequestAuth =
   | { ok: true; restaurantId: string; userId: string }
@@ -21,12 +17,13 @@ export async function getRestaurantForUser(userId: string) {
   });
 }
 
+/** @param _req optional — kept for call-site compatibility; session is read from cookies. */
 export async function getRestaurantIdForRequest(
-  req: NextRequest
+  _req?: NextRequest
 ): Promise<RestaurantRequestAuth> {
-  const token = await getToken({ req, secret });
-  const email = (token as { email?: string } | null)?.email;
-  if (!email) {
+  const session = await getAppSession();
+  const email = session?.user?.email;
+  if (!email || typeof email !== 'string') {
     return { ok: false, status: 401, error: 'Unauthorized' };
   }
 
