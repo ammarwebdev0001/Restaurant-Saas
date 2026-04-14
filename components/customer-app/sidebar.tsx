@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import {
+  IconChevronLeft,
   IconChevronRight,
   IconHeart,
   IconMapPin,
@@ -16,51 +17,16 @@ import {
   IconShoppingBag,
   IconTruck,
 } from '@tabler/icons-react';
+import { User2Icon, UserIcon } from 'lucide-react';
 
 type Store = {
   id: string;
   name: string;
   address: string;
-  collectionFrom: string;
+  phone?: string;
+  collectionFrom?: string;
   isFavorite?: boolean;
 };
-
-const mockAttributeCategories = [
-  {
-    name: 'Build-your-own tacos NEW',
-    required: true,
-  },
-  {
-    name: 'New drink',
-    required: true,
-  },
-  {
-    name: 'Extra sauces',
-    required: false,
-  },
-];
-
-const stores: Store[] = [
-  {
-    id: 'arles',
-    name: 'Enjoy Tacos - Arles',
-    address: '14 Boulevard des Lices, 13200 Arles',
-    collectionFrom: '3:00 PM',
-    isFavorite: true,
-  },
-  {
-    id: 'aubagne',
-    name: 'Enjoy Tacos - Aubagne',
-    address: '26 Cr Voltaire, 13400 Aubagne',
-    collectionFrom: '3:00 PM',
-  },
-  {
-    id: 'beziers',
-    name: 'Enjoy Tacos - Béziers 1',
-    address: 'Place Jean Jaurès, 34500 Béziers',
-    collectionFrom: '3:00 PM',
-  },
-];
 
 type SidebarProps = {
   mode: 'delivery' | 'takeaway';
@@ -94,7 +60,83 @@ export function Sidebar({
   setSelectedStoreId,
   restaurantSlug,
 }: SidebarProps) {
-  const activeStores = useMemo(() => stores, []);
+  const [activeStores, setActiveStores] = useState<Store[]>();
+  const [branchesLoading, setBranchesLoading] = useState(false);
+  const [menuBanners, setMenuBanners] = useState<string[]>([]);
+  const [bannerIndex, setBannerIndex] = useState(0);
+
+  useEffect(() => {
+    if (!restaurantSlug?.trim()) return;
+    let cancelled = false;
+    (async () => {
+      setBranchesLoading(true);
+      try {
+        const res = await fetch(
+          `/api/customer/branches?slug=${encodeURIComponent(restaurantSlug)}`
+        );
+        const json = await res.json().catch(() => ({}));
+        const rows = Array.isArray(json?.data) ? json.data : [];
+        if (cancelled) return;
+        if (rows.length === 0) {
+          setActiveStores([]);
+          return;
+        }
+        setActiveStores(
+          rows.map((b: any) => ({
+            id: String(b.id),
+            name: String(b.name || 'Branch'),
+            address: String(b.address || 'No address'),
+            phone: b.phone ? String(b.phone) : undefined,
+          }))
+        );
+      } catch {
+        if (!cancelled) setActiveStores([]);
+      } finally {
+        if (!cancelled) setBranchesLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantSlug]);
+
+  useEffect(() => {
+    if (!restaurantSlug?.trim()) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/customer/restaurant?slug=${encodeURIComponent(restaurantSlug)}`
+        );
+        const json = await res.json().catch(() => ({}));
+        const urls = Array.isArray(json?.data?.menuBannerUrls)
+          ? (json.data.menuBannerUrls as string[]).filter(
+              (u) => typeof u === 'string' && u.trim() !== ''
+            )
+          : [];
+        if (!cancelled) {
+          setMenuBanners(urls);
+          setBannerIndex(0);
+        }
+      } catch {
+        if (!cancelled) {
+          setMenuBanners([]);
+          setBannerIndex(0);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [restaurantSlug]);
+
+  useEffect(() => {
+    if (menuBanners.length <= 1) return;
+    const interval = setInterval(() => {
+      setBannerIndex((prev) => (prev + 1) % menuBanners.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [menuBanners]);
 
   const createOrder = () => {
     const orderId =
@@ -102,7 +144,7 @@ export function Sidebar({
         ? crypto.randomUUID().replace(/-/g, '')
         : `id${Date.now().toString(16)}`;
 
-    const selectedStore = activeStores.find((s) => s.id === selectedStoreId);
+    const selectedStore = activeStores?.find((s) => s.id === selectedStoreId);
 
     const paramsObj: Record<string, string> = {
       mode,
@@ -132,35 +174,83 @@ export function Sidebar({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
-            J
+            <User2Icon className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-primary">Hi Javi</p>
+            <p className="text-sm font-semibold text-primary">Hi User</p>
             <p className="text-xs text-muted-foreground dark:text-black/80">
               Welcome to the app
             </p>
           </div>
         </div>
-        <Button variant="outline" size="sm" className="rounded-full">
-          <IconMenu2 className="h-4 w-4" />
-        </Button>
       </div>
-      <Card className="rounded-3xl bg-card shadow-xl border border-primary">
-        <CardHeader></CardHeader>
-        <CardContent className="flex items-center justify-between gap-4">
-          <div className="flex flex-col gap-3">
-            <p className="text-sm font-semibold text-muted-foreground">
-              Tuesday Treat
+      {menuBanners.length > 0 ? (
+        <>
+          <div className="relative overflow-hidden rounded-2xl border border-border">
+            <img
+              src={menuBanners[bannerIndex]}
+              alt={`Menu banner ${bannerIndex + 1}`}
+              className="h-32 w-full object-cover"
+            />
+            {menuBanners.length > 1 && (
+              <>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-2 top-1/2 h-7 w-7 -translate-y-1/2"
+                  onClick={() =>
+                    setBannerIndex((prev) =>
+                      prev === 0 ? menuBanners.length - 1 : prev - 1
+                    )
+                  }
+                >
+                  <IconChevronLeft className="h-4 w-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-2 top-1/2 h-7 w-7 -translate-y-1/2"
+                  onClick={() =>
+                    setBannerIndex((prev) => (prev + 1) % menuBanners.length)
+                  }
+                >
+                  <IconChevronRight className="h-4 w-4" />
+                </Button>
+              </>
+            )}
+          </div>
+          {menuBanners.length > 1 && (
+            <div className="flex items-center justify-center gap-1.5">
+              {menuBanners.map((_, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  className={`h-2 rounded-full transition-all ${
+                    idx === bannerIndex
+                      ? 'w-5 bg-primary'
+                      : 'w-2 bg-muted-foreground/40'
+                  }`}
+                  onClick={() => setBannerIndex(idx)}
+                  aria-label={`Go to banner ${idx + 1}`}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      ) : (
+        <div className="flex items-center justify-between text-center rounded-2xl border border-border p-4">
+          <div className="flex flex-col items-center gap-2">
+            <p className="text-lg font-semibold text-background">
+              No menu banners
             </p>
-            <p className="text-lg font-bold text-foreground">
-              €5 off your menu
+            <p className="text-md font-bold text-muted-foreground">
+              Add banner images in Settings
             </p>
           </div>
-          <div className="flex items-center justify-center rounded-2xl bg-primary/10 p-4">
-            <IconShoppingBag className="h-8 w-8 text-primary-foreground" />
-          </div>
-        </CardContent>
-      </Card>
+        </div>
+      )}
 
       <Card className="rounded-3xl bg-card shadow-xl overflow-hidden border border-primary">
         <CardContent className="space-y-4">
@@ -228,10 +318,20 @@ export function Sidebar({
           {mode === 'takeaway' && (
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                Select a store (scroll if needed)
+                Select a branch (scroll if needed)
               </p>
               <div className="max-h-72 overflow-y-auto space-y-3 pr-1">
-                {activeStores.map((store) => (
+                {branchesLoading && (
+                  <p className="text-xs text-muted-foreground">
+                    Loading branches...
+                  </p>
+                )}
+                {!branchesLoading && activeStores?.length === 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    No branches available for takeaway.
+                  </p>
+                )}
+                {activeStores?.map((store) => (
                   <div
                     key={store.id}
                     className={`flex items-start justify-between rounded-3xl border bg-card p-4 transition ${
@@ -247,8 +347,15 @@ export function Sidebar({
                       <p className="text-xs text-muted-foreground">
                         {store.address}
                       </p>
+                      {store.phone ? (
+                        <p className="text-xs text-muted-foreground">
+                          Phone: {store.phone}
+                        </p>
+                      ) : null}
                       <p className="text-xs text-muted-foreground">
-                        Order collection from {store.collectionFrom}
+                        {store.collectionFrom
+                          ? `Order collection from ${store.collectionFrom}`
+                          : 'Takeaway collection available'}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">

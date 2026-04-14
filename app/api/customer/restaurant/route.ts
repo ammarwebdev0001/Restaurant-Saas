@@ -28,6 +28,8 @@ export async function GET(req: NextRequest) {
       id: true,
       name: true,
       logoUrl: true,
+      mainBannerUrl: true,
+      menuBannerUrls: true,
       subdomain: true,
       slug: true,
     } as const;

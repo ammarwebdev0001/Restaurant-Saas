@@ -23,7 +23,6 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-
 enum AttributeSelectionType {
   SINGLE
   MULTIPLE
@@ -55,6 +54,14 @@ enum CatProduct {
   FASHION
 }
 
+// How the order was created: POS, web (online), walk-in register, or other.
+enum OrderSourceType {
+  POS
+  ONLINE
+  WALK_IN
+  OTHER
+}
+
 model User {
   id            String    @id @default(cuid())
   name          String
@@ -69,9 +76,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restarrants Restaurant[]
-  employees            Employee[]
-  employeeInvitesSent  EmployeeInvite[] @relation("EmployeeInvitesSent")
+  restarrants         Restaurant[]
+  employees           Employee[]
+  employeeInvitesSent EmployeeInvite[] @relation("EmployeeInvitesSent")
 }
 
 model Role {
@@ -84,10 +91,10 @@ model Role {
 
   restaurant Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
 
-  permissions Permission[]
+  permissions     Permission[]
   employees       Employee[]
   employeeInvites EmployeeInvite[]
-  accountUsers    User[]     @relation("UserAccountRole")
+  accountUsers    User[]           @relation("UserAccountRole")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -118,17 +125,19 @@ model Restaurant {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  owner        User                    @relation(fields: [ownerId], references: [id])
-  roles        Role[]
-  menus        MenuCategory[]
-  menuItems    MenuItem[]
-  orders       Order[]
-  payments     Payment[]
-  employees       Employee[]
-  employeeInvites EmployeeInvite[]
-  customers       Customer[]
-  branches        Branch[]
-  subscription    RestaurantSubscription?
+  owner            User                    @relation(fields: [ownerId], references: [id])
+  roles            Role[]
+  menus            MenuCategory[]
+  menuItems        MenuItem[]
+  orders           Order[]
+  payments         Payment[]
+  employees        Employee[]
+  employeeInvites  EmployeeInvite[]
+  customers        Customer[]
+  branches         Branch[]
+  subscription     RestaurantSubscription?
+  saleTransactions Transaction[]
+  kitchenTickets   KitchenTicket[]
 }
 
 model Branch {
@@ -186,16 +195,16 @@ model Employee {
 
 // Pending join for an existing account; new users get Employee + set-password email immediately.
 model EmployeeInvite {
-  id             String               @id @default(uuid())
-  restaurantId   String
-  email          String
-  roleId         String
-  token          String               @unique
-  status         EmployeeInviteStatus @default(PENDING)
-  invitedById    String
-  expiresAt      DateTime
-  createdAt      DateTime             @default(now())
-  updatedAt      DateTime             @updatedAt
+  id           String               @id @default(uuid())
+  restaurantId String
+  email        String
+  roleId       String
+  token        String               @unique
+  status       EmployeeInviteStatus @default(PENDING)
+  invitedById  String
+  expiresAt    DateTime
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
@@ -290,18 +299,29 @@ model Customer {
 }
 
 model Order {
-  id           String   @id @default(uuid())
+  id           String          @id @default(uuid())
   restaurantId String
   customerId   String?
   status       String
   total        Float
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  sourceType   OrderSourceType @default(OTHER)
+  /// Delivery / service address snapshot (e.g. POS take-away or delivery).
+  address        String?
+  /// Tax amount applied at checkout (currency units, same as `total`).
+  taxAmount      Float           @default(0)
+  /// Order-level discount amount (not line-item discounts).
+  discountAmount Float           @default(0)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
 
-  items      OrderItem[]
-  payments   Payment[]
-  restaurant Restaurant  @relation(fields: [restaurantId], references: [id])
-  customer   Customer?   @relation(fields: [customerId], references: [id])
+  items          OrderItem[]
+  payments       Payment[]
+  kitchenTickets KitchenTicket[]
+  restaurant     Restaurant      @relation(fields: [restaurantId], references: [id])
+  customer       Customer?       @relation(fields: [customerId], references: [id])
+
+  @@index([restaurantId])
+  @@index([sourceType])
 }
 
 model OrderItem {
@@ -394,12 +414,18 @@ model OnSaleProduct {
 }
 
 model Transaction {
-  id          String          @id @default(cuid())
-  totalAmount Decimal?
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
-  isComplete  Boolean         @default(false)
-  products    OnSaleProduct[]
+  id           String          @id @default(cuid())
+  restaurantId String?
+  sourceType   OrderSourceType @default(WALK_IN)
+  totalAmount  Decimal?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  isComplete   Boolean         @default(false)
+  products     OnSaleProduct[]
+  restaurant   Restaurant?     @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId])
+  @@index([sourceType])
 }
 
 model ShopData {
@@ -408,4 +434,33 @@ model ShopData {
   name      String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model KitchenTicket {
+  id              String   @id @default(cuid())
+  restaurantId    String
+  orderId         String
+  status          String   @default("making")
+  selectedMinutes Int
+  startedAt       DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  restaurant Restaurant          @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  order      Order               @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  items      KitchenTicketItem[]
+
+  @@index([restaurantId, status])
+  @@index([orderId])
+}
+
+model KitchenTicketItem {
+  id              String @id @default(cuid())
+  kitchenTicketId String
+  productName     String
+  quantity        Int
+
+  kitchenTicket KitchenTicket @relation(fields: [kitchenTicketId], references: [id], onDelete: Cascade)
+
+  @@index([kitchenTicketId])
 }

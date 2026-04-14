@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  async redirects() {
+    // Avoid /orders (confusing vs middleware `/order*` → web-app); canonical list is /sales
+    return [{ source: '/orders', destination: '/sales', permanent: true }];
+  },
   // ESLint 9 + legacy .eslintrc can throw "circular structure to JSON" during `next build`; lint via `npm run lint` locally.
   eslint: {
     ignoreDuringBuilds: true,

@@ -105,6 +105,8 @@ export async function getEffectiveDashboardPermissionNames(
   userId: string,
   restaurantId: string
 ): Promise<string[]> {
+  const full = allRestaurantDashboardPermissionNames();
+
   const restaurant = await db.restaurant.findUnique({
     where: { id: restaurantId },
     select: { ownerId: true },
@@ -117,29 +119,44 @@ export async function getEffectiveDashboardPermissionNames(
     },
     include: {
       role: {
-        include: { permissions: { select: { name: true } } },
+        select: {
+          slug: true,
+          permissions: { select: { name: true } },
+        },
       },
     },
   });
+
+  // Account owner: always full dashboard access (not limited by stale Role.permissions).
+  if (restaurant.ownerId === userId) {
+    return full;
+  }
+
+  // Preset Owner role: same — all modules, including new ones added after the role was created.
+  if (employee?.role.slug === RESTAURANT_ROLE_SLUG.OWNER) {
+    return full;
+  }
 
   if (employee) {
     return employee.role.permissions.map((p) => p.name);
   }
 
-  if (restaurant.ownerId === userId) {
-    return allRestaurantDashboardPermissionNames();
-  }
-
   return [];
 }
+
+/** Short-lived `orders:*` permission rows still grant Sales module access. */
+const SALES_MODULE_ALIASES = ['sales', 'orders'] as const;
 
 export function canAccessDashboardModule(
   permissionNames: string[],
   moduleKey: string
 ): boolean {
-  return (
-    permissionNames.includes(permissionName(moduleKey, 'access')) ||
-    permissionNames.includes(permissionName(moduleKey, 'edit')) ||
-    permissionNames.includes(permissionName(moduleKey, 'delete'))
+  const keys =
+    moduleKey === 'sales' ? SALES_MODULE_ALIASES : [moduleKey];
+  return keys.some(
+    (key) =>
+      permissionNames.includes(permissionName(key, 'access')) ||
+      permissionNames.includes(permissionName(key, 'edit')) ||
+      permissionNames.includes(permissionName(key, 'delete'))
   );
 }

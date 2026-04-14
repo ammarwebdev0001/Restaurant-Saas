@@ -7,6 +7,8 @@ import { StoreMenu } from '@/components/customer-app/store-menu';
 
 export function WebAppStorefront({ slug }: { slug: string }) {
   const [restaurantName, setRestaurantName] = useState<string | null>(null);
+  const [mainBannerUrl, setMainBannerUrl] = useState<string | null>(null);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -17,7 +19,11 @@ export function WebAppStorefront({ slug }: { slug: string }) {
         );
         const json = await res.json().catch(() => ({}));
         const name = json?.data?.name as string | undefined;
+        const banner = json?.data?.mainBannerUrl as string | undefined;
+        const logo = json?.data?.logoUrl as string | undefined;
         if (!cancelled && name) setRestaurantName(name);
+        if (!cancelled) setMainBannerUrl(banner ?? null);
+        if (!cancelled) setLogoUrl(logo ?? null);
       } catch {
         /* hero falls back to slug */
       }
@@ -41,6 +47,8 @@ export function WebAppStorefront({ slug }: { slug: string }) {
           restaurantName={restaurantName ?? slug}
           headline="Build your order"
           subheadline={`Store slug: ${slug}`}
+          bannerUrl={mainBannerUrl ?? undefined}
+          logoUrl={logoUrl ?? undefined}
         />
       </div>
       <Sidebar

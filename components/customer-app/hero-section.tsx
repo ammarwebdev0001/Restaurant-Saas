@@ -4,12 +4,15 @@ type HeroSectionProps = {
   restaurantName?: string;
   headline?: string;
   subheadline?: string;
+  bannerUrl?: string;
+  logoUrl?: string;
 };
 
 export function HeroSection({
   restaurantName = 'Restaurant',
-  headline = 'Order fresh favorites',
   subheadline = 'Delivery & pickup — menu powered by your restaurant slug.',
+  bannerUrl,
+  logoUrl,
 }: HeroSectionProps) {
   const initial = (restaurantName || 'R').charAt(0).toUpperCase();
   return (
@@ -21,8 +24,20 @@ export function HeroSection({
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary/20 text-xl font-bold text-primary-foreground ring-1 ring-primary/20">
-                  {initial}
+                <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary/20 text-xl font-bold text-primary-foreground ring-1 ring-primary/20">
+                  {logoUrl ? (
+                    <img
+                      src={logoUrl}
+                      alt={`${restaurantName} logo`}
+                      className="h-full w-full object-cover"
+                      onError={(e) => {
+                        const img = e.currentTarget;
+                        img.style.display = 'none';
+                      }}
+                    />
+                  ) : (
+                    initial
+                  )}
                 </span>
                 <span className="text-lg font-semibold tracking-wide text-foreground">
                   {restaurantName}
@@ -30,24 +45,30 @@ export function HeroSection({
               </div>
               <p className="text-sm text-muted-foreground">{subheadline}</p>
             </div>
-            <Button variant="secondary" size="sm" className="rounded-full">
-              MENU
-            </Button>
           </div>
 
-          <div className="rounded-3xl border border-border bg-card p-8 backdrop-blur">
-            <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
-              Today&apos;s picks
-            </p>
-            <div className="mt-4 flex items-end gap-4">
-              <p className="text-3xl font-black leading-tight tracking-tight text-foreground md:text-4xl">
-                {headline}
-              </p>
-            </div>
-            <p className="mt-4 text-sm text-muted-foreground">
-              Browse categories below — sizes, add-ons, and combo offers come
-              from your menu data.
-            </p>
+          <div className="overflow-hidden rounded-3xl border border-border bg-card backdrop-blur">
+            {bannerUrl ? (
+              <img
+                src={bannerUrl}
+                alt={`${restaurantName} banner`}
+                className="h-48 w-full object-cover md:h-56"
+              />
+            ) : (
+              <div className="p-8">
+                <p className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                  Banner not found
+                </p>
+                <div className="mt-4 flex items-end gap-4">
+                  <p className="text-3xl font-black leading-tight tracking-tight text-foreground md:text-4xl">
+                    No banner available
+                  </p>
+                </div>
+                <p className="mt-4 text-sm text-muted-foreground">
+                  Banner not exists. Go to Settings to add banners.
+                </p>
+              </div>
+            )}
           </div>
 
           <div className="flex flex-col gap-2">

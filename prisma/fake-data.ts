@@ -1,4 +1,4 @@
-import { AttributeSelectionType, SubscriptionPlan, SubscriptionStatus, EmployeeInviteStatus, CatProduct } from '@prisma/client';
+import { AttributeSelectionType, SubscriptionPlan, SubscriptionStatus, EmployeeInviteStatus, CatProduct, OrderSourceType } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import Decimal from 'decimal.js';
 
@@ -278,6 +278,7 @@ export function fakeOrder() {
   return {
     status: faker.lorem.words(5),
     total: faker.number.float(),
+    address: undefined,
     updatedAt: faker.date.anytime(),
   };
 }
@@ -288,6 +289,10 @@ export function fakeOrderComplete() {
     customerId: undefined,
     status: faker.lorem.words(5),
     total: faker.number.float(),
+    sourceType: OrderSourceType.OTHER,
+    address: undefined,
+    taxAmount: 0,
+    discountAmount: 0,
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
   };
@@ -412,6 +417,8 @@ export function fakeTransaction() {
 export function fakeTransactionComplete() {
   return {
     id: faker.string.uuid(),
+    restaurantId: undefined,
+    sourceType: OrderSourceType.WALK_IN,
     totalAmount: undefined,
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
@@ -432,5 +439,37 @@ export function fakeShopDataComplete() {
     name: undefined,
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeKitchenTicket() {
+  return {
+    selectedMinutes: faker.number.int(),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeKitchenTicketComplete() {
+  return {
+    id: faker.string.uuid(),
+    restaurantId: faker.string.uuid(),
+    orderId: faker.string.uuid(),
+    status: 'making',
+    selectedMinutes: faker.number.int(),
+    startedAt: new Date(),
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeKitchenTicketItem() {
+  return {
+    productName: faker.lorem.words(5),
+    quantity: faker.number.int(),
+  };
+}
+export function fakeKitchenTicketItemComplete() {
+  return {
+    id: faker.string.uuid(),
+    kitchenTicketId: faker.string.uuid(),
+    productName: faker.lorem.words(5),
+    quantity: faker.number.int(),
   };
 }

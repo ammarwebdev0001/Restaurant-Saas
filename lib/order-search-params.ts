@@ -17,6 +17,7 @@ export function orderInfoFromSearchParams(
     pick(sp, 'restaurantSlug').trim() || pick(sp, 'slug').trim() || undefined;
   return {
     mode,
+    restaurantName: pick(sp, 'restaurantName') || pick(sp, 'storeName'),
     storeId: pick(sp, 'storeId'),
     storeName: pick(sp, 'storeName'),
     storeAddress: pick(sp, 'storeAddress'),
@@ -34,6 +35,7 @@ function orderInfoToQueryString(info: OrderInfo | undefined): string {
   const add = (k: string, v: string | undefined) => {
     if (v != null && v !== '') p.set(k, v);
   };
+  add('restaurantName', info.restaurantName);
   add('storeId', info.storeId);
   add('storeName', info.storeName);
   add('storeAddress', info.storeAddress);

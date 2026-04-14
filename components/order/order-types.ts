@@ -1,5 +1,6 @@
 export type OrderInfo = {
   mode: 'delivery' | 'pickUp';
+  restaurantName?: string;
   storeId?: string;
   storeName?: string;
   storeAddress?: string;

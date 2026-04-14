@@ -1,7 +1,10 @@
 /** Dashboard sidebar modules used for RBAC (keys must stay stable). */
 export const DASHBOARD_MODULES = [
   { moduleKey: 'dashboard', title: 'Dashboard', path: '/dashboard' },
-  { moduleKey: 'orders', title: 'Orders', path: '/orders' },
+  { moduleKey: 'sales', title: 'Sales', path: '/sales' },
+  { moduleKey: 'pos', title: 'POS', path: '/pos' },
+  { moduleKey: 'kds', title: 'KDS', path: '/kds' },
+  { moduleKey: 'branched', title: 'Branched', path: '/branched' },
   { moduleKey: 'categories', title: 'Categories', path: '/categories' },
   { moduleKey: 'product', title: 'Products', path: '/product' },
   { moduleKey: 'recommendations', title: 'Recommendations', path: '/recommendations' },

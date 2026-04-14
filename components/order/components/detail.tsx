@@ -116,6 +116,7 @@ export default function Detail({
       setTransactionId(null);
 
       eventBus.emit('clearTransactionData');
+      eventBus.emit('refreshSalesOrders');
     } catch (error) {
       if (error instanceof z.ZodError) {
         const fieldErrors: { [key: string]: string } = {};

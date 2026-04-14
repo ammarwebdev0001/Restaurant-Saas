@@ -1,0 +1,548 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import axios from 'axios';
+import { RefreshCw, Eye } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { orderSourceLabel } from '@/lib/order-source-label';
+import eventBus from '@/lib/even';
+import type {
+  SalesOrderRow,
+  SalesOrdersApiResponse,
+  SalesOrdersStats,
+} from '@/types/sales-order';
+import type { TransactionData } from '@/types/transaction';
+import { cn } from '@/lib/utils';
+
+function formatMoney(n: number | null) {
+  if (n == null || Number.isNaN(n)) return '—';
+  return n.toLocaleString('en-PK', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+type MenuOrderDetail = {
+  id: string;
+  total: number;
+  status: string;
+  sourceType: string;
+  createdAt: string;
+  updatedAt: string;
+  customer: {
+    id: string;
+    name: string;
+    phone: string;
+    email: string | null;
+  } | null;
+  items: Array<{
+    id: string;
+    quantity: number;
+    price: number;
+    menuItem: { id: string; name: string };
+  }>;
+  payments: Array<{
+    id: string;
+    amount: number;
+    status: string;
+    method: string;
+    createdAt: string;
+  }>;
+};
+
+const emptyStats: SalesOrdersStats = {
+  online: { count: 0, totalAmount: 0 },
+  pos: { count: 0, totalAmount: 0 },
+  all: { count: 0, totalAmount: 0 },
+};
+
+function OrdersTable({
+  rows,
+  onView,
+}: {
+  rows: SalesOrderRow[];
+  onView: (row: SalesOrderRow) => void;
+}) {
+  return (
+    <div className="rounded-md border">
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-12 text-center">Sr</TableHead>
+            <TableHead className="w-[100px]">Type</TableHead>
+            <TableHead>Order ID</TableHead>
+            <TableHead className="hidden sm:table-cell">Source</TableHead>
+            <TableHead className="text-right">Total</TableHead>
+            <TableHead className="hidden md:table-cell">Status</TableHead>
+            <TableHead className="hidden lg:table-cell">When</TableHead>
+            <TableHead className="w-[72px] text-right"> </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.length === 0 ? (
+            <TableRow>
+              <TableCell
+                colSpan={8}
+                className="text-center text-muted-foreground"
+              >
+                No orders in this tab.
+              </TableCell>
+            </TableRow>
+          ) : (
+            rows.map((row, index) => (
+              <TableRow key={`${row.kind}-${row.id}`}>
+                <TableCell className="text-center tabular-nums text-muted-foreground">
+                  {index + 1}
+                </TableCell>
+                <TableCell>
+                  <Badge variant="secondary" className="text-xs font-normal">
+                    {row.kind === 'menu_order' ? 'Menu' : 'Register'}
+                  </Badge>
+                </TableCell>
+                <TableCell className="max-w-[140px] truncate font-mono text-xs">
+                  {row.id}
+                </TableCell>
+                <TableCell className="hidden sm:table-cell">
+                  <Badge variant="outline" className="font-normal">
+                    {orderSourceLabel(row.sourceType)}
+                  </Badge>
+                </TableCell>
+                <TableCell className="text-right tabular-nums">
+                  PKR {formatMoney(row.total)}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">
+                  {row.status}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground lg:table-cell">
+                  {new Date(row.createdAt).toLocaleString()}
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 gap-1 px-2"
+                    onClick={() => onView(row)}
+                  >
+                    <Eye className="h-3.5 w-3.5" />
+                    View
+                  </Button>
+                </TableCell>
+              </TableRow>
+            ))
+          )}
+        </TableBody>
+      </Table>
+    </div>
+  );
+}
+
+export function SalesOrdersTabs() {
+  const [onlineOrders, setOnlineOrders] = useState<SalesOrderRow[]>([]);
+  const [posOrders, setPosOrders] = useState<SalesOrderRow[]>([]);
+  const [stats, setStats] = useState<SalesOrdersStats>(emptyStats);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [activeRow, setActiveRow] = useState<SalesOrderRow | null>(null);
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [menuDetail, setMenuDetail] = useState<MenuOrderDetail | null>(null);
+  const [transactionLines, setTransactionLines] = useState<TransactionData[]>(
+    []
+  );
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.get<SalesOrdersApiResponse>(
+        '/api/restaurant/sales-orders'
+      );
+      setOnlineOrders(res.data.onlineOrders ?? []);
+      setPosOrders(res.data.posOrders ?? []);
+      setStats(res.data.stats ?? emptyStats);
+    } catch {
+      setError('Could not load orders.');
+      setOnlineOrders([]);
+      setPosOrders([]);
+      setStats(emptyStats);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  useEffect(() => {
+    const handler = () => load();
+    eventBus.on('refreshSalesOrders', handler);
+    return () => {
+      eventBus.removeListener('refreshSalesOrders', handler);
+    };
+  }, [load]);
+
+  async function openDetail(row: SalesOrderRow) {
+    setActiveRow(row);
+    setSheetOpen(true);
+    setDetailLoading(true);
+    setMenuDetail(null);
+    setTransactionLines([]);
+
+    try {
+      if (row.kind === 'menu_order') {
+        const res = await axios.get<MenuOrderDetail>(
+          `/api/restaurant/orders/${row.id}`
+        );
+        setMenuDetail(res.data);
+      } else {
+        const res = await axios.get<TransactionData[]>(
+          `/api/transactions/${row.id}`
+        );
+        const data = res.data;
+        setTransactionLines(Array.isArray(data) ? data : []);
+      }
+    } catch {
+      setMenuDetail(null);
+      setTransactionLines([]);
+    } finally {
+      setDetailLoading(false);
+    }
+  }
+
+  function closeSheet(open: boolean) {
+    setSheetOpen(open);
+    if (!open) {
+      setActiveRow(null);
+      setMenuDetail(null);
+      setTransactionLines([]);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Online — orders
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">
+              {loading ? '…' : stats.online.count}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Online — total amount
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">
+              {loading
+                ? '…'
+                : `PKR ${formatMoney(stats.online.totalAmount)}`}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              POS / register — orders
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">
+              {loading ? '…' : stats.pos.count}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              POS / register — total amount
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">
+              {loading ? '…' : `PKR ${formatMoney(stats.pos.totalAmount)}`}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <Card>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
+          <div>
+            <CardTitle className="text-base">All channels</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              {loading
+                ? 'Loading…'
+                : `${stats.all.count} orders · PKR ${formatMoney(stats.all.totalAmount)} total`}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="gap-1"
+            disabled={loading}
+            onClick={() => load()}
+          >
+            <RefreshCw
+              className={cn('h-3.5 w-3.5', loading && 'animate-spin')}
+            />
+            Refresh
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && (
+            <p className="text-sm text-destructive">{error}</p>
+          )}
+
+          <Tabs defaultValue="online" className="w-full">
+            <TabsList className="grid w-full max-w-full grid-cols-2">
+              <TabsTrigger value="online">Online orders</TabsTrigger>
+              <TabsTrigger value="pos">POS orders</TabsTrigger>
+            </TabsList>
+            <TabsContent value="online" className="mt-4 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Checkout orders with source <strong>Online</strong>. Sr = serial
+                number in this list.
+              </p>
+              {loading && onlineOrders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : (
+                <OrdersTable rows={onlineOrders} onView={openDetail} />
+              )}
+            </TabsContent>
+            <TabsContent value="pos" className="mt-4 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                POS menu orders, other in-store menu orders, and register /
+                walk-in transactions. Sr = serial number in this list.
+              </p>
+              {loading && posOrders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : (
+                <OrdersTable rows={posOrders} onView={openDetail} />
+              )}
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+
+      <Sheet open={sheetOpen} onOpenChange={closeSheet}>
+        <SheetContent className="flex w-full flex-col sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Order details</SheetTitle>
+            <SheetDescription className="font-mono text-xs">
+              {activeRow?.id}
+            </SheetDescription>
+          </SheetHeader>
+
+          <div className="mt-4 flex-1 overflow-y-auto pr-1">
+            {detailLoading && (
+              <p className="text-sm text-muted-foreground">Loading details…</p>
+            )}
+
+            {!detailLoading &&
+              activeRow?.kind === 'menu_order' &&
+              !menuDetail && (
+                <p className="text-sm text-destructive">
+                  Could not load order details.
+                </p>
+              )}
+
+            {!detailLoading && activeRow?.kind === 'menu_order' && menuDetail && (
+              <div className="space-y-4 text-sm">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-muted-foreground">Total</p>
+                    <p className="font-semibold tabular-nums">
+                      PKR {formatMoney(menuDetail.total)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Status</p>
+                    <p className="font-medium">{menuDetail.status}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Source</p>
+                    <p>{orderSourceLabel(menuDetail.sourceType)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Placed</p>
+                    <p>{new Date(menuDetail.createdAt).toLocaleString()}</p>
+                  </div>
+                </div>
+
+                {menuDetail.customer && (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Customer
+                    </p>
+                    <p className="font-medium">{menuDetail.customer.name}</p>
+                    <p className="text-muted-foreground">
+                      {menuDetail.customer.phone}
+                    </p>
+                    {menuDetail.customer.email && (
+                      <p className="text-muted-foreground">
+                        {menuDetail.customer.email}
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div>
+                  <p className="mb-2 font-medium">Line items</p>
+                  {menuDetail.items.length === 0 ? (
+                    <p className="text-muted-foreground">No line items stored.</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-10">Sr</TableHead>
+                          <TableHead>Item</TableHead>
+                          <TableHead className="text-right">Qty</TableHead>
+                          <TableHead className="text-right">Price</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {menuDetail.items.map((it, i) => (
+                          <TableRow key={it.id}>
+                            <TableCell className="tabular-nums text-muted-foreground">
+                              {i + 1}
+                            </TableCell>
+                            <TableCell>{it.menuItem.name}</TableCell>
+                            <TableCell className="text-right">
+                              {it.quantity}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              PKR {formatMoney(it.price)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </div>
+
+                {menuDetail.payments.length > 0 && (
+                  <div>
+                    <p className="mb-2 font-medium">Payments</p>
+                    <ul className="space-y-1 text-muted-foreground">
+                      {menuDetail.payments.map((p) => (
+                        <li key={p.id}>
+                          PKR {formatMoney(p.amount)} · {p.method} · {p.status}{' '}
+                          <span className="text-xs">
+                            ({new Date(p.createdAt).toLocaleString()})
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {!detailLoading &&
+              activeRow?.kind === 'sale_transaction' &&
+              (transactionLines.length === 0 ? (
+                <div className="space-y-2 text-sm">
+                  <p className="text-muted-foreground">
+                    No product lines for this register transaction (header-only or
+                    legacy).
+                  </p>
+                  <div className="grid grid-cols-2 gap-2 rounded-lg border p-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Total</p>
+                      <p className="font-semibold tabular-nums">
+                        PKR {formatMoney(activeRow.total)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Status</p>
+                      <p>{activeRow.status}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Source</p>
+                      <p>{orderSourceLabel(activeRow.sourceType)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">When</p>
+                      <p>{new Date(activeRow.createdAt).toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="font-medium">Line items</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-10">Sr</TableHead>
+                        <TableHead>Product</TableHead>
+                        <TableHead className="text-right">Qty</TableHead>
+                        <TableHead className="text-right">Amount</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {transactionLines.map((line, i) => {
+                        const amt =
+                          line.product.sellprice * line.quantity;
+                        return (
+                          <TableRow key={line.id}>
+                            <TableCell className="tabular-nums text-muted-foreground">
+                              {i + 1}
+                            </TableCell>
+                            <TableCell>
+                              {line.product.productstock.name}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              {line.quantity}
+                            </TableCell>
+                            <TableCell className="text-right tabular-nums">
+                              PKR {formatMoney(amt)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </div>
+              ))}
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}

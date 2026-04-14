@@ -48,6 +48,7 @@ export function AlertDialogDeletetransaction({
         onClose(); // Close the dialog
         localStorage.removeItem('transactionId'); // Remove the transactionId from localStorage
         setTransactionId(null); // Set the transactionId to null
+        eventBus.emit('refreshSalesOrders');
       } else if (response.status === 404) {
         // Data not found in the database, remove transactionId from localStorage
         localStorage.removeItem('transactionId');

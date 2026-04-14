@@ -53,12 +53,8 @@ export async function GET(
       },
     });
 
-    // Return 404 if no onSaleProducts are found for the given transactionId
     if (!onSaleProducts.length) {
-      return NextResponse.json(
-        { message: 'OnSaleProduct not found' },
-        { status: 404 }
-      );
+      return NextResponse.json([], { status: 200 });
     }
 
     return NextResponse.json(onSaleProducts, { status: 200 });

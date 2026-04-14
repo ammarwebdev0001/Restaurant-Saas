@@ -25,9 +25,12 @@ export function middleware(req: NextRequest) {
   const hostname = (req.headers.get("host") || "").split(":")[0];
   const subdomain = getSubdomainFromHost(hostname);
 
-  // No subdomain => marketing/auth/dashboard; short /order URLs map to web-app routes.
+  // No subdomain => marketing/auth/dashboard; short `/order` URLs map to web-app routes.
+  // Do not match `/orders` — that path is reserved for the dashboard (see /sales list).
   if (!subdomain) {
-    if (pathname.startsWith("/order")) {
+    const isWebAppOrderPath =
+      pathname.startsWith("/order") && !pathname.startsWith("/orders");
+    if (isWebAppOrderPath) {
       url.pathname = `/web-app${pathname}`;
       return NextResponse.rewrite(url);
     }

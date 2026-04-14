@@ -6,5 +6,9 @@ export default async function WebAppBySlugPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  return <WebAppStorefront slug={slug} />;
+  return (
+    <main className="min-h-screen bg-background text-foreground">
+      <WebAppStorefront slug={slug} />
+    </main>
+  );
 }

@@ -2,6 +2,9 @@ import {
   Home,
   Package,
   ShoppingCart,
+  ScanLine,
+  Monitor,
+  Store,
   Archive,
   Settings,
   FolderTree,
@@ -13,7 +16,10 @@ import { NavItem } from '@/types/Navbar';
 
 const MODULE_ICONS: Record<(typeof DASHBOARD_MODULES)[number]['moduleKey'], LucideIcon> = {
   dashboard: Home,
-  orders: ShoppingCart,
+  sales: ShoppingCart,
+  pos: ScanLine,
+  kds: Monitor,
+  branched: Store,
   categories: FolderTree,
   product: Package,
   recommendations: Sparkles,

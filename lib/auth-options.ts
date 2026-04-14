@@ -168,5 +168,6 @@ export const authOptions: NextAuthOptions = {
   secret:
     process.env.NEXTAUTH_SECRET ??
     (process.env.NODE_ENV === "production" ? undefined : "dev-nextauth-secret"),
-  debug: process.env.NODE_ENV !== "production",
+  // Avoid [next-auth][warn][DEBUG_ENABLED] on every request; set NEXTAUTH_DEBUG=true when needed.
+  debug: process.env.NEXTAUTH_DEBUG === "true",
 };

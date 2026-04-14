@@ -15,21 +15,19 @@ type RestaurantBrand = {
 export function Header() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const queryStoreId = searchParams.get('storeId') ?? undefined;
-  const queryStoreName = searchParams.get('storeName') ?? undefined;
-  const querySlug = searchParams.get('slug') ?? undefined;
-  const pathSlug =
-    pathname?.match(/^\/web-app\/([^/]+)/)?.[1] ?? undefined;
-  const slugForApi = querySlug ?? pathSlug;
+  // Order flow sends `restaurantSlug`; keep `slug` as backward-compatible fallback.
+  const queryRestaurantSlug =
+    searchParams.get('restaurantSlug') ?? searchParams.get('slug') ?? undefined;
+  const pathSlug = pathname?.match(/^\/web-app\/([^/]+)/)?.[1] ?? undefined;
+  const slugForApi = queryRestaurantSlug ?? pathSlug;
 
   const [brand, setBrand] = useState<RestaurantBrand>({
-    name: queryStoreName ?? 'Restaurant',
+    name: 'Restaurant',
     logoUrl: null,
   });
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
 
   const inferredSubdomain = useMemo(() => {
-    if (queryStoreId) return queryStoreId;
     if (typeof window === 'undefined') return null;
 
     const hostname = window.location.hostname || '';
@@ -47,7 +45,7 @@ export function Header() {
     // Generic fallback for hosts with 3+ parts
     const parts = hostname.split('.');
     return parts.length >= 3 ? parts[0] : null;
-  }, [queryStoreId]);
+  }, []);
 
   useEffect(() => {
     const run = async () => {
@@ -68,7 +66,7 @@ export function Header() {
         const r = data?.data;
         if (!r) return;
         setBrand({
-          name: r?.name ?? queryStoreName ?? 'Restaurant',
+          name: r?.name ?? 'Restaurant',
           logoUrl: r?.logoUrl ?? null,
         });
         setLogoLoadFailed(false);
@@ -78,7 +76,7 @@ export function Header() {
     };
 
     void run();
-  }, [inferredSubdomain, queryStoreName, slugForApi]);
+  }, [inferredSubdomain, slugForApi]);
 
   return (
     <header className="border-b bg-primary px-6 py-4 backdrop-blur">
@@ -105,9 +103,9 @@ export function Header() {
         <div className="flex items-center gap-3">
           <span className="text-sm text-primary-foreground/80 text-white">
             {/* Keep customer header lightweight; show name if we have it from query */}
-            {queryStoreName ? 'Welcome' : 'Customer'}
+            Welcome
           </span>
-          <Button variant="outline" size="sm" className="rounded-full">
+          <Button variant="secondary" size="sm" className="rounded-full">
             <IconMenu2 className="h-4 w-4" />
           </Button>
           <ModeToggle />

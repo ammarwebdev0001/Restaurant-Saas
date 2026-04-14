@@ -21,7 +21,6 @@ export default function Home() {
             <Link href="/pricing" className="hover:text-foreground">
               Pricing
             </Link>
-
             <Link href="/documentation" className="hover:text-foreground">
               Documentation
             </Link>

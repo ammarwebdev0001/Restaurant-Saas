@@ -189,43 +189,27 @@ function parseCartFromStorage(raw: string | null): CartLine[] {
   }
 }
 
-// Simple promotional banner data (purely visual, not from DB)
-const offers = [
-  {
-    id: 'o1',
-    title: 'Today’s Specials',
-    subtitle: 'Discover the chef’s favorite combinations.',
-    image: 'https://via.placeholder.com/800x270?text=Today+Specials',
-  },
-  {
-    id: 'o2',
-    title: 'Family Feast',
-    subtitle: 'Perfect menus for sharing with friends & family.',
-    image: 'https://via.placeholder.com/800x270?text=Family+Feast',
-  },
-];
-
 function OfferSlider({
+  items,
   current,
   onPrev,
   onNext,
 }: {
+  items: OfferItem[];
   current: number;
   onPrev: () => void;
   onNext: () => void;
 }) {
-  const item = offers[current] ?? offers[0];
+  const item = items[current] ?? items[0];
+  if (!item) return null;
   return (
     <div className="relative mx-auto mb-8 max-w-7xl overflow-hidden rounded-2xl border border-border bg-card">
       <img
         src={item.image}
-        alt={item.title}
+        alt={item.id}
         className="h-56 w-full object-cover"
       />
-      <div className="absolute inset-0 bg-black/30 p-6">
-        <h3 className="text-3xl font-bold text-white">{item.title}</h3>
-        <p className="mt-2 text-white/90">{item.subtitle}</p>
-      </div>
+      <div className="absolute inset-0 bg-black/30 p-6"></div>
       <div className="absolute left-2 top-1/2 -translate-y-1/2">
         <Button variant="outline" size="icon" onClick={onPrev} type="button">
           <IconChevronLeft className="h-5 w-5" />
@@ -239,6 +223,11 @@ function OfferSlider({
     </div>
   );
 }
+
+type OfferItem = {
+  id: string;
+  image: string;
+};
 
 function ProductCard({
   product,
@@ -303,6 +292,7 @@ export default function OrderPageClient({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [search, setSearch] = useState('');
   const [currentOffer, setCurrentOffer] = useState(0);
+  const [bannerOffers, setBannerOffers] = useState<OfferItem[]>([]);
   const [mounted, setMounted] = useState(false);
 
   const [menuLoading, setMenuLoading] = useState(false);
@@ -332,6 +322,59 @@ export default function OrderPageClient({
     if (!mounted) return;
     localStorage.setItem(`cart-${orderId}`, JSON.stringify(cart));
   }, [cart, mounted, orderId]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const loadBanners = async () => {
+      try {
+        let restaurantUrl: string | null = null;
+        const slug = orderInfo?.restaurantSlug?.trim();
+        if (slug) {
+          restaurantUrl = `/api/customer/restaurant?slug=${encodeURIComponent(slug)}`;
+        } else {
+          const subdomain = inferHostSubdomainForMenu();
+          const fallbackSub = orderInfo?.storeId?.trim() || subdomain;
+          if (fallbackSub) {
+            restaurantUrl = `/api/customer/restaurant?subdomain=${encodeURIComponent(
+              fallbackSub
+            )}`;
+          }
+        }
+        if (!restaurantUrl) return;
+
+        const res = await fetch(restaurantUrl);
+        if (!res.ok) return;
+        const json = await res.json().catch(() => ({}));
+        const urls = Array.isArray(json?.data?.menuBannerUrls)
+          ? (json.data.menuBannerUrls as string[]).filter(
+              (u) => typeof u === 'string' && u.trim() !== ''
+            )
+          : [];
+        if (urls.length === 0) return;
+
+        const mapped = urls.map((image, idx) => ({
+          id: `menu-banner-${idx + 1}`,
+          image,
+        }));
+        setBannerOffers(mapped);
+      } catch {
+        // keep default static offers
+      }
+    };
+
+    void loadBanners();
+  }, [
+    mounted,
+    orderInfo?.restaurantSlug,
+    orderInfo?.storeId,
+    orderInfo?.restaurantName,
+    orderInfo?.storeName,
+  ]);
+
+  useEffect(() => {
+    if (bannerOffers.length === 0) return;
+    setCurrentOffer((prev) => prev % bannerOffers.length);
+  }, [bannerOffers]);
 
   const addToCart = (
     product: CustomerMenuProduct,
@@ -502,7 +545,9 @@ export default function OrderPageClient({
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
         <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
-          <h1 className="text-3xl font-bold">Enjoy Tacos</h1>
+          <h1 className="text-3xl font-bold">
+            {orderInfo?.restaurantName ?? 'Enjoy Tacos'}
+          </h1>
           <div className="text-sm text-muted-foreground">
             {orderType === 'delivery' ? 'Delivery' : 'Pick-Up'} order -{' '}
             {orderId}
@@ -511,6 +556,17 @@ export default function OrderPageClient({
             Theme: {resolvedTheme || theme}
           </div>
         </div>
+
+        <OfferSlider
+          items={bannerOffers}
+          current={currentOffer}
+          onPrev={() =>
+            setCurrentOffer(
+              (p) => (p - 1 + bannerOffers.length) % bannerOffers.length
+            )
+          }
+          onNext={() => setCurrentOffer((p) => (p + 1) % bannerOffers.length)}
+        />
 
         {orderInfo && (
           <section className="mb-6 rounded-2xl border border-border bg-card p-4">
@@ -559,14 +615,6 @@ export default function OrderPageClient({
           </section>
         )}
 
-        <OfferSlider
-          current={currentOffer}
-          onPrev={() =>
-            setCurrentOffer((p) => (p - 1 + offers.length) % offers.length)
-          }
-          onNext={() => setCurrentOffer((p) => (p + 1) % offers.length)}
-        />
-
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <main>
             <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-2">
@@ -607,29 +655,10 @@ export default function OrderPageClient({
               <p className="text-sm text-muted-foreground">Loading menu…</p>
             ) : (
               <>
-                {/* <section className="mb-8">
-                  <h2 className="mb-4 text-xl font-semibold">
-                    Featured products
-                  </h2>
-                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredProducts.map((product) => (
-                      <ProductCard
-                        key={product.id}
-                        product={product}
-                        showCustomizeIndicator={hasRequiredAddons(product)}
-                        onAdd={() => {
-                          if (hasRequiredAddons(product))
-                            openCustomizeForProduct(product);
-                          else addToCart(product, []);
-                        }}
-                      />
-                    ))}
-                  </div>
-                </section> */}
-
                 <section className="mb-8">
                   <h2 className="mb-4 text-xl font-semibold">All categories</h2>
-                  {categories.map((category) => {
+
+                  { categories.length > 0 ? categories.map((category) => {
                     const categoryProducts = category.items.filter((p) => {
                       if (!search) return true;
                       const q = search.toLowerCase();
@@ -638,7 +667,14 @@ export default function OrderPageClient({
                         .includes(q);
                     });
 
-                    if (categoryProducts.length === 0) return null;
+                    if (categoryProducts.length === 0)
+                      return (
+                        <div className="mb-10">
+                          <p className="text-sm text-muted-foreground">
+                            No products found in this category
+                          </p>
+                        </div>
+                      );
 
                     return (
                       <div key={category.id} id={category.id} className="mb-10">
@@ -663,7 +699,13 @@ export default function OrderPageClient({
                         </div>
                       </div>
                     );
-                  })}
+                  }) : (
+                    <div className="mb-10">
+                      <p className="text-sm text-muted-foreground">
+                        No categories found
+                      </p>
+                    </div>
+                  )}
                 </section>
               </>
             )}
