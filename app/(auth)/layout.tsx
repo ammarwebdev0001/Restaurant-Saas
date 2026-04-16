@@ -1,22 +1,22 @@
-"use client";
+'use client';
 
-import React, { Suspense, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "react-toastify";
+import React, { Suspense, useEffect, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { toast } from 'react-toastify';
 
 function getErrorMessage(error?: string | null) {
   if (!error) return null;
   switch (error) {
-    case "CredentialsSignin":
-      return "Invalid email or password.";
-    case "OAuthSignin":
-      return "Google sign-in failed.";
-    case "OAuthCallback":
-      return "Google callback failed.";
-    case "AccessDenied":
-      return "Access denied.";
-    case "SessionRequired":
-      return "Please sign in first.";
+    case 'CredentialsSignin':
+      return 'Invalid email or password.';
+    case 'OAuthSignin':
+      return 'Google sign-in failed.';
+    case 'OAuthCallback':
+      return 'Google callback failed.';
+    case 'AccessDenied':
+      return 'Access denied.';
+    case 'SessionRequired':
+      return 'Please sign in first.';
     default:
       return error;
   }
@@ -24,14 +24,14 @@ function getErrorMessage(error?: string | null) {
 
 function AuthErrorToasts({ children }: { children: React.ReactNode }) {
   const searchParams = useSearchParams();
-  const error = searchParams.get("error");
+  const error = searchParams.get('error');
   const lastShownRef = useRef<string | null>(null);
 
   useEffect(() => {
     const msg = getErrorMessage(error);
     if (!msg) return;
     // Helps verify the layout is mounted and `?error=` is being read.
-    console.log("[auth][toast] error param:", error);
+    console.log('[auth][toast] error param:', error);
     if (lastShownRef.current === error) return; // avoid double toast in dev
     lastShownRef.current = error;
     toast.error(msg);
@@ -51,4 +51,3 @@ export default function AuthLayout({
     </Suspense>
   );
 }
-

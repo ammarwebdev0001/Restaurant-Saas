@@ -35,8 +35,8 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
           This area is for platform administrators only. Use user role <code className="rounded bg-muted px-1">ADMIN</code> or add your email to{' '}
           <code className="rounded bg-muted px-1">ADMIN_EMAILS</code> in the environment.
         </p>
-        <Link href="/dashboard" className="mt-2 text-sm text-primary underline">
-          Back to restaurant dashboard
+        <Link href="/" className="mt-2 text-sm text-primary underline">
+          Back to Home
         </Link>
       </div>
     );

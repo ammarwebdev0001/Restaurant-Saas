@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from 'react';
+import axios from 'axios';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -16,12 +17,23 @@ export default function DemoRequestPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      // Placeholder submit. Integrate with your CRM/email endpoint later.
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await axios.post('/api/demo-request', {
+        name: name.trim(),
+        email: email.trim(),
+        restaurant: restaurant.trim(),
+      });
       toast.success('Demo request submitted. We will contact you soon.');
       setName('');
       setEmail('');
       setRestaurant('');
+    } catch (error: unknown) {
+      const msg =
+        axios.isAxiosError(error) && error.response?.data?.error
+          ? typeof error.response.data.error === 'string'
+            ? error.response.data.error
+            : 'Could not submit demo request.'
+          : 'Could not submit demo request.';
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

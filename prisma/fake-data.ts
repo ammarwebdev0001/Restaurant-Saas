@@ -127,6 +127,54 @@ export function fakeRestaurantSubscriptionComplete() {
     updatedAt: faker.date.anytime(),
   };
 }
+export function fakeSubscriptionCatalog() {
+  return {
+    plan: faker.helpers.arrayElement([SubscriptionPlan.STARTER, SubscriptionPlan.GROWTH, SubscriptionPlan.SCALE] as const),
+    name: faker.person.fullName(),
+    price: faker.number.int(),
+    priceLabel: faker.lorem.words(5),
+    description: faker.lorem.words(5),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeSubscriptionCatalogComplete() {
+  return {
+    id: faker.string.uuid(),
+    plan: faker.helpers.arrayElement([SubscriptionPlan.STARTER, SubscriptionPlan.GROWTH, SubscriptionPlan.SCALE] as const),
+    name: faker.person.fullName(),
+    price: faker.number.int(),
+    priceLabel: faker.lorem.words(5),
+    description: faker.lorem.words(5),
+    features: [],
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeSubscriptionPayment() {
+  return {
+    amount: faker.number.float(),
+    periodStart: undefined,
+    periodEnd: undefined,
+    notes: undefined,
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeSubscriptionPaymentComplete() {
+  return {
+    id: faker.string.uuid(),
+    restaurantId: faker.string.uuid(),
+    restaurantSubscriptionId: undefined,
+    amount: faker.number.float(),
+    currency: 'PKR',
+    paidAt: new Date(),
+    periodStart: undefined,
+    periodEnd: undefined,
+    notes: undefined,
+    recordedByUserId: undefined,
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
+  };
+}
 export function fakePlatformSetting() {
   return {
     key: faker.lorem.words(5),
@@ -139,6 +187,24 @@ export function fakePlatformSettingComplete() {
     id: faker.string.uuid(),
     key: faker.lorem.words(5),
     value: faker.lorem.words(5),
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeDemoRequest() {
+  return {
+    name: faker.person.fullName(),
+    email: faker.internet.email(),
+    restaurantName: faker.lorem.words(5),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeDemoRequestComplete() {
+  return {
+    id: faker.string.uuid(),
+    name: faker.person.fullName(),
+    email: faker.internet.email(),
+    restaurantName: faker.lorem.words(5),
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
   };

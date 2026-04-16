@@ -9,6 +9,15 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
   Table,
   TableBody,
   TableCell,
@@ -34,10 +43,28 @@ type Row = {
   subscription: Subscription;
 };
 
+type CatalogPlan = {
+  id: string;
+  plan: 'STARTER' | 'GROWTH' | 'SCALE';
+  name: string;
+  price: number;
+  priceLabel: string;
+  description: string;
+  features: string[] | null;
+};
+
 export default function AdminSubscriptionsPage() {
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [edit, setEdit] = useState<Row | null>(null);
+  const [catalogPlans, setCatalogPlans] = useState<CatalogPlan[]>([]);
+  const [editingPlan, setEditingPlan] = useState<CatalogPlan | null>(null);
+  const [planName, setPlanName] = useState('');
+  const [planAmount, setPlanAmount] = useState('');
+  const [planPriceLabel, setPlanPriceLabel] = useState('');
+  const [planDescription, setPlanDescription] = useState('');
+  const [planFeaturesText, setPlanFeaturesText] = useState('');
+  const [savingPlan, setSavingPlan] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -48,9 +75,48 @@ export default function AdminSubscriptionsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const loadCatalog = useCallback(() => {
+    axios
+      .get<{ data: CatalogPlan[] }>('/api/admin/pricing-plans')
+      .then((r) => setCatalogPlans(r.data.data ?? []))
+      .catch(() => setCatalogPlans([]));
+  }, []);
+
   useEffect(() => {
     load();
-  }, [load]);
+    loadCatalog();
+  }, [load, loadCatalog]);
+
+  useEffect(() => {
+    if (!editingPlan) return;
+    setPlanName(editingPlan.name);
+    setPlanAmount(String(editingPlan.price ?? 0));
+    setPlanPriceLabel(editingPlan.priceLabel);
+    setPlanDescription(editingPlan.description);
+    setPlanFeaturesText((editingPlan.features ?? []).join('\n'));
+  }, [editingPlan]);
+
+  const saveCatalogPlan = async () => {
+    if (!editingPlan) return;
+    setSavingPlan(true);
+    try {
+      await axios.patch('/api/admin/pricing-plans', {
+        plan: editingPlan.plan,
+        name: planName.trim(),
+        price: Math.max(0, Math.floor(Number(planAmount) || 0)),
+        priceLabel: planPriceLabel.trim(),
+        description: planDescription.trim(),
+        features: planFeaturesText
+          .split('\n')
+          .map((s) => s.trim())
+          .filter(Boolean),
+      });
+      setEditingPlan(null);
+      loadCatalog();
+    } finally {
+      setSavingPlan(false);
+    }
+  };
 
   if (loading) {
     return <p className="text-sm text-muted-foreground">Loading…</p>;
@@ -59,8 +125,8 @@ export default function AdminSubscriptionsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Subscriptions</h1>
-        <p className="text-sm text-muted-foreground">Plans and billing status per restaurant.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">Subscription Management</h1>
+        <p className="text-sm text-muted-foreground">Plans, trial periods, expiry dates, and payment logs per restaurant.</p>
       </div>
 
       <Card>
@@ -129,6 +195,50 @@ export default function AdminSubscriptionsPage() {
         </CardContent>
       </Card>
 
+      <Card>
+        <CardHeader>
+          <CardTitle>Pricing catalog (3 fixed plans)</CardTitle>
+          <CardDescription>
+            Admin can update name, price, description, and features for Starter, Growth, and Scale.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Plan Key</TableHead>
+                <TableHead>Name</TableHead>
+                <TableHead>Price</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead className="w-24 text-right">Edit</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {catalogPlans.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell>
+                    <Badge variant="outline">{p.plan}</Badge>
+                  </TableCell>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell>{p.priceLabel}</TableCell>
+                  <TableCell className="max-w-[320px] truncate text-muted-foreground">
+                    {p.description}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button type="button" size="icon" variant="outline" onClick={() => setEditingPlan(p)}>
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {catalogPlans.length === 0 && (
+            <p className="py-6 text-sm text-muted-foreground">No pricing plans found.</p>
+          )}
+        </CardContent>
+      </Card>
+
       {edit && (
         <SubscriptionEditDialog
           open={!!edit}
@@ -141,6 +251,57 @@ export default function AdminSubscriptionsPage() {
           onSaved={load}
         />
       )}
+
+      <Dialog open={!!editingPlan} onOpenChange={(o) => !o && setEditingPlan(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              Edit plan {editingPlan?.plan ?? ''}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3">
+            <div className="grid gap-1">
+              <Label>Name</Label>
+              <Input value={planName} onChange={(e) => setPlanName(e.target.value)} />
+            </div>
+            <div className="grid gap-1">
+              <Label>Price (int)</Label>
+              <Input
+                inputMode="numeric"
+                value={planAmount}
+                onChange={(e) => setPlanAmount(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label>Price label</Label>
+              <Input
+                value={planPriceLabel}
+                onChange={(e) => setPlanPriceLabel(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-1">
+              <Label>Description</Label>
+              <Input value={planDescription} onChange={(e) => setPlanDescription(e.target.value)} />
+            </div>
+            <div className="grid gap-1">
+              <Label>Features (one per line)</Label>
+              <textarea
+                className="min-h-[140px] rounded-md border border-input bg-background px-3 py-2 text-sm"
+                value={planFeaturesText}
+                onChange={(e) => setPlanFeaturesText(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" type="button" onClick={() => setEditingPlan(null)}>
+              Cancel
+            </Button>
+            <Button type="button" disabled={savingPlan} onClick={() => void saveCatalogPlan()}>
+              {savingPlan ? 'Saving...' : 'Save'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

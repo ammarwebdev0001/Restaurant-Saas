@@ -79,6 +79,7 @@ model User {
   restarrants         Restaurant[]
   employees           Employee[]
   employeeInvitesSent EmployeeInvite[] @relation("EmployeeInvitesSent")
+  subscriptionPayments SubscriptionPayment[] @relation("SubscriptionPaymentRecordedBy")
 }
 
 model Role {
@@ -136,6 +137,7 @@ model Restaurant {
   customers        Customer[]
   branches         Branch[]
   subscription     RestaurantSubscription?
+  subscriptionPayments SubscriptionPayment[]
   saleTransactions Transaction[]
   kitchenTickets   KitchenTicket[]
 }
@@ -164,9 +166,44 @@ model RestaurantSubscription {
   notes            String?
 
   restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  payments   SubscriptionPayment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SubscriptionCatalog {
+  id          String           @id @default(uuid())
+  plan        SubscriptionPlan @unique
+  name        String
+  price       Int
+  priceLabel  String
+  description String
+  features    String[]         @default([])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model SubscriptionPayment {
+  id                     String   @id @default(uuid())
+  restaurantId           String
+  restaurantSubscriptionId String?
+  amount                 Float
+  currency               String   @default("PKR")
+  paidAt                 DateTime @default(now())
+  periodStart            DateTime?
+  periodEnd              DateTime?
+  notes                  String?
+  recordedByUserId       String?
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  restaurant   Restaurant             @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  subscription RestaurantSubscription? @relation(fields: [restaurantSubscriptionId], references: [id], onDelete: SetNull)
+  recordedBy   User?                  @relation("SubscriptionPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([restaurantId, paidAt])
+  @@index([restaurantSubscriptionId])
 }
 
 model PlatformSetting {
@@ -175,6 +212,17 @@ model PlatformSetting {
   value     String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model DemoRequest {
+  id             String   @id @default(cuid())
+  name           String
+  email          String
+  restaurantName String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([createdAt])
 }
 
 model Employee {

@@ -11,6 +11,7 @@ import Navbar from '@/components/dashboard/navbar';
 import { NavbarSheet } from '@/components/dashboard/NavbarSheet';
 import UserMenu from '@/components/dashboard/UserMenu';
 import Bread from '@/components/dashboard/breadcrumb';
+import { useRouter } from 'next/navigation';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import eventBus from '@/lib/even';
@@ -23,10 +24,14 @@ interface RootLayoutProps {
 }
 
 const RootLayout = ({ children }: RootLayoutProps) => {
+  const router = useRouter();
   const [restaurantName, setRestaurantName] = useState<string>('Restaurant');
   const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const [subscriptionChecked, setSubscriptionChecked] = useState(false);
+  const [subscriptionAllowed, setSubscriptionAllowed] = useState(true);
+  const [subscriptionWarning, setSubscriptionWarning] = useState<string | null>(null);
 
   useEffect(() => {
     try {
@@ -46,6 +51,37 @@ const RootLayout = ({ children }: RootLayoutProps) => {
       /* ignore */
     }
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    let mounted = true;
+    const check = async () => {
+      try {
+        const res = await axios.get('/api/me/subscription-access');
+        const data = res?.data?.data;
+        if (!mounted) return;
+        const allowed = Boolean(data?.allowed);
+        setSubscriptionAllowed(allowed);
+        setSubscriptionWarning(
+          typeof data?.warning === 'string' && data.warning.trim() !== '' ? data.warning : null
+        );
+        setSubscriptionChecked(true);
+        if (!allowed) {
+          toast.error('Your trial/plan is expired or not configured. Please choose a pricing plan.');
+          router.replace('/pricing');
+        }
+      } catch {
+        if (!mounted) return;
+        setSubscriptionAllowed(false);
+        setSubscriptionChecked(true);
+        toast.error('Could not verify subscription access.');
+        router.replace('/pricing');
+      }
+    };
+    void check();
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
 
   const toggleNav = () => {
     if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
@@ -84,6 +120,18 @@ const RootLayout = ({ children }: RootLayoutProps) => {
       eventBus.removeListener('fetchStoreData', handler);
     };
   }, []);
+
+  if (!subscriptionChecked) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-300 text-sm text-muted-foreground dark:bg-black">
+        Checking subscription…
+      </div>
+    );
+  }
+
+  if (!subscriptionAllowed) {
+    return null;
+  }
 
   return (
     <>
@@ -168,6 +216,11 @@ const RootLayout = ({ children }: RootLayoutProps) => {
             </header>
 
             <main className="flex flex-1 flex-col gap-4 p-4">
+              {subscriptionWarning && (
+                <div className="rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+                  {subscriptionWarning}
+                </div>
+              )}
               {children}
             </main>
           </div>

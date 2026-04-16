@@ -5,12 +5,13 @@ import React, { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
-import { useSession } from 'next-auth/react';
+import { getSession, useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { IconBrandGoogle, IconBrandGoogleFilled } from '@tabler/icons-react';
 
 function safeCallbackUrl(raw: string | null): string {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//')) {
@@ -19,11 +20,28 @@ function safeCallbackUrl(raw: string | null): string {
   return raw;
 }
 
+function roleDefaultPath(
+  roleName: string | null | undefined,
+  legacyRole: string | null | undefined
+): string {
+  const normalizedName = (roleName ?? '').trim().toLowerCase();
+  if (normalizedName === 'admin') return '/admin/dashboard';
+  if (normalizedName === 'user') return '/';
+  if (legacyRole === 'ADMIN') return '/admin/dashboard';
+  if (legacyRole === 'USER') return '/';
+  return '/dashboard';
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = safeCallbackUrl(searchParams.get('callbackUrl'));
-  const { status } = useSession();
+  const callbackUrlParam = searchParams.get('callbackUrl');
+  const callbackUrl = safeCallbackUrl(callbackUrlParam);
+  const hasExplicitCallback = Boolean(callbackUrlParam);
+  const { data: session, status } = useSession();
+  const targetAfterLogin = hasExplicitCallback
+    ? callbackUrl
+    : roleDefaultPath((session?.user as any)?.roleName, session?.user?.role);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -31,14 +49,16 @@ function LoginForm() {
 
   useEffect(() => {
     if (status === 'authenticated') {
-      router.replace(callbackUrl);
+      router.replace(targetAfterLogin);
     }
-  }, [status, router, callbackUrl]);
+  }, [status, router, targetAfterLogin]);
 
   async function handleGoogle() {
     setLoading(true);
     try {
-      await signIn('google', { callbackUrl });
+      await signIn('google', {
+        callbackUrl: hasExplicitCallback ? callbackUrl : '/login',
+      });
     } catch (e: any) {
       toast.error(e?.message ?? 'Failed to sign in with Google.');
     } finally {
@@ -87,8 +107,14 @@ function LoginForm() {
         );
         return;
       }
-
-      router.push(result.url ?? callbackUrl);
+      const fresh = await getSession();
+      const fallbackAfterLogin = roleDefaultPath(
+        (fresh?.user as any)?.roleName,
+        fresh?.user?.role
+      );
+      router.push(
+        hasExplicitCallback ? result.url ?? callbackUrl : fallbackAfterLogin
+      );
     } catch (e: any) {
       toast.error(e?.message ?? 'Login failed (server error).');
     } finally {
@@ -106,8 +132,9 @@ function LoginForm() {
 
         <div className="flex flex-col gap-2">
           <Button onClick={handleGoogle} disabled={loading} variant="secondary">
-            Continue with Google
+            <IconBrandGoogleFilled className="mr-1 h-4 w-4" /> Continue with Google
           </Button>
+          
         </div>
 
         <div className="my-6 border-t" />

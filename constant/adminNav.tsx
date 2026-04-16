@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Building2, CreditCard, LayoutDashboard, Settings } from 'lucide-react';
+import { Building2, CreditCard, LayoutDashboard, Settings, Inbox } from 'lucide-react';
 
 export type AdminNavItem = {
   title: string;
@@ -22,6 +22,11 @@ export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
     title: 'Subscriptions',
     path: '/admin/subscriptions',
     icon: <CreditCard className="h-4 w-4" />,
+  },
+  {
+    title: 'Requests',
+    path: '/admin/requests',
+    icon: <Inbox className="h-4 w-4" />,
   },
   {
     title: 'Platform settings',

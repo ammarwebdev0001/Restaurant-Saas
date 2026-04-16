@@ -35,9 +35,9 @@ export function KdsManagerBoard() {
   /** Resolved prep minutes per order (from presets or custom input). */
   const [prepMinutes, setPrepMinutes] = useState<Record<string, number>>({});
   /** Raw text for the optional custom minutes field per order. */
-  const [customMinutesText, setCustomMinutesText] = useState<Record<string, string>>(
-    {}
-  );
+  const [customMinutesText, setCustomMinutesText] = useState<
+    Record<string, string>
+  >({});
   const [submitting, setSubmitting] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -64,16 +64,17 @@ export function KdsManagerBoard() {
     const raw = customMinutesText[orderId]?.trim();
     if (raw) {
       const n = Math.round(Number(raw));
-      if (Number.isFinite(n) && n >= MIN_CUSTOM_MINUTES && n <= MAX_CUSTOM_MINUTES) {
+      if (
+        Number.isFinite(n) &&
+        n >= MIN_CUSTOM_MINUTES &&
+        n <= MAX_CUSTOM_MINUTES
+      ) {
         return n;
       }
       return null;
     }
     const fallback = prepMinutes[orderId] ?? 10;
-    if (
-      fallback >= MIN_CUSTOM_MINUTES &&
-      fallback <= MAX_CUSTOM_MINUTES
-    ) {
+    if (fallback >= MIN_CUSTOM_MINUTES && fallback <= MAX_CUSTOM_MINUTES) {
       return fallback;
     }
     return null;
@@ -110,7 +111,8 @@ export function KdsManagerBoard() {
         <div>
           <h1 className="text-2xl font-semibold">KDS Manager</h1>
           <p className="text-sm text-muted-foreground">
-            Choose a preset or enter custom minutes, then proceed the order to making.
+            Choose a preset or enter custom minutes, then proceed the order to
+            making.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -124,7 +126,9 @@ export function KdsManagerBoard() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading pending orders...</p>
+        <p className="text-sm text-muted-foreground">
+          Loading pending orders...
+        </p>
       ) : orders.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
@@ -142,7 +146,9 @@ export function KdsManagerBoard() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <p className="text-sm font-medium">{o.customer?.name || 'Walk-in'}</p>
+                <p className="text-sm font-medium">
+                  {o.customer?.name || 'Walk-in'}
+                </p>
                 <p className="text-xs text-muted-foreground">
                   {new Date(o.createdAt).toLocaleString()}
                 </p>
@@ -157,13 +163,17 @@ export function KdsManagerBoard() {
 
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground">Select time:</p>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="grid grid-cols-3 gap-2">
                     {[10, 15, 30].map((m) => (
                       <Button
                         key={m}
                         size="sm"
                         type="button"
-                        variant={(prepMinutes[o.id] ?? 10) === m ? 'default' : 'outline'}
+                        variant={
+                          (prepMinutes[o.id] ?? 10) === m
+                            ? 'default'
+                            : 'outline'
+                        }
                         onClick={() => {
                           setPrepMinutes((prev) => ({ ...prev, [o.id]: m }));
                           setCustomMinutesText((prev) => {

@@ -1,36 +1,13 @@
 import { ModeToggle } from '@/components/darkmode/darkmode';
 import { Button } from '@/components/ui/button';
-import LandingAuthActions from '@/components/marketing/LandingAuthActions';
 import Link from 'next/link';
+import Footer from '@/components/main/footer';
+import Header from '@/components/main/header';
 
 export default function Home() {
   return (
     <main className="min-h-screen w-full bg-gray-100 text-foreground dark:bg-black">
-      <header>
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-          <Link href="/" className="text-sm font-semibold tracking-wide">
-            Restaurant SaaS
-          </Link>
-          <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
-            <Link href="/demo-request" className="hover:text-foreground">
-              Demo Request
-            </Link>
-            <Link href="/restaurant-signup" className="hover:text-foreground">
-              Restaurant Signup
-            </Link>
-            <Link href="/pricing" className="hover:text-foreground">
-              Pricing
-            </Link>
-            <Link href="/documentation" className="hover:text-foreground">
-              Documentation
-            </Link>
-          </nav>
-          <div className="flex items-center gap-2">
-            <ModeToggle />
-            <LandingAuthActions />
-          </div>
-        </div>
-      </header>
+      <Header />
 
       <section className="relative overflow-hidden border-b bg-gradient-to-b from-background via-background to-muted/40">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
@@ -141,23 +118,7 @@ export default function Home() {
           </article>
         </div>
       </section>
-
-      <section className="border-t bg-muted/30">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-6 py-14 md:flex-row md:items-center">
-          <div>
-            <h3 className="text-2xl font-semibold">
-              Start building your digital restaurant today
-            </h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              Create your account, set up your brand, and launch your first
-              branch.
-            </p>
-          </div>
-          <Button className="h-11 rounded-xl px-6" asChild>
-            <Link href="/register">Create Account</Link>
-          </Button>
-        </div>
-      </section>
+      <Footer />
     </main>
   );
 }

@@ -31,6 +31,16 @@ type Sub = {
   notes: string | null;
 } | null;
 
+type PaymentRow = {
+  id: string;
+  amount: number;
+  currency: string;
+  paidAt: string;
+  periodStart: string | null;
+  periodEnd: string | null;
+  notes: string | null;
+};
+
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -61,6 +71,12 @@ export function SubscriptionEditDialog({
   const [trialEndsAt, setTrialEndsAt] = useState('');
   const [currentPeriodEnd, setCurrentPeriodEnd] = useState('');
   const [notes, setNotes] = useState('');
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [paymentPeriodEnd, setPaymentPeriodEnd] = useState('');
+  const [paymentNotes, setPaymentNotes] = useState('');
+  const [payments, setPayments] = useState<PaymentRow[]>([]);
+  const [loadingPayments, setLoadingPayments] = useState(false);
+  const [savingPayment, setSavingPayment] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -70,7 +86,31 @@ export function SubscriptionEditDialog({
     setTrialEndsAt(toLocalInput(subscription?.trialEndsAt ?? null));
     setCurrentPeriodEnd(toLocalInput(subscription?.currentPeriodEnd ?? null));
     setNotes(subscription?.notes ?? '');
+    setPaymentAmount('');
+    setPaymentPeriodEnd(toLocalInput(subscription?.currentPeriodEnd ?? null));
+    setPaymentNotes('');
+    setPayments([]);
   }, [open, subscription]);
+
+  useEffect(() => {
+    if (!open) return;
+    let mounted = true;
+    setLoadingPayments(true);
+    axios
+      .get<{ data: PaymentRow[] }>(`/api/admin/subscriptions/${restaurantId}/payments`)
+      .then((r) => {
+        if (mounted) setPayments(r.data.data ?? []);
+      })
+      .catch(() => {
+        if (mounted) setPayments([]);
+      })
+      .finally(() => {
+        if (mounted) setLoadingPayments(false);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, [open, restaurantId]);
 
   const save = async () => {
     setSaving(true);
@@ -91,6 +131,39 @@ export function SubscriptionEditDialog({
       console.error(err.response?.data);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const recordPayment = async () => {
+    const amount = Number(paymentAmount);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      toast.error('Enter a valid payment amount.');
+      return;
+    }
+
+    setSavingPayment(true);
+    try {
+      await axios.post(`/api/admin/subscriptions/${restaurantId}/payments`, {
+        amount,
+        currency: 'PKR',
+        periodEnd: paymentPeriodEnd ? new Date(paymentPeriodEnd).toISOString() : null,
+        notes: paymentNotes.trim() || null,
+        setStatusActive: true,
+      });
+      toast.success('Payment recorded');
+      setPaymentAmount('');
+      setPaymentNotes('');
+      const refreshed = await axios.get<{ data: PaymentRow[] }>(
+        `/api/admin/subscriptions/${restaurantId}/payments`
+      );
+      setPayments(refreshed.data.data ?? []);
+      onSaved();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: unknown } } };
+      toast.error('Could not record payment');
+      console.error(err.response?.data);
+    } finally {
+      setSavingPayment(false);
     }
   };
 
@@ -152,6 +225,69 @@ export function SubscriptionEditDialog({
               onChange={(e) => setNotes(e.target.value)}
               rows={3}
             />
+          </div>
+          <div className="rounded-md border p-3">
+            <p className="mb-3 text-sm font-medium">Record payment</p>
+            <div className="grid gap-2">
+              <Label>Amount (PKR)</Label>
+              <Input
+                inputMode="decimal"
+                placeholder="0.00"
+                value={paymentAmount}
+                onChange={(e) => setPaymentAmount(e.target.value)}
+              />
+            </div>
+            <div className="mt-2 grid gap-2">
+              <Label>Expire on (current period end)</Label>
+              <Input
+                type="datetime-local"
+                value={paymentPeriodEnd}
+                onChange={(e) => setPaymentPeriodEnd(e.target.value)}
+              />
+            </div>
+            <div className="mt-2 grid gap-2">
+              <Label>Payment notes</Label>
+              <textarea
+                className="flex min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                rows={2}
+                value={paymentNotes}
+                onChange={(e) => setPaymentNotes(e.target.value)}
+              />
+            </div>
+            <Button
+              type="button"
+              className="mt-3"
+              disabled={savingPayment}
+              onClick={() => void recordPayment()}
+            >
+              {savingPayment ? 'Recording...' : 'Record Payment'}
+            </Button>
+            {loadingPayments ? (
+              <p className="mt-3 text-xs text-muted-foreground">Loading payment history…</p>
+            ) : payments.length > 0 ? (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Recent payments</p>
+                <div className="max-h-40 space-y-1 overflow-auto text-xs">
+                  {payments.map((p) => (
+                    <div key={p.id} className="rounded border px-2 py-1">
+                      <div className="font-medium">
+                        {p.currency} {Number(p.amount).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="text-muted-foreground">
+                        Paid: {new Date(p.paidAt).toLocaleString()}
+                      </div>
+                      {p.periodEnd && (
+                        <div className="text-muted-foreground">
+                          Expires: {new Date(p.periodEnd).toLocaleString()}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="mt-3 text-xs text-muted-foreground">No payments recorded yet.</p>
+            )}
           </div>
         </div>
         <DialogFooter>
