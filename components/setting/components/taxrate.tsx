@@ -16,6 +16,7 @@ import { taxSchema } from '@/schema';
 import { ZodError } from 'zod';
 import { ReloadIcon } from '@radix-ui/react-icons';
 import eventBus from '@/lib/even';
+import { SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 
 interface TaxrateCardProps {
   tax: number | 0;
@@ -24,6 +25,7 @@ interface TaxrateCardProps {
 const TaxrateCard: React.FC<TaxrateCardProps> = ({ tax, storeId }) => {
   const [isLoading, setIsLoading] = useState(false);
   const [editableTaxrate, setEditableTaxrate] = useState('');
+  const [showConfirmation, setShowConfirmation] = useState(false);
   const taxNumber = parseFloat(editableTaxrate) || 0;
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setEditableTaxrate(e.target.value);
@@ -32,7 +34,15 @@ const TaxrateCard: React.FC<TaxrateCardProps> = ({ tax, storeId }) => {
     setEditableTaxrate(tax?.toString() ?? '');
   }, [tax]);
 
-  const handleSave = async () => {
+  const handleSaveClick = () => {
+    if (taxNumber === tax) {
+      toast.info('No changes to save.');
+      return;
+    }
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmSave = async () => {
     // Check if the user is online
     const isOnline = navigator.onLine;
 
@@ -46,10 +56,6 @@ const TaxrateCard: React.FC<TaxrateCardProps> = ({ tax, storeId }) => {
       return;
     }
 
-    if (taxNumber === tax) {
-      toast.info('No changes to save.');
-      return;
-    }
     setIsLoading(true);
     try {
       const validatedData = taxSchema.parse({
@@ -59,6 +65,7 @@ const TaxrateCard: React.FC<TaxrateCardProps> = ({ tax, storeId }) => {
       await axios.patch(`/api/shopdata/${storeId}`, validatedData);
 
       toast.success('Tax updated successfully.');
+      setShowConfirmation(false);
       eventBus.emit('fetchStoreData');
     } catch (error) {
       if (error instanceof ZodError) {
@@ -92,7 +99,7 @@ const TaxrateCard: React.FC<TaxrateCardProps> = ({ tax, storeId }) => {
         <CardFooter className="border-t px-6 py-4">
           <Button
             className="text-white"
-            onClick={handleSave}
+            onClick={handleSaveClick}
             disabled={isLoading}
           >
             {isLoading ? (
@@ -106,6 +113,15 @@ const TaxrateCard: React.FC<TaxrateCardProps> = ({ tax, storeId }) => {
           </Button>
         </CardFooter>
       </Card>
+      <SaveConfirmation
+        open={showConfirmation}
+        title="Save Tax Rate"
+        description="Are you sure you want to save this tax rate change?"
+        itemName={editableTaxrate + '%'}
+        loading={isLoading}
+        onConfirm={handleConfirmSave}
+        onCancel={() => setShowConfirmation(false)}
+      />
     </>
   );
 };

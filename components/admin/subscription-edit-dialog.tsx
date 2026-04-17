@@ -21,6 +21,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 
 type Sub = {
   id: string;
@@ -78,6 +79,7 @@ export function SubscriptionEditDialog({
   const [loadingPayments, setLoadingPayments] = useState(false);
   const [savingPayment, setSavingPayment] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     if (!open) return;
@@ -123,6 +125,7 @@ export function SubscriptionEditDialog({
         notes: notes.trim() || null,
       });
       toast.success('Subscription updated');
+      setShowConfirmation(false);
       onOpenChange(false);
       onSaved();
     } catch (e: unknown) {
@@ -132,6 +135,10 @@ export function SubscriptionEditDialog({
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleSaveClick = () => {
+    setShowConfirmation(true);
   };
 
   const recordPayment = async () => {
@@ -169,135 +176,146 @@ export function SubscriptionEditDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Subscription — {restaurantName}</DialogTitle>
         </DialogHeader>
-        <div className="grid gap-4 py-2">
-          <div className="grid gap-2">
-            <Label>Plan</Label>
-            <Select value={plan} onValueChange={setPlan}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="STARTER">Starter</SelectItem>
-                <SelectItem value="GROWTH">Growth</SelectItem>
-                <SelectItem value="SCALE">Scale</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label>Status</Label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="TRIAL">Trial</SelectItem>
-                <SelectItem value="ACTIVE">Active</SelectItem>
-                <SelectItem value="PAST_DUE">Past due</SelectItem>
-                <SelectItem value="CANCELED">Canceled</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="grid gap-2">
-            <Label>Trial ends</Label>
-            <Input
-              type="datetime-local"
-              value={trialEndsAt}
-              onChange={(e) => setTrialEndsAt(e.target.value)}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>Current period ends</Label>
-            <Input
-              type="datetime-local"
-              value={currentPeriodEnd}
-              onChange={(e) => setCurrentPeriodEnd(e.target.value)}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>Notes</Label>
-            <textarea
-              className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={3}
-            />
-          </div>
-          <div className="rounded-md border p-3">
-            <p className="mb-3 text-sm font-medium">Record payment</p>
+        <div className="overflow-y-auto flex-1 px-1">
+          <div className="grid gap-4 py-2 pr-4">
             <div className="grid gap-2">
-              <Label>Amount (PKR)</Label>
-              <Input
-                inputMode="decimal"
-                placeholder="0.00"
-                value={paymentAmount}
-                onChange={(e) => setPaymentAmount(e.target.value)}
-              />
+              <Label>Plan</Label>
+              <Select value={plan} onValueChange={setPlan}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="STARTER">Starter</SelectItem>
+                  <SelectItem value="GROWTH">Growth</SelectItem>
+                  <SelectItem value="SCALE">Scale</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
-            <div className="mt-2 grid gap-2">
-              <Label>Expire on (current period end)</Label>
+            <div className="grid gap-2">
+              <Label>Status</Label>
+              <Select value={status} onValueChange={setStatus}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="TRIAL">Trial</SelectItem>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="PAST_DUE">Past due</SelectItem>
+                  <SelectItem value="CANCELED">Canceled</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label>Trial ends</Label>
               <Input
                 type="datetime-local"
-                value={paymentPeriodEnd}
-                onChange={(e) => setPaymentPeriodEnd(e.target.value)}
+                value={trialEndsAt}
+                onChange={(e) => setTrialEndsAt(e.target.value)}
               />
             </div>
-            <div className="mt-2 grid gap-2">
-              <Label>Payment notes</Label>
+            <div className="grid gap-2">
+              <Label>Current period ends</Label>
+              <Input
+                type="datetime-local"
+                value={currentPeriodEnd}
+                onChange={(e) => setCurrentPeriodEnd(e.target.value)}
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label>Notes</Label>
               <textarea
-                className="flex min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                rows={2}
-                value={paymentNotes}
-                onChange={(e) => setPaymentNotes(e.target.value)}
+                className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={3}
               />
             </div>
-            <Button
-              type="button"
-              className="mt-3"
-              disabled={savingPayment}
-              onClick={() => void recordPayment()}
-            >
-              {savingPayment ? 'Recording...' : 'Record Payment'}
-            </Button>
-            {loadingPayments ? (
-              <p className="mt-3 text-xs text-muted-foreground">Loading payment history…</p>
-            ) : payments.length > 0 ? (
-              <div className="mt-4">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Recent payments</p>
-                <div className="max-h-40 space-y-1 overflow-auto text-xs">
-                  {payments.map((p) => (
-                    <div key={p.id} className="rounded border px-2 py-1">
-                      <div className="font-medium">
-                        {p.currency} {Number(p.amount).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                      <div className="text-muted-foreground">
-                        Paid: {new Date(p.paidAt).toLocaleString()}
-                      </div>
-                      {p.periodEnd && (
-                        <div className="text-muted-foreground">
-                          Expires: {new Date(p.periodEnd).toLocaleString()}
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+            <div className="rounded-md border p-3">
+              <p className="mb-3 text-sm font-medium">Record payment</p>
+              <div className="grid gap-2">
+                <Label>Amount (PKR)</Label>
+                <Input
+                  inputMode="decimal"
+                  placeholder="0.00"
+                  value={paymentAmount}
+                  onChange={(e) => setPaymentAmount(e.target.value)}
+                />
               </div>
-            ) : (
-              <p className="mt-3 text-xs text-muted-foreground">No payments recorded yet.</p>
-            )}
+              <div className="mt-2 grid gap-2">
+                <Label>Expire on (current period end)</Label>
+                <Input
+                  type="datetime-local"
+                  value={paymentPeriodEnd}
+                  onChange={(e) => setPaymentPeriodEnd(e.target.value)}
+                />
+              </div>
+              <div className="mt-2 grid gap-2">
+                <Label>Payment notes</Label>
+                <textarea
+                  className="flex min-h-[64px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  rows={2}
+                  value={paymentNotes}
+                  onChange={(e) => setPaymentNotes(e.target.value)}
+                />
+              </div>
+              <Button
+                type="button"
+                className="mt-3"
+                disabled={savingPayment}
+                onClick={() => void recordPayment()}
+              >
+                {savingPayment ? 'Recording...' : 'Record Payment'}
+              </Button>
+              {loadingPayments ? (
+                <p className="mt-3 text-xs text-muted-foreground">Loading payment history…</p>
+              ) : payments.length > 0 ? (
+                <div className="mt-4">
+                  <p className="mb-2 text-xs font-medium text-muted-foreground">Recent payments</p>
+                  <div className="max-h-40 space-y-1 overflow-auto text-xs">
+                    {payments.map((p) => (
+                      <div key={p.id} className="rounded border px-2 py-1">
+                        <div className="font-medium">
+                          {p.currency} {Number(p.amount).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className="text-muted-foreground">
+                          Paid: {new Date(p.paidAt).toLocaleString()}
+                        </div>
+                        {p.periodEnd && (
+                          <div className="text-muted-foreground">
+                            Expires: {new Date(p.periodEnd).toLocaleString()}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <p className="mt-3 text-xs text-muted-foreground">No payments recorded yet.</p>
+              )}
+            </div>
           </div>
         </div>
         <DialogFooter>
           <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="button" disabled={saving} onClick={() => void save()}>
+          <Button type="button" disabled={saving} onClick={handleSaveClick}>
             Save
           </Button>
         </DialogFooter>
+        <SaveConfirmation
+          open={showConfirmation}
+          title="Save Subscription"
+          description="Are you sure you want to save these subscription changes?"
+          itemName={restaurantName}
+          loading={saving}
+          onConfirm={save}
+          onCancel={() => setShowConfirmation(false)}
+        />
       </DialogContent>
     </Dialog>
   );

@@ -29,20 +29,11 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import {
   rowsFromPermissions,
   toggleModuleAction,
 } from '@/lib/dashboard-permissions';
 import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
+import { DeleteConfirmation, SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 import type { PermissionAction } from '@/constant/dashboardModules';
 
 type RoleRow = {
@@ -62,6 +53,7 @@ export default function RolesCard() {
   const [creating, setCreating] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmSaveId, setConfirmSaveId] = useState<string | null>(null);
 
   const fetchRoles = useCallback(async () => {
     if (!navigator.onLine) {
@@ -127,6 +119,7 @@ export default function RolesCard() {
         permissions: cur.permissions,
       });
       toast.success('Role saved.');
+      setConfirmSaveId(null);
       await fetchRoles();
     } catch (e: any) {
       toast.error(
@@ -310,7 +303,7 @@ export default function RolesCard() {
                             size="sm"
                             className="text-white"
                             disabled={!dirty || savingId === r.id}
-                            onClick={() => void handleSave(r.id)}
+                            onClick={() => setConfirmSaveId(r.id)}
                           >
                             {savingId === r.id ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -423,33 +416,31 @@ export default function RolesCard() {
         </CardFooter>
       </Card>
 
-      <AlertDialog
+      <SaveConfirmation
+        open={confirmSaveId !== null}
+        title="Save Role Changes"
+        description="Are you sure you want to save these changes to this role?"
+        itemName={confirmSaveId ? drafts[confirmSaveId]?.name : undefined}
+        loading={savingId !== null}
+        onConfirm={async () => {
+          if (confirmSaveId) {
+            await handleSave(confirmSaveId);
+          }
+        }}
+        onCancel={() => setConfirmSaveId(null)}
+      />
+
+      <DeleteConfirmation
         open={deleteId !== null}
-        onOpenChange={(open) => !open && setDeleteId(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete this role?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This cannot be undone. Roles that are still assigned to employees
-              cannot be removed.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              onClick={(ev) => {
-                ev.preventDefault();
-                void confirmDelete();
-              }}
-              disabled={deleting}
-            >
-              {deleting ? 'Deleting…' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        title="Delete Role"
+        description="This cannot be undone. Roles that are still assigned to employees cannot be removed."
+        itemName={deleteId ? roles.find(r => r.id === deleteId)?.name : undefined}
+        loading={deleting}
+        onConfirm={async () => {
+          await confirmDelete();
+        }}
+        onCancel={() => setDeleteId(null)}
+      />
     </>
   );
 }

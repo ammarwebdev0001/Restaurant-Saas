@@ -16,6 +16,7 @@ import { shopnameSchema } from '@/schema';
 import { ZodError } from 'zod';
 import { ReloadIcon } from '@radix-ui/react-icons';
 import eventBus from '@/lib/even';
+import { SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 interface ShopnameCardProps {
   storeName: string | null;
   storeId: string | null;
@@ -24,6 +25,7 @@ interface ShopnameCardProps {
 const ShopnameCard: React.FC<ShopnameCardProps> = ({ storeName, storeId }) => {
   const [editableStoreName, setEditableStoreName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
 
   useEffect(() => {
     setEditableStoreName(storeName ?? '');
@@ -33,7 +35,15 @@ const ShopnameCard: React.FC<ShopnameCardProps> = ({ storeName, storeId }) => {
     setEditableStoreName(e.target.value);
   };
 
-  const handleSave = async () => {
+  const handleSaveClick = () => {
+    if (editableStoreName === storeName) {
+      toast.info('No changes to save.');
+      return;
+    }
+    setShowConfirmation(true);
+  };
+
+  const handleConfirmSave = async () => {
     // Check if the user is online
     const isOnline = navigator.onLine;
 
@@ -47,11 +57,6 @@ const ShopnameCard: React.FC<ShopnameCardProps> = ({ storeName, storeId }) => {
       return;
     }
 
-    if (editableStoreName === storeName) {
-      toast.info('No changes to save.');
-      return;
-    }
-
     setIsLoading(true);
 
     try {
@@ -62,6 +67,7 @@ const ShopnameCard: React.FC<ShopnameCardProps> = ({ storeName, storeId }) => {
       await axios.patch(`/api/shopdata/${storeId}`, validatedData);
 
       toast.success('Store name updated successfully.');
+      setShowConfirmation(false);
       eventBus.emit('fetchStoreData');
     } catch (error) {
       if (error instanceof ZodError) {
@@ -90,7 +96,7 @@ const ShopnameCard: React.FC<ShopnameCardProps> = ({ storeName, storeId }) => {
       <CardFooter className="border-t px-6 py-4">
         <Button
           className="text-white"
-          onClick={handleSave}
+          onClick={handleSaveClick}
           disabled={isLoading}
         >
           {isLoading ? (
@@ -103,6 +109,15 @@ const ShopnameCard: React.FC<ShopnameCardProps> = ({ storeName, storeId }) => {
           )}
         </Button>
       </CardFooter>
+      <SaveConfirmation
+        open={showConfirmation}
+        title="Save Store Name"
+        description="Are you sure you want to save these changes to your store name?"
+        itemName={editableStoreName}
+        loading={isLoading}
+        onConfirm={handleConfirmSave}
+        onCancel={() => setShowConfirmation(false)}
+      />
     </Card>
   );
 };
