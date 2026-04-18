@@ -6,7 +6,7 @@ import { RefreshCw } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 type Ticket = {
   id: string;
@@ -20,6 +20,38 @@ type Ticket = {
   customerName: string | null;
   items: { id: string; productName: string; quantity: number }[];
 };
+
+type MenuItemRow = {
+  id: string;
+  name: string;
+  price: number;
+  salePrice: number | null;
+};
+
+type MenuPayload = {
+  menus?: { items?: MenuItemRow[] }[];
+};
+
+/** Same rule as kiosk “Recommended”: items with an active sale price. */
+function recommendedItemNames(menu: MenuPayload | null | undefined): string[] {
+  if (!menu?.menus?.length) return [];
+  const byId = new Map<string, string>();
+  for (const cat of menu.menus) {
+    for (const it of cat.items ?? []) {
+      if (
+        !it?.id ||
+        !it.name?.trim() ||
+        it.salePrice == null ||
+        it.salePrice <= 0 ||
+        it.salePrice >= it.price
+      ) {
+        continue;
+      }
+      if (!byId.has(it.id)) byId.set(it.id, it.name.trim());
+    }
+  }
+  return [...byId.values()].sort((a, b) => a.localeCompare(b));
+}
 
 function fmt(v: number) {
   return v.toLocaleString('en-PK', {
@@ -51,6 +83,7 @@ function formatCountdown(sec: number) {
 
 export function KdsKitchenScreen() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
+  const [recommendedNames, setRecommendedNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [activeUpdatingTicketId, setActiveUpdatingTicketId] = useState<
@@ -140,6 +173,14 @@ export function KdsKitchenScreen() {
         </Button>
       </div>
 
+      {recommendedNames.length > 0 ? (
+        <Card className="mb-4 border-dashed">
+          <CardContent className="py-3 text-sm leading-snug text-foreground">
+            {recommendedNames.join(', ')}
+          </CardContent>
+        </Card>
+      ) : null}
+
       {loading ? (
         <p className="text-sm text-muted-foreground">
           Loading kitchen tickets...
@@ -192,8 +233,11 @@ export function KdsKitchenScreen() {
 
                   <div className="space-y-1">
                     {t.items.map((it) => (
-                      <p key={it.id} className="text-sm">
-                        {it.quantity}x {it.productName}
+                      <p key={it.id} className="text-sm leading-snug">
+                        <span className="font-semibold tabular-nums">
+                          {it.quantity}×
+                        </span>{' '}
+                        {it.productName}
                       </p>
                     ))}
                   </div>

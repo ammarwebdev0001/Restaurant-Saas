@@ -170,6 +170,20 @@ function formatPkr(n: number) {
   });
 }
 
+/** Single-line label for cart / kitchen (matches server `ticketProductName` shape). */
+function cartLineDisplayName(line: CartLine): string {
+  if (!line.modifiers.length) return line.productName;
+  const bits = line.modifiers.map((g) => {
+    const names = g.selections.map((s) => s.name).join(', ');
+    return `${names}`;
+  });
+  return `${line.productName} (${bits.join(', ')})`;
+}
+
+function cartSummaryLines(cart: CartLine[], maxLines: number): string[] {
+  return cart.slice(0, maxLines).map((l) => `${l.quantity}× ${cartLineDisplayName(l)}`);
+}
+
 type Step = 'mode' | 'menu' | 'cart' | 'checkout' | 'done';
 
 export function KioskApp({ slug }: { slug: string }) {
@@ -253,8 +267,23 @@ export function KioskApp({ slug }: { slug: string }) {
     const byId = new Map<string, CustomerMenuProduct>();
     for (const p of allProducts) {
       for (const o of p.offersFromThis ?? []) {
-        const full = allProducts.find((x) => x.id === o.offeredItem.id);
-        if (full && !byId.has(full.id)) byId.set(full.id, full);
+        const it = o.offeredItem;
+        if (!it?.id) continue;
+        const full = allProducts.find((x) => x.id === it.id);
+        const candidate: CustomerMenuProduct =
+          full ??
+          {
+            id: it.id,
+            name: it.name,
+            description: it.description ?? null,
+            imageUrl: it.imageUrl ?? null,
+            price: it.price,
+            salePrice: it.salePrice ?? null,
+            categoryId: p.categoryId,
+            attributeGroups: [],
+            offersFromThis: undefined,
+          };
+        if (!byId.has(candidate.id)) byId.set(candidate.id, candidate);
       }
     }
     return [...byId.values()].slice(0, 12);
@@ -770,11 +799,20 @@ export function KioskApp({ slug }: { slug: string }) {
 
             <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-[#c2410c] bg-[#ea580c] px-4 py-3 text-white shadow-[0_-4px_20px_rgba(0,0,0,0.12)]">
               <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
-                <div>
+                <div className="min-w-0 flex-1">
                   <p className="text-lg font-bold tabular-nums">
                     PKR {formatPkr(cartSubtotal)}
                   </p>
                   <p className="text-xs opacity-90">{cartCount} items</p>
+                  {cart.length > 0 ? (
+                    <p
+                      className="mt-1 line-clamp-2 text-[11px] leading-snug opacity-95"
+                      title={cart.map((l) => `${l.quantity}× ${cartLineDisplayName(l)}`).join(' · ')}
+                    >
+                      {cartSummaryLines(cart, 4).join(' · ')}
+                      {cart.length > 4 ? ` · +${cart.length - 4} more` : ''}
+                    </p>
+                  ) : null}
                 </div>
                 <Button
                   type="button"
@@ -825,7 +863,7 @@ export function KioskApp({ slug }: { slug: string }) {
                       </div>
                       <div className="min-w-0 flex-1">
                         <p className="font-medium leading-snug">
-                          {line.productName}
+                          {cartLineDisplayName(line)}
                         </p>
                         <p className="text-xs text-[#64748b]">
                           PKR {formatPkr(lineUnitTotal(line))} each
@@ -939,7 +977,25 @@ export function KioskApp({ slug }: { slug: string }) {
               />
             </div>
             <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4 text-sm text-[#0f172a]">
-              <div className="flex justify-between font-semibold">
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#64748b]">
+                Order summary
+              </p>
+              <ul className="mb-3 max-h-40 space-y-1.5 overflow-y-auto text-sm">
+                {cart.map((line) => (
+                  <li
+                    key={line.lineId}
+                    className="flex justify-between gap-2 border-b border-[#e2e8f0]/80 py-1 last:border-0"
+                  >
+                    <span className="min-w-0 truncate font-medium">
+                      {line.quantity}× {cartLineDisplayName(line)}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-[#64748b]">
+                      PKR {formatPkr(lineTotal(line))}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <div className="flex justify-between border-t border-[#e2e8f0] pt-2 font-semibold">
                 <span>Total due</span>
                 <span>PKR {formatPkr(cartSubtotal)}</span>
               </div>

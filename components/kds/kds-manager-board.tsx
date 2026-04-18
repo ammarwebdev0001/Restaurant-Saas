@@ -17,7 +17,12 @@ type PendingOrder = {
   sourceType: string;
   createdAt: string;
   customer: { name: string } | null;
-  items: { id: string; quantity: number; menuItem: { name: string } }[];
+  items: {
+    id: string;
+    quantity: number;
+    menuItem: { name: string };
+    modifiers: { name: string; quantity: number }[];
+  }[];
 };
 
 function fmt(v: number) {
@@ -176,11 +181,22 @@ export function KdsManagerBoard() {
                   {new Date(o.createdAt).toLocaleString()}
                 </p>
                 <div className="space-y-1">
-                  {o.items.map((it) => (
-                    <p key={it.id} className="text-xs">
-                      {it.quantity}x {it.menuItem.name}
-                    </p>
-                  ))}
+                  {o.items.map((it) => {
+                    const modBits =
+                      it.modifiers?.map((m) => m.name).filter(Boolean) ?? [];
+                    const label =
+                      modBits.length > 0
+                        ? `${it.menuItem.name} (${modBits.join(', ')})`
+                        : it.menuItem.name;
+                    return (
+                      <p key={it.id} className="text-xs leading-snug">
+                        <span className="font-semibold tabular-nums">
+                          {it.quantity}×
+                        </span>{' '}
+                        {label}
+                      </p>
+                    );
+                  })}
                 </div>
                 <p className="text-xs font-semibold">PKR {fmt(o.total)}</p>
 

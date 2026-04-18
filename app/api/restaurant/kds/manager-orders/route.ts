@@ -41,6 +41,7 @@ export async function GET(_req: NextRequest) {
             id: true,
             quantity: true,
             menuItem: { select: { name: true } },
+            modifiers: { select: { name: true, quantity: true } },
           },
         },
       },

@@ -156,6 +156,7 @@ export async function POST(req: NextRequest) {
           select: {
             quantity: true,
             menuItem: { select: { name: true } },
+            modifiers: { select: { name: true } },
           },
         },
       },
@@ -211,13 +212,18 @@ export async function POST(req: NextRequest) {
       );
 
       for (const line of order.items) {
-        const itemId = `kdsi_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+        const modNames = line.modifiers.map((m) => m.name).filter(Boolean);
+        const productName =
+          modNames.length > 0
+            ? `${line.menuItem.name} (${modNames.join(', ')})`
+            : line.menuItem.name;
+        const itemId = `kdsi_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
         await tx.$executeRaw(
           Prisma.sql`
             INSERT INTO "KitchenTicketItem"
               ("id","kitchenTicketId","productName","quantity")
             VALUES
-              (${itemId}, ${ticketId}, ${line.menuItem.name}, ${line.quantity})
+              (${itemId}, ${ticketId}, ${productName}, ${line.quantity})
           `
         );
       }
