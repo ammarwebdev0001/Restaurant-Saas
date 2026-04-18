@@ -19,12 +19,14 @@ export type SalesOrderRow =
 export type SalesOrdersStats = {
   online: { count: number; totalAmount: number };
   pos: { count: number; totalAmount: number };
+  kiosk: { count: number; totalAmount: number };
   all: { count: number; totalAmount: number };
 };
 
 export type SalesOrdersApiResponse = {
   onlineOrders: SalesOrderRow[];
   posOrders: SalesOrderRow[];
+  kioskOrders: SalesOrderRow[];
   stats: SalesOrdersStats;
   /** @deprecated Combined list for legacy clients */
   orders?: SalesOrderRow[];

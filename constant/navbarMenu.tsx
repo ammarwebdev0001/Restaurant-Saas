@@ -14,7 +14,10 @@ import {
 import { DASHBOARD_MODULES } from '@/constant/dashboardModules';
 import { NavItem } from '@/types/Navbar';
 
-const MODULE_ICONS: Record<(typeof DASHBOARD_MODULES)[number]['moduleKey'], LucideIcon> = {
+export const MODULE_ICONS: Record<
+  (typeof DASHBOARD_MODULES)[number]['moduleKey'],
+  LucideIcon
+> = {
   dashboard: Home,
   sales: ShoppingCart,
   pos: ScanLine,

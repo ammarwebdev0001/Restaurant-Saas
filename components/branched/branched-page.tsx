@@ -3,7 +3,15 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 
+import {
+  DeleteConfirmation,
+  SaveConfirmation,
+} from '@/components/ui/confirmation-dialogs';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { toast } from 'react-toastify';
+import { Loader2Icon } from 'lucide-react';
 
 type BranchRow = {
   id: string;
@@ -16,44 +24,276 @@ type BranchRow = {
 export function BranchedPage() {
   const [branches, setBranches] = useState<BranchRow[]>([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [name, setName] = useState('');
+  const [address, setAddress] = useState('');
+  const [phone, setPhone] = useState('');
+
+  const [confirmAddOpen, setConfirmAddOpen] = useState(false);
+  const [confirmEditOpen, setConfirmEditOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
     (async () => {
       try {
-        const res = await axios.get<{ data: BranchRow[] }>('/api/restaurant/branches');
+        const res = await axios.get<{ data: BranchRow[] }>(
+          '/api/restaurant/branches'
+        );
         setBranches(res.data.data ?? []);
       } catch {
+        toast.error('Could not load branches');
         setBranches([]);
       } finally {
         setLoading(false);
       }
     })();
+  };
+
+  useEffect(() => {
+    void load();
   }, []);
 
+  const activeBranch = branches.find((b) => b.id === activeId) ?? null;
+
+  function resetForm() {
+    setActiveId(null);
+    setName('');
+    setAddress('');
+    setPhone('');
+  }
+
+  function startEdit(branch: BranchRow) {
+    setActiveId(branch.id);
+    setName(branch.name);
+    setAddress(branch.address ?? '');
+    setPhone(branch.phone ?? '');
+  }
+
+  async function createBranch() {
+    const trimmed = name.trim();
+    if (!trimmed) {
+      toast.warn('Branch name is required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await axios.post('/api/restaurant/branches', {
+        name: trimmed,
+        address: address.trim(),
+        phone: phone.trim(),
+      });
+      toast.success('Branch created');
+      resetForm();
+      setConfirmAddOpen(false);
+      await load();
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && typeof e.response?.data?.error === 'string'
+          ? e.response.data.error
+          : 'Failed to create branch';
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateBranch() {
+    const branchId = activeId;
+    const trimmed = name.trim();
+    if (!branchId) return;
+    if (!trimmed) {
+      toast.warn('Branch name is required.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await axios.patch(`/api/restaurant/branches/${branchId}`, {
+        name: trimmed,
+        address: address.trim(),
+        phone: phone.trim(),
+      });
+      toast.success('Branch updated');
+      resetForm();
+      setConfirmEditOpen(false);
+      await load();
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && typeof e.response?.data?.error === 'string'
+          ? e.response.data.error
+          : 'Failed to update branch';
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteBranch() {
+    const branchId = activeId;
+    if (!branchId) return;
+    setDeletingId(branchId);
+    try {
+      await axios.delete(`/api/restaurant/branches/${branchId}`);
+      toast.success('Branch deleted');
+      resetForm();
+      setConfirmDeleteOpen(false);
+      await load();
+    } catch (e: unknown) {
+      const msg =
+        axios.isAxiosError(e) && typeof e.response?.data?.error === 'string'
+          ? e.response.data.error
+          : 'Failed to delete branch';
+      toast.error(msg);
+    } finally {
+      setDeletingId(null);
+      setDeletingId(null);
+      setActiveId(null);
+    }
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Branched</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {loading ? (
-          <p className="text-sm text-muted-foreground">Loading branches...</p>
-        ) : branches.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No branches found yet. Add branches during onboarding or restaurant setup.
-          </p>
-        ) : (
-          branches.map((b, index) => (
-            <div key={b.id} className="rounded-lg border p-3">
-              <p className="text-sm font-semibold">
-                {index + 1}. {b.name}
-              </p>
-              <p className="text-xs text-muted-foreground">{b.address || 'No address'}</p>
-              <p className="text-xs text-muted-foreground">{b.phone || 'No phone'}</p>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle>Branch Management</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Input
+              placeholder="Branch name *"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+            <Input
+              placeholder="Address"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+            />
+            <Input
+              placeholder="Phone"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {activeId ? (
+              <>
+                <Button
+                  type="button"
+                  disabled={saving || deletingId === activeId}
+                  onClick={() => setConfirmEditOpen(true)}
+                >
+                  {saving ? (
+                    <Loader2Icon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Update branch'
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="destructive"
+                  disabled={saving || deletingId === activeId}
+                  onClick={() => setConfirmDeleteOpen(true)}
+                >
+                  {deletingId === activeId ? (
+                    <Loader2Icon className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Delete branch'
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving || deletingId === activeId}
+                  onClick={resetForm}
+                >
+                  Cancel edit
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                onClick={() => setConfirmAddOpen(true)}
+                disabled={saving}
+              >
+                Add new branch
+              </Button>
+            )}
+          </div>
+
+          {loading ? (
+            <p className="text-sm text-muted-foreground">Loading branches...</p>
+          ) : branches.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No branches found yet. Add your first branch now.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {branches.map((b, index) => {
+                const editing = b.id === activeId;
+                return (
+                  <div
+                    key={b.id}
+                    className={`rounded-lg border p-3 ${editing ? 'border-primary' : ''}`}
+                  >
+                    <p className="text-sm font-semibold">
+                      {index + 1}. {b.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {b.address || 'No address'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {b.phone || 'No phone'}
+                    </p>
+                    <div className="mt-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => startEdit(b)}
+                      >
+                        Edit
+                      </Button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-          ))
-        )}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+
+      <SaveConfirmation
+        open={confirmAddOpen}
+        title="Add Branch"
+        description="Create this branch now?"
+        itemName={name.trim() || 'New branch'}
+        loading={saving}
+        onConfirm={() => void createBranch()}
+        onCancel={() => setConfirmAddOpen(false)}
+      />
+      <SaveConfirmation
+        open={confirmEditOpen}
+        title="Update Branch"
+        description="Save these branch changes?"
+        itemName={(activeBranch?.name ?? name.trim()) || 'Branch'}
+        loading={saving}
+        onConfirm={() => void updateBranch()}
+        onCancel={() => setConfirmEditOpen(false)}
+      />
+      <DeleteConfirmation
+        open={confirmDeleteOpen}
+        title="Delete Branch"
+        description="This branch will be removed permanently."
+        itemName={activeBranch?.name ?? 'Branch'}
+        loading={deletingId === activeId}
+        onConfirm={() => void deleteBranch()}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
+    </>
   );
 }

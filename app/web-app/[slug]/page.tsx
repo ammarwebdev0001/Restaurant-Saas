@@ -7,8 +7,8 @@ export default async function WebAppBySlugPage({
 }) {
   const { slug } = await params;
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <div className="flex flex-1 flex-col bg-transparent text-inherit">
       <WebAppStorefront slug={slug} />
-    </main>
+    </div>
   );
 }

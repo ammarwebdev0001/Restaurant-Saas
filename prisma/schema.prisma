@@ -54,11 +54,12 @@ enum CatProduct {
   FASHION
 }
 
-// How the order was created: POS, web (online), walk-in register, or other.
+// How the order was created: POS, web (online), walk-in register, kiosk, or other.
 enum OrderSourceType {
   POS
   ONLINE
   WALK_IN
+  KIOSK
   OTHER
 }
 
@@ -76,9 +77,9 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  restarrants         Restaurant[]
-  employees           Employee[]
-  employeeInvitesSent EmployeeInvite[] @relation("EmployeeInvitesSent")
+  restarrants          Restaurant[]
+  employees            Employee[]
+  employeeInvitesSent  EmployeeInvite[]      @relation("EmployeeInvitesSent")
   subscriptionPayments SubscriptionPayment[] @relation("SubscriptionPaymentRecordedBy")
 }
 
@@ -126,20 +127,20 @@ model Restaurant {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  owner            User                    @relation(fields: [ownerId], references: [id])
-  roles            Role[]
-  menus            MenuCategory[]
-  menuItems        MenuItem[]
-  orders           Order[]
-  payments         Payment[]
-  employees        Employee[]
-  employeeInvites  EmployeeInvite[]
-  customers        Customer[]
-  branches         Branch[]
-  subscription     RestaurantSubscription?
+  owner                User                    @relation(fields: [ownerId], references: [id])
+  roles                Role[]
+  menus                MenuCategory[]
+  menuItems            MenuItem[]
+  orders               Order[]
+  payments             Payment[]
+  employees            Employee[]
+  employeeInvites      EmployeeInvite[]
+  customers            Customer[]
+  branches             Branch[]
+  subscription         RestaurantSubscription?
   subscriptionPayments SubscriptionPayment[]
-  saleTransactions Transaction[]
-  kitchenTickets   KitchenTicket[]
+  saleTransactions     Transaction[]
+  kitchenTickets       KitchenTicket[]
 }
 
 model Branch {
@@ -165,7 +166,7 @@ model RestaurantSubscription {
   currentPeriodEnd DateTime?
   notes            String?
 
-  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant Restaurant            @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   payments   SubscriptionPayment[]
 
   createdAt DateTime @default(now())
@@ -185,22 +186,22 @@ model SubscriptionCatalog {
 }
 
 model SubscriptionPayment {
-  id                     String   @id @default(uuid())
-  restaurantId           String
+  id                       String    @id @default(uuid())
+  restaurantId             String
   restaurantSubscriptionId String?
-  amount                 Float
-  currency               String   @default("PKR")
-  paidAt                 DateTime @default(now())
-  periodStart            DateTime?
-  periodEnd              DateTime?
-  notes                  String?
-  recordedByUserId       String?
-  createdAt              DateTime @default(now())
-  updatedAt              DateTime @updatedAt
+  amount                   Float
+  currency                 String    @default("PKR")
+  paidAt                   DateTime  @default(now())
+  periodStart              DateTime?
+  periodEnd                DateTime?
+  notes                    String?
+  recordedByUserId         String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
 
-  restaurant   Restaurant             @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  restaurant   Restaurant              @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   subscription RestaurantSubscription? @relation(fields: [restaurantSubscriptionId], references: [id], onDelete: SetNull)
-  recordedBy   User?                  @relation("SubscriptionPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: SetNull)
+  recordedBy   User?                   @relation("SubscriptionPaymentRecordedBy", fields: [recordedByUserId], references: [id], onDelete: SetNull)
 
   @@index([restaurantId, paidAt])
   @@index([restaurantSubscriptionId])
@@ -347,20 +348,20 @@ model Customer {
 }
 
 model Order {
-  id           String          @id @default(uuid())
-  restaurantId String
-  customerId   String?
-  status       String
-  total        Float
-  sourceType   OrderSourceType @default(OTHER)
+  id             String          @id @default(uuid())
+  restaurantId   String
+  customerId     String?
+  status         String
+  total          Float
+  sourceType     OrderSourceType @default(OTHER)
   /// Delivery / service address snapshot (e.g. POS take-away or delivery).
   address        String?
   /// Tax amount applied at checkout (currency units, same as `total`).
   taxAmount      Float           @default(0)
   /// Order-level discount amount (not line-item discounts).
   discountAmount Float           @default(0)
-  createdAt    DateTime        @default(now())
-  updatedAt    DateTime        @updatedAt
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   items          OrderItem[]
   payments       Payment[]

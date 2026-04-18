@@ -56,6 +56,7 @@ const providers = [
         name: user.name,
         role: legacyRoleFromAccountRole(user.accountRole ?? null),
         roleName: user.accountRole?.name ?? null,
+        roleId: user.roleId ?? null,
       };
     },
   }),
@@ -130,6 +131,7 @@ export const authOptions: NextAuthOptions = {
         if (u.role) token.role = String(u.role);
         if (u.roleName != null) token.roleName = String(u.roleName);
         if (u.email) token.email = u.email;
+        if (u.roleId !== undefined) token.roleId = u.roleId;
       }
 
       const email = token.email as string | undefined;
@@ -146,6 +148,7 @@ export const authOptions: NextAuthOptions = {
           token.id = existing.id;
           token.role = legacyRoleFromAccountRole(existing.accountRole ?? null);
           token.roleName = existing.accountRole?.name ?? null;
+          token.roleId = existing.roleId ?? null;
           token.name = existing.name;
           if (existing.email) token.email = existing.email;
         }
@@ -164,6 +167,12 @@ export const authOptions: NextAuthOptions = {
           session.user.role = String(token.role);
         if (token.roleName !== undefined && token.roleName !== null) {
           session.user.roleName = String(token.roleName);
+        }
+        if (token.roleId !== undefined) {
+          session.user.roleId =
+            token.roleId === null || token.roleId === ''
+              ? null
+              : String(token.roleId);
         }
         if (token.email) session.user.email = token.email as string;
         if (token.name) session.user.name = String(token.name);

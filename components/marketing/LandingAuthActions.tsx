@@ -12,8 +12,7 @@ export default function LandingAuthActions() {
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
   const showAdmin =
-    session?.user &&
-    isPlatformAdmin(session.user.email, session.user.role);
+    session?.user && isPlatformAdmin(session.user.email, session.user.role);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -57,15 +56,7 @@ export default function LandingAuthActions() {
 
       {open && (
         <div className="absolute right-0 z-[130] mt-2 w-44 rounded-md border bg-background p-1 shadow-md">
-          <Link
-            href="/dashboard"
-            className="flex items-center rounded-sm px-3 py-2 text-sm hover:bg-accent"
-            onClick={() => setOpen(false)}
-          >
-            <LayoutDashboard className="mr-2 h-4 w-4" />
-            Dashboard
-          </Link>
-          {showAdmin && (
+          {showAdmin ? (
             <Link
               href="/admin/dashboard"
               className="flex items-center rounded-sm px-3 py-2 text-sm hover:bg-accent"
@@ -73,6 +64,15 @@ export default function LandingAuthActions() {
             >
               <Shield className="mr-2 h-4 w-4" />
               SaaS admin
+            </Link>
+          ) : (
+            <Link
+              href="/dashboard"
+              className="flex items-center rounded-sm px-3 py-2 text-sm hover:bg-accent"
+              onClick={() => setOpen(false)}
+            >
+              <LayoutDashboard className="mr-2 h-4 w-4" />
+              Dashboard
             </Link>
           )}
           <button

@@ -1,0 +1,1023 @@
+'use client';
+
+import axios from 'axios';
+import {
+  Minus,
+  Plus,
+  ShoppingBag,
+  Store,
+  Trash2,
+  UtensilsCrossed,
+} from 'lucide-react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+} from 'react';
+import { toast } from 'react-toastify';
+
+import {
+  ProductCustomizeDialog,
+  type AttributeGroup,
+} from '@/components/order/product-customize-dialog';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { cn } from '@/lib/utils';
+
+type CartModifierSelection = {
+  attributeGroupId: string;
+  groupName: string;
+  selections: { menuItemId: string; name: string; unitPrice: number }[];
+};
+
+type CartLine = {
+  lineId: string;
+  menuItemId: string;
+  productName: string;
+  description: string | null;
+  imageUrl: string | null;
+  baseUnitPrice: number;
+  quantity: number;
+  modifiers: CartModifierSelection[];
+  modifiersSignature: string;
+};
+
+type CustomerMenuProduct = {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  price: number;
+  salePrice: number | null;
+  categoryId: string;
+  attributeGroups: {
+    id: string;
+    name: string;
+    selectionType: 'SINGLE' | 'MULTIPLE';
+    required: boolean;
+    linkedCategory: {
+      id: string;
+      name: string;
+      items: {
+        id: string;
+        name: string;
+        description: string | null;
+        imageUrl: string | null;
+        price: number;
+        salePrice: number | null;
+      }[];
+    };
+  }[];
+  offersFromThis?: {
+    id: string;
+    sortOrder: number;
+    offeredItem: {
+      id: string;
+      name: string;
+      description: string | null;
+      imageUrl: string | null;
+      price: number;
+      salePrice: number | null;
+    };
+  }[];
+};
+
+type CustomerMenuCategory = {
+  id: string;
+  name: string;
+  items: CustomerMenuProduct[];
+};
+
+type MenuRestaurant = {
+  id: string;
+  name: string;
+  logoUrl: string | null;
+  mainBannerUrl: string | null;
+  slug: string;
+  menus: CustomerMenuCategory[];
+};
+
+function effectiveUnitPrice(price: number, salePrice: number | null) {
+  if (salePrice != null && salePrice > 0 && salePrice < price) return salePrice;
+  return price;
+}
+
+function getSignature(mods: CartModifierSelection[]): string {
+  return [...mods]
+    .sort((a, b) => a.attributeGroupId.localeCompare(b.attributeGroupId))
+    .map(
+      (m) =>
+        `${m.attributeGroupId}:${m.selections
+          .map((s) => s.menuItemId)
+          .sort()
+          .join(',')}`
+    )
+    .join('|');
+}
+
+function lineUnitTotal(line: CartLine) {
+  const modTotal = line.modifiers.reduce(
+    (sum, m) => sum + m.selections.reduce((s2, sel) => s2 + sel.unitPrice, 0),
+    0
+  );
+  return line.baseUnitPrice + modTotal;
+}
+
+function lineTotal(line: CartLine) {
+  return lineUnitTotal(line) * line.quantity;
+}
+
+function hasRequiredAddons(p: CustomerMenuProduct) {
+  return p.attributeGroups.some((g) => g.required);
+}
+
+function cartStorageKey(slug: string) {
+  return `kiosk-cart-${slug}`;
+}
+
+function loadCart(slug: string): CartLine[] {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(cartStorageKey(slug));
+    if (!raw) return [];
+    const parsed = JSON.parse(raw) as unknown;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (row): row is CartLine =>
+        !!row &&
+        typeof row === 'object' &&
+        typeof (row as CartLine).lineId === 'string' &&
+        typeof (row as CartLine).menuItemId === 'string'
+    );
+  } catch {
+    return [];
+  }
+}
+
+function saveCart(slug: string, lines: CartLine[]) {
+  localStorage.setItem(cartStorageKey(slug), JSON.stringify(lines));
+}
+
+function formatPkr(n: number) {
+  return n.toLocaleString('en-PK', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+type Step = 'mode' | 'menu' | 'cart' | 'checkout' | 'done';
+
+export function KioskApp({ slug }: { slug: string }) {
+  const [step, setStep] = useState<Step>('mode');
+  const [fulfillment, setFulfillment] = useState<
+    'dine_in' | 'take_away' | null
+  >(null);
+  const [categoryId, setCategoryId] = useState<string>('all');
+  const [menu, setMenu] = useState<MenuRestaurant | null>(null);
+  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuError, setMenuError] = useState<string | null>(null);
+  const [cart, setCart] = useState<CartLine[]>([]);
+  const [customizeProduct, setCustomizeProduct] =
+    useState<CustomerMenuProduct | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [cookingNote, setCookingNote] = useState('');
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [placing, setPlacing] = useState(false);
+  const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+
+  useEffect(() => {
+    setCart(loadCart(slug));
+  }, [slug]);
+
+  const persistCart = useCallback(
+    (next: CartLine[]) => {
+      setCart(next);
+      saveCart(slug, next);
+    },
+    [slug]
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setMenuLoading(true);
+      setMenuError(null);
+      try {
+        const res = await fetch(
+          `/api/customer/menu?slug=${encodeURIComponent(slug)}`
+        );
+        const body = (await res.json()) as { data: MenuRestaurant | null };
+        if (cancelled) return;
+        setMenu(body.data ?? null);
+        if (!body.data) {
+          setMenuError('Restaurant not found for this link.');
+        }
+      } catch {
+        if (!cancelled) setMenuError('Could not load menu.');
+      } finally {
+        if (!cancelled) setMenuLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  const allProducts = useMemo(() => {
+    if (!menu) return [];
+    return menu.menus.flatMap((c) =>
+      c.items.map((p) => ({ ...p, categoryName: c.name }))
+    );
+  }, [menu]);
+
+  const displayedProducts = useMemo(() => {
+    if (!menu) return [];
+    if (categoryId === 'all') return allProducts;
+    return menu.menus.find((c) => c.id === categoryId)?.items ?? [];
+  }, [menu, categoryId, allProducts]);
+
+  const recommended = useMemo(() => {
+    const withDeal = allProducts.filter(
+      (p) => p.salePrice != null && p.salePrice > 0 && p.salePrice < p.price
+    );
+    return withDeal.slice(0, 10);
+  }, [allProducts]);
+
+  const offeredPool = useMemo(() => {
+    const byId = new Map<string, CustomerMenuProduct>();
+    for (const p of allProducts) {
+      for (const o of p.offersFromThis ?? []) {
+        const full = allProducts.find((x) => x.id === o.offeredItem.id);
+        if (full && !byId.has(full.id)) byId.set(full.id, full);
+      }
+    }
+    return [...byId.values()].slice(0, 12);
+  }, [allProducts]);
+
+  const cartCount = useMemo(
+    () => cart.reduce((s, l) => s + l.quantity, 0),
+    [cart]
+  );
+  const cartSubtotal = useMemo(
+    () => cart.reduce((s, l) => s + lineTotal(l), 0),
+    [cart]
+  );
+
+  const attributeGroupsForDialog: AttributeGroup[] = useMemo(() => {
+    if (!customizeProduct) return [];
+    return customizeProduct.attributeGroups.map((g) => ({
+      id: g.id,
+      name: g.name,
+      selectionType: g.selectionType,
+      required: g.required,
+      linkedCategoryName: g.linkedCategory?.name ?? null,
+      items: g.linkedCategory.items.map((it) => ({
+        menuItemId: it.id,
+        name: it.name,
+        description: it.description,
+        imageUrl: it.imageUrl,
+        price: it.price,
+        salePrice: it.salePrice,
+      })),
+    }));
+  }, [customizeProduct]);
+
+  const addToCart = (
+    product: CustomerMenuProduct,
+    modifiers: CartModifierSelection[]
+  ) => {
+    const baseUnitPrice = effectiveUnitPrice(product.price, product.salePrice);
+    const modifiersSignature = getSignature(modifiers);
+
+    setCart((current) => {
+      const existing = current.find(
+        (l) =>
+          l.menuItemId === product.id &&
+          l.modifiersSignature === modifiersSignature
+      );
+      let next: CartLine[];
+      if (existing) {
+        next = current.map((l) =>
+          l.lineId === existing.lineId ? { ...l, quantity: l.quantity + 1 } : l
+        );
+      } else {
+        const line: CartLine = {
+          lineId:
+            typeof crypto !== 'undefined' && 'randomUUID' in crypto
+              ? crypto.randomUUID()
+              : `l${Date.now()}`,
+          menuItemId: product.id,
+          productName: product.name,
+          description: product.description ?? null,
+          imageUrl: product.imageUrl ?? null,
+          baseUnitPrice,
+          quantity: 1,
+          modifiers,
+          modifiersSignature,
+        };
+        next = [...current, line];
+      }
+      saveCart(slug, next);
+      return next;
+    });
+  };
+
+  const openCustomize = (p: CustomerMenuProduct) => {
+    setCustomizeProduct(p);
+    setDialogOpen(true);
+  };
+
+  const onProductTap = (p: CustomerMenuProduct) => {
+    if (hasRequiredAddons(p)) openCustomize(p);
+    else addToCart(p, []);
+  };
+
+  const qtyOnMenu = useCallback(
+    (productId: string) =>
+      cart
+        .filter((l) => l.menuItemId === productId)
+        .reduce((s, l) => s + l.quantity, 0),
+    [cart]
+  );
+
+  const bumpProductQty = (productId: string, delta: number) => {
+    if (delta > 0) {
+      const p = allProducts.find((x) => x.id === productId);
+      if (!p) return;
+      if (hasRequiredAddons(p)) openCustomize(p);
+      else addToCart(p, []);
+      return;
+    }
+    setCart((current) => {
+      const copy = [...current];
+      for (let i = copy.length - 1; i >= 0; i--) {
+        if (copy[i]!.menuItemId !== productId) continue;
+        const line = copy[i]!;
+        if (line.quantity <= 1) copy.splice(i, 1);
+        else copy[i] = { ...line, quantity: line.quantity - 1 };
+        break;
+      }
+      saveCart(slug, copy);
+      return copy;
+    });
+  };
+
+  const adjustLine = (lineId: string, delta: number) => {
+    const next = cart
+      .map((item) =>
+        item.lineId === lineId
+          ? { ...item, quantity: item.quantity + delta }
+          : item
+      )
+      .filter((item) => item.quantity > 0);
+    persistCart(next);
+  };
+
+  const removeLine = (lineId: string) => {
+    persistCart(cart.filter((l) => l.lineId !== lineId));
+  };
+
+  const clearCart = () => persistCart([]);
+
+  const placeOrder = async () => {
+    if (!fulfillment || cart.length === 0) return;
+    setPlacing(true);
+    try {
+      const lines = cart.map((line) => ({
+        menuItemId: line.menuItemId,
+        quantity: line.quantity,
+        unitPrice: lineUnitTotal(line),
+        productName: line.productName,
+        modifiers: line.modifiers,
+      }));
+      const res = await axios.post<{ data: { orderId: string } }>(
+        '/api/kiosk/orders',
+        {
+          restaurantSlug: slug,
+          fulfillment,
+          lines,
+          subtotal: cartSubtotal,
+          total: cartSubtotal,
+          cookingNote: cookingNote.trim() || undefined,
+          customerName: customerName.trim() || undefined,
+          customerPhone: customerPhone.trim() || undefined,
+        }
+      );
+      setLastOrderId(res.data.data.orderId);
+      clearCart();
+      setCookingNote('');
+      setCustomerName('');
+      setCustomerPhone('');
+      setStep('done');
+      toast.success('Order placed');
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string | object } } };
+      const msg =
+        typeof err.response?.data?.error === 'string'
+          ? err.response.data.error
+          : 'Could not place order.';
+      toast.error(msg);
+    } finally {
+      setPlacing(false);
+    }
+  };
+
+  const startOver = () => {
+    setLastOrderId(null);
+    setStep('mode');
+  };
+
+  const ProductThumb = ({ src, alt }: { src: string | null; alt: string }) => {
+    if (src) {
+      return (
+        // eslint-disable-next-line @next/next/no-img-element -- kiosk menus use arbitrary CDN URLs
+        <img
+          src={src}
+          alt={alt}
+          className="aspect-square w-full rounded-lg bg-[#f1f5f9] object-cover"
+        />
+      );
+    }
+    return (
+      <div className="flex aspect-square w-full items-center justify-center rounded-lg bg-[#f1f5f9] text-xs text-[#64748b]">
+        No photo
+      </div>
+    );
+  };
+
+  const ProductCard = ({ p }: { p: CustomerMenuProduct }) => {
+    const unit = effectiveUnitPrice(p.price, p.salePrice);
+    const showStrike =
+      p.salePrice != null && p.salePrice > 0 && p.salePrice < p.price;
+    const q = qtyOnMenu(p.id);
+
+    return (
+      <Card className="overflow-hidden border border-[#e2e8f0] bg-white shadow-sm">
+        <CardContent className="p-3">
+          <ProductThumb src={p.imageUrl} alt={p.name} />
+          <h3 className="mt-2 line-clamp-2 text-sm font-semibold leading-tight">
+            {p.name}
+          </h3>
+          <div className="mt-1 flex items-baseline gap-2">
+            <span className="text-sm font-bold text-[#c2410c]">
+              PKR {formatPkr(unit)}
+            </span>
+            {showStrike ? (
+              <span className="text-xs text-[#94a3b8] line-through">
+                {formatPkr(p.price)}
+              </span>
+            ) : null}
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            {q > 0 ? (
+              <>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => bumpProductQty(p.id, -1)}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <span className="min-w-[2ch] text-center text-sm font-medium">
+                  {q}
+                </span>
+                <Button
+                  type="button"
+                  size="icon"
+                  variant="outline"
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => onProductTap(p)}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </>
+            ) : (
+              <Button
+                type="button"
+                className="w-full bg-[#ea580c] font-semibold text-white hover:bg-[#c2410c]"
+                onClick={() => onProductTap(p)}
+              >
+                ADD
+              </Button>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
+  const HorizontalRow = ({
+    title,
+    products,
+  }: {
+    title: string;
+    products: CustomerMenuProduct[];
+  }) => {
+    if (products.length === 0) return null;
+    return (
+      <section className="mb-6">
+        <h2 className="mb-3 text-lg font-bold">{title}</h2>
+        <div className="flex gap-3 overflow-x-auto pb-2">
+          {products.map((p) => (
+            <div key={p.id} className="w-[140px] shrink-0">
+              <ProductCard p={p} />
+            </div>
+          ))}
+        </div>
+      </section>
+    );
+  };
+
+  if (menuLoading && !menu) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] p-6">
+        <p className="text-[#64748b]">Loading kiosk…</p>
+      </div>
+    );
+  }
+
+  if (menuError || !menu) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#f8fafc] p-6">
+        <p className="text-center text-[#dc2626]">
+          {menuError ?? 'Menu unavailable.'}
+        </p>
+        <p className="text-center text-sm text-[#64748b]">
+          Check the URL slug matches your restaurant slug in Settings.
+        </p>
+      </div>
+    );
+  }
+
+  const bannerSrc = menu.mainBannerUrl?.trim() ?? '';
+  const hasBanner = Boolean(bannerSrc);
+
+  return (
+    <div className="relative flex min-h-screen flex-1 flex-col text-[#0f172a]">
+      <div
+        className={cn(
+          'relative z-10 flex min-h-screen flex-1 flex-col',
+          !hasBanner && 'bg-[#f8fafc]'
+        )}
+      >
+        <header className="sticky top-0 z-20 border-b border-[#e2e8f0] bg-white/95 px-4 py-3 text-[#0f172a] backdrop-blur">
+          <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-3">
+              {menu.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={menu.logoUrl}
+                  alt=""
+                  className="h-11 w-11 shrink-0 rounded-full border border-[#e2e8f0] object-cover"
+                />
+              ) : null}
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{menu.name}</p>
+                {fulfillment ? (
+                  <p className="text-xs text-[#64748b]">
+                    {fulfillment === 'dine_in' ? 'Dine in' : 'Take away'}
+                    {' · '}
+                    <button
+                      type="button"
+                      className="text-[#c2410c] underline-offset-2 hover:underline"
+                      onClick={() => {
+                        setFulfillment(null);
+                        setStep('mode');
+                      }}
+                    >
+                      Change
+                    </button>
+                  </p>
+                ) : null}
+              </div>
+            </div>
+            {step === 'menu' ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
+                onClick={() => setStep('cart')}
+              >
+                Cart ({cartCount})
+              </Button>
+            ) : null}
+          </div>
+        </header>
+
+        {step === 'mode' && (
+          <div className="flex flex-1 flex-col items-center justify-center gap-8 px-6 py-12 relative z-10">
+            {hasBanner ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element -- arbitrary CDN URLs */}
+                <img
+                  src={bannerSrc}
+                  alt=""
+                  aria-hidden
+                  decoding="async"
+                  className="pointer-events-none fixed inset-0 z-0 h-[100dvh] min-h-[100svh] w-full object-cover object-center"
+                />
+                <div
+                  aria-hidden
+                  className="pointer-events-none fixed inset-0 z-[1] h-[100dvh] min-h-[100svh] bg-black/25"
+                />
+              </>
+            ) : null}
+            <div className="text-center bg-black/25 backdrop-blur p-6 rounded-lg shadow-lg relative z-20">
+              <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-primary">
+                Where are you eating today?
+              </h1>
+              <p className="mt-2 text-sm text-white">
+                Tap an option to browse the menu on this kiosk.
+              </p>
+            </div>
+            <div className="grid w-full max-w-md grid-cols-2 gap-4 relative z-20">
+              <button
+                type="button"
+                onClick={() => {
+                  setFulfillment('dine_in');
+                  setStep('menu');
+                }}
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-orange-400/40 bg-gradient-to-b from-orange-500 to-amber-600 p-8 text-white shadow-lg transition hover:opacity-95"
+              >
+                <UtensilsCrossed className="h-10 w-10" />
+                <span className="font-semibold">Dine in</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFulfillment('take_away');
+                  setStep('menu');
+                }}
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-orange-400/40 bg-gradient-to-b from-orange-500 to-amber-600 p-8 text-white shadow-lg transition hover:opacity-95"
+              >
+                <ShoppingBag className="h-10 w-10" />
+                <span className="font-semibold">Take away</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 'menu' && (
+          <>
+            <div className="mx-auto flex w-full max-w-5xl flex-1 gap-0 md:gap-4">
+              <aside className="hidden w-36 shrink-0 border-r border-[#e2e8f0] bg-[#fafafa] py-4 md:block">
+                <ScrollArea className="h-[calc(100vh-8rem)]">
+                  <nav className="flex flex-col gap-1 px-2">
+                    <button
+                      type="button"
+                      onClick={() => setCategoryId('all')}
+                      className={cn(
+                        'rounded-lg px-2 py-2 text-left text-xs font-medium transition',
+                        categoryId === 'all'
+                          ? 'bg-[#ea580c] text-white'
+                          : 'hover:bg-[#f1f5f9]'
+                      )}
+                    >
+                      <Store className="mb-1 h-5 w-5" />
+                      All
+                    </button>
+                    {menu.menus.map((c) => {
+                      const thumb = c.items[0]?.imageUrl ?? null;
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => setCategoryId(c.id)}
+                          className={cn(
+                            'rounded-lg px-2 py-2 text-left text-xs transition',
+                            categoryId === c.id
+                              ? 'bg-[#ea580c] text-white'
+                              : 'hover:bg-[#f1f5f9]'
+                          )}
+                        >
+                          {thumb ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={thumb}
+                              alt=""
+                              className="mb-1 h-10 w-10 rounded-md object-cover"
+                            />
+                          ) : (
+                            <div className="mb-1 h-10 w-10 rounded-md bg-[#e2e8f0]" />
+                          )}
+                          <span className="line-clamp-2">{c.name}</span>
+                        </button>
+                      );
+                    })}
+                  </nav>
+                </ScrollArea>
+              </aside>
+
+              <main className="min-w-0 flex-1 px-4 py-4 pb-28">
+                <div className="mb-4 flex gap-2 overflow-x-auto pb-2 md:hidden">
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={categoryId === 'all' ? 'default' : 'outline'}
+                    onClick={() => setCategoryId('all')}
+                  >
+                    All
+                  </Button>
+                  {menu.menus.map((c) => (
+                    <Button
+                      key={c.id}
+                      type="button"
+                      size="sm"
+                      variant={categoryId === c.id ? 'default' : 'outline'}
+                      className="shrink-0"
+                      onClick={() => setCategoryId(c.id)}
+                    >
+                      {c.name}
+                    </Button>
+                  ))}
+                </div>
+
+                <HorizontalRow title="Recommended" products={recommended} />
+                <HorizontalRow
+                  title="Offers & add-ons"
+                  products={offeredPool}
+                />
+
+                <section>
+                  <h2 className="mb-3 text-lg font-bold">
+                    {categoryId === 'all'
+                      ? 'All categories'
+                      : menu.menus.find((c) => c.id === categoryId)?.name}
+                  </h2>
+                  {displayedProducts.length === 0 ? (
+                    <p className="text-sm text-[#64748b]">
+                      No products in this category.
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      {displayedProducts.map((p) => (
+                        <ProductCard key={p.id} p={p} />
+                      ))}
+                    </div>
+                  )}
+                </section>
+              </main>
+            </div>
+
+            <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-[#c2410c] bg-[#ea580c] px-4 py-3 text-white shadow-[0_-4px_20px_rgba(0,0,0,0.12)]">
+              <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
+                <div>
+                  <p className="text-lg font-bold tabular-nums">
+                    PKR {formatPkr(cartSubtotal)}
+                  </p>
+                  <p className="text-xs opacity-90">{cartCount} items</p>
+                </div>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  className="border-0 bg-white font-semibold text-[#c2410c] hover:bg-[#fff7ed]"
+                  disabled={cartCount === 0}
+                  onClick={() => setStep('cart')}
+                >
+                  View cart
+                </Button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {step === 'cart' && (
+          <div className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 py-6">
+            <div className="flex items-center justify-between">
+              <h1 className="text-2xl font-bold">Cart</h1>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setStep('menu')}
+              >
+                Back to menu
+              </Button>
+            </div>
+            {cart.length === 0 ? (
+              <p className="text-[#64748b]">Your cart is empty.</p>
+            ) : (
+              <>
+                <ul className="space-y-3">
+                  {cart.map((line) => (
+                    <li
+                      key={line.lineId}
+                      className="flex gap-3 rounded-xl border border-[#e2e8f0] bg-white p-3 shadow-sm"
+                    >
+                      <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-lg bg-[#f1f5f9]">
+                        {line.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={line.imageUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : null}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium leading-snug">
+                          {line.productName}
+                        </p>
+                        <p className="text-xs text-[#64748b]">
+                          PKR {formatPkr(lineUnitTotal(line))} each
+                        </p>
+                        <div className="mt-2 flex items-center gap-2">
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8"
+                            onClick={() => adjustLine(line.lineId, -1)}
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </Button>
+                          <span className="w-6 text-center text-sm">
+                            {line.quantity}
+                          </span>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="outline"
+                            className="h-8 w-8"
+                            onClick={() => adjustLine(line.lineId, 1)}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            type="button"
+                            size="icon"
+                            variant="ghost"
+                            className="ml-auto h-8 w-8 text-[#dc2626]"
+                            onClick={() => removeLine(line.lineId)}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-[#dc2626]"
+                  onClick={clearCart}
+                >
+                  Clear cart
+                </Button>
+                <div className="space-y-2 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4 text-sm text-[#0f172a]">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span className="font-medium tabular-nums">
+                      PKR {formatPkr(cartSubtotal)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between font-semibold">
+                    <span>Total</span>
+                    <span className="tabular-nums">
+                      PKR {formatPkr(cartSubtotal)}
+                    </span>
+                  </div>
+                </div>
+                <textarea
+                  placeholder="Cooking instructions (e.g. make it mild)"
+                  value={cookingNote}
+                  onChange={(e: ChangeEvent<HTMLTextAreaElement>) =>
+                    setCookingNote(e.target.value)
+                  }
+                  rows={3}
+                  className={cn(
+                    'flex min-h-[88px] w-full rounded-md border border-[#e2e8f0] bg-white px-3 py-2 text-sm text-[#0f172a]',
+                    'placeholder:text-[#94a3b8]',
+                    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ea580c] focus-visible:ring-offset-2 focus-visible:ring-offset-[#f8fafc]'
+                  )}
+                />
+                <Button
+                  type="button"
+                  className="w-full bg-[#ea580c] py-6 text-base font-semibold text-white hover:bg-[#c2410c]"
+                  onClick={() => setStep('checkout')}
+                >
+                  Checkout
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+
+        {step === 'checkout' && (
+          <div className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 py-6">
+            <h1 className="text-2xl font-bold">Checkout</h1>
+            <p className="text-sm text-[#64748b]">
+              Optional: leave a name or phone for the counter. Pay at pickup
+              unless your venue configures payment devices here later.
+            </p>
+            <div className="space-y-2">
+              <Label htmlFor="k-name">Name (optional)</Label>
+              <Input
+                id="k-name"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+                autoComplete="name"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="k-phone">Phone (optional)</Label>
+              <Input
+                id="k-phone"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                autoComplete="tel"
+              />
+            </div>
+            <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4 text-sm text-[#0f172a]">
+              <div className="flex justify-between font-semibold">
+                <span>Total due</span>
+                <span>PKR {formatPkr(cartSubtotal)}</span>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
+                onClick={() => setStep('cart')}
+              >
+                Back
+              </Button>
+              <Button
+                type="button"
+                className="flex-1 bg-[#ea580c] font-semibold text-white hover:bg-[#c2410c]"
+                disabled={placing || cart.length === 0}
+                onClick={() => void placeOrder()}
+              >
+                {placing ? 'Placing…' : 'Place order'}
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {step === 'done' && (
+          <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-6 px-6 py-16 text-center">
+            <div className="rounded-full bg-[#fff7ed] p-6 text-[#c2410c]">
+              <ShoppingBag className="h-12 w-12" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold">Thank you!</h1>
+              <p className="mt-2 text-[#64748b]">
+                Your order was sent to the kitchen.
+                {lastOrderId ? (
+                  <>
+                    {' '}
+                    Reference:{' '}
+                    <span className="font-mono text-xs">{lastOrderId}</span>
+                  </>
+                ) : null}
+              </p>
+            </div>
+            <Button
+              type="button"
+              className="bg-[#ea580c] px-8 text-white hover:bg-[#c2410c]"
+              onClick={startOver}
+            >
+              New order
+            </Button>
+          </div>
+        )}
+
+        <ProductCustomizeDialog
+          productName={customizeProduct?.name ?? ''}
+          attributeGroups={attributeGroupsForDialog}
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            setDialogOpen(open);
+            if (!open) setCustomizeProduct(null);
+          }}
+          onConfirm={(mods) => {
+            if (!customizeProduct) return;
+            const mapped: CartModifierSelection[] = mods.map((m) => ({
+              attributeGroupId: m.attributeGroupId,
+              groupName: m.groupName,
+              selections: m.selections.map((s) => ({
+                menuItemId: s.menuItemId,
+                name: s.name,
+                unitPrice: s.unitPrice,
+              })),
+            }));
+            addToCart(customizeProduct, mapped);
+            setDialogOpen(false);
+            setCustomizeProduct(null);
+          }}
+        />
+      </div>
+    </div>
+  );
+}

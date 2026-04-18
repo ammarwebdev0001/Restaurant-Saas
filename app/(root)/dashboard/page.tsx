@@ -1,11 +1,15 @@
 import React from 'react';
+
 import { BentoGridHome } from '@/components/bento/bentodemo';
+import DashboardAnalytics from '@/components/dashboard/dashboard-analytics';
 import ErrorBoundary from '@/components/toaster/toaster';
+
 const page = () => {
   return (
-    <div className="w-full">
+    <div className="w-full space-y-10">
       <ErrorBoundary>
-        <BentoGridHome />
+        <DashboardAnalytics />
+        {/* <BentoGridHome /> */}
       </ErrorBoundary>
     </div>
   );

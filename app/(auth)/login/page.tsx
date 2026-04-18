@@ -8,10 +8,12 @@ import { signIn } from 'next-auth/react';
 import { getSession, useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
 
+import { Eye, EyeOff } from 'lucide-react';
+
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { IconBrandGoogle, IconBrandGoogleFilled } from '@tabler/icons-react';
+import { IconBrandGoogleFilled } from '@tabler/icons-react';
 
 function safeCallbackUrl(raw: string | null): string {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//')) {
@@ -32,6 +34,24 @@ function roleDefaultPath(
   return '/dashboard';
 }
 
+/** Users without a `roleId` have no dashboard role — send them to the marketing home page. */
+function postLoginPath(
+  user:
+    | {
+        roleId?: string | null;
+        roleName?: string | null;
+        role?: string | null;
+      }
+    | undefined,
+  hasExplicitCallback: boolean,
+  callbackUrl: string
+): string {
+  const roleId = user?.roleId;
+  if (roleId == null || roleId === '') return '/';
+  if (hasExplicitCallback) return callbackUrl;
+  return roleDefaultPath(user?.roleName, user?.role ?? undefined);
+}
+
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -39,12 +59,15 @@ function LoginForm() {
   const callbackUrl = safeCallbackUrl(callbackUrlParam);
   const hasExplicitCallback = Boolean(callbackUrlParam);
   const { data: session, status } = useSession();
-  const targetAfterLogin = hasExplicitCallback
-    ? callbackUrl
-    : roleDefaultPath((session?.user as any)?.roleName, session?.user?.role);
+  const targetAfterLogin = postLoginPath(
+    session?.user,
+    hasExplicitCallback,
+    callbackUrl
+  );
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -108,13 +131,12 @@ function LoginForm() {
         return;
       }
       const fresh = await getSession();
-      const fallbackAfterLogin = roleDefaultPath(
-        (fresh?.user as any)?.roleName,
-        fresh?.user?.role
+      const nextPath = postLoginPath(
+        fresh?.user,
+        hasExplicitCallback,
+        callbackUrl
       );
-      router.push(
-        hasExplicitCallback ? result.url ?? callbackUrl : fallbackAfterLogin
-      );
+      router.push(nextPath);
     } catch (e: any) {
       toast.error(e?.message ?? 'Login failed (server error).');
     } finally {
@@ -155,15 +177,32 @@ function LoginForm() {
 
           <div className="flex flex-col gap-2">
             <Label htmlFor="password">Password</Label>
-            <Input
-              id="password"
-              name="password"
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
+                className="pr-10"
+                required
+              />
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                className="absolute right-0 top-0 h-9 w-9 text-muted-foreground hover:text-foreground"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                onClick={() => setShowPassword((v) => !v)}
+              >
+                {showPassword ? (
+                  <EyeOff className="h-4 w-4" aria-hidden />
+                ) : (
+                  <Eye className="h-4 w-4" aria-hidden />
+                )}
+              </Button>
+            </div>
           </div>
 
           <Button disabled={loading} type="submit">

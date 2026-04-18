@@ -18,41 +18,50 @@ export function NavbarSheet({ onNavigate }: NavbarSheetProps) {
 
   return (
     <SheetContent side="left" className="flex flex-col">
-        {/* Navigation container */}
-        <nav className="grid gap-2 text-lg font-medium">
-          {/* Link for the top section with an icon */}
+      {/* Navigation container */}
+      <nav className="grid gap-2 text-lg font-medium">
+        {/* Link for the top section with an icon */}
+        <Link
+          href="#"
+          className="flex items-center gap-2 text-lg font-semibold"
+        >
+          <TriangleAlert className="h-6 w-6" />
+        </Link>
+
+        {/* Map through NAVBAR_ITEMS to create navigation links */}
+        {navItems.map((item) => (
           <Link
-            href="#"
-            className="flex items-center gap-2 text-lg font-semibold"
+            key={item.path}
+            href={item.path}
+            target={
+              item.path.startsWith('/pos') || item.path.startsWith('/kds')
+                ? '_blank'
+                : undefined
+            }
+            onClick={() =>
+              item.path.startsWith('/pos') || item.path.startsWith('/kds')
+                ? onNavigate?.()
+                : undefined
+            }
+            className={`mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 ${
+              pathname === item.path
+                ? 'bg-primary/10 text-foreground' // Apply active styles if current path matches item path
+                : 'text-muted-foreground hover:text-foreground bg-primary/10' // Apply default styles otherwise
+            } transition-all hover:text-primary hover:bg-primary/20`}
           >
-            <TriangleAlert className="h-6 w-6" />
+            {/* Render the icon and title for each navigation item */}
+            {item.icon}
+            {item.title}
           </Link>
+        ))}
 
-          {/* Map through NAVBAR_ITEMS to create navigation links */}
-          {navItems.map((item) => (
-            <Link
-              key={item.path}
-              href={item.path}
-              onClick={() => onNavigate?.()}
-              className={`mx-[-0.65rem] flex items-center gap-4 rounded-xl px-3 py-2 ${
-                pathname === item.path
-                  ? 'bg-primary/10 text-foreground' // Apply active styles if current path matches item path
-                  : 'text-muted-foreground hover:text-foreground bg-primary/10' // Apply default styles otherwise
-              } transition-all hover:text-primary hover:bg-primary/20`}
-            >
-              {/* Render the icon and title for each navigation item */}
-              {item.icon}
-              {item.title}
-            </Link>
-          ))}
+        {/* Include ScrollAreaDemo component */}
+        <ScrollAreaDemo />
+      </nav>
 
-          {/* Include ScrollAreaDemo component */}
-          <ScrollAreaDemo />
-        </nav>
-
-        <div className="mt-auto p-2">
-          <UserMenu className="w-full justify-start" />
-        </div>
+      <div className="mt-auto p-2">
+        <UserMenu className="w-full justify-start" />
+      </div>
     </SheetContent>
   );
 }

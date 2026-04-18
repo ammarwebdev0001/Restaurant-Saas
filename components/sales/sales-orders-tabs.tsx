@@ -77,6 +77,7 @@ type MenuOrderDetail = {
 const emptyStats: SalesOrdersStats = {
   online: { count: 0, totalAmount: 0 },
   pos: { count: 0, totalAmount: 0 },
+  kiosk: { count: 0, totalAmount: 0 },
   all: { count: 0, totalAmount: 0 },
 };
 
@@ -164,6 +165,7 @@ function OrdersTable({
 export function SalesOrdersTabs() {
   const [onlineOrders, setOnlineOrders] = useState<SalesOrderRow[]>([]);
   const [posOrders, setPosOrders] = useState<SalesOrderRow[]>([]);
+  const [kioskOrders, setKioskOrders] = useState<SalesOrderRow[]>([]);
   const [stats, setStats] = useState<SalesOrdersStats>(emptyStats);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -185,11 +187,13 @@ export function SalesOrdersTabs() {
       );
       setOnlineOrders(res.data.onlineOrders ?? []);
       setPosOrders(res.data.posOrders ?? []);
+      setKioskOrders(res.data.kioskOrders ?? []);
       setStats(res.data.stats ?? emptyStats);
     } catch {
       setError('Could not load orders.');
       setOnlineOrders([]);
       setPosOrders([]);
+      setKioskOrders([]);
       setStats(emptyStats);
     } finally {
       setLoading(false);
@@ -247,7 +251,7 @@ export function SalesOrdersTabs() {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -298,6 +302,30 @@ export function SalesOrdersTabs() {
             </p>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Kiosk — orders
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">
+              {loading ? '…' : stats.kiosk.count}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Kiosk — total amount
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-semibold tabular-nums">
+              {loading ? '…' : `PKR ${formatMoney(stats.kiosk.totalAmount)}`}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
@@ -330,9 +358,10 @@ export function SalesOrdersTabs() {
           )}
 
           <Tabs defaultValue="online" className="w-full">
-            <TabsList className="grid w-full max-w-full grid-cols-2">
+            <TabsList className="grid h-auto w-full max-w-full grid-cols-1 gap-1 sm:grid-cols-3">
               <TabsTrigger value="online">Online orders</TabsTrigger>
               <TabsTrigger value="pos">POS orders</TabsTrigger>
+              <TabsTrigger value="kiosk">Kiosk orders</TabsTrigger>
             </TabsList>
             <TabsContent value="online" className="mt-4 space-y-2">
               <p className="text-xs text-muted-foreground">
@@ -354,6 +383,18 @@ export function SalesOrdersTabs() {
                 <p className="text-sm text-muted-foreground">Loading…</p>
               ) : (
                 <OrdersTable rows={posOrders} onView={openDetail} />
+              )}
+            </TabsContent>
+            <TabsContent value="kiosk" className="mt-4 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Orders placed from the in-venue <strong>kiosk</strong> URL (
+                <code className="rounded bg-muted px-1">/kiosk/&lt;slug&gt;</code>
+                ).
+              </p>
+              {loading && kioskOrders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              ) : (
+                <OrdersTable rows={kioskOrders} onView={openDetail} />
               )}
             </TabsContent>
           </Tabs>

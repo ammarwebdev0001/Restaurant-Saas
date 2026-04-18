@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 
 const KEYS = [
   {
@@ -31,6 +32,7 @@ export default function AdminSettingsPage() {
   const [map, setMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [showSaveConfirmation, setShowSaveConfirmation] = useState(false);
 
   useEffect(() => {
     axios
@@ -46,6 +48,7 @@ export default function AdminSettingsPage() {
       const entries = KEYS.map(({ key }) => ({ key, value: map[key] ?? '' }));
       const res = await axios.put('/api/admin/settings', { entries });
       setMap(res.data.data ?? {});
+      setShowSaveConfirmation(false);
       toast.success('Settings saved');
     } catch {
       toast.error('Save failed');
@@ -82,11 +85,20 @@ export default function AdminSettingsPage() {
               />
             </div>
           ))}
-          <Button type="button" disabled={saving} onClick={() => void save()}>
-            Save changes
+          <Button type="button" disabled={saving} onClick={() => setShowSaveConfirmation(true)}>
+            {saving ? "Saving..." : "Save changes"}
           </Button>
         </CardContent>
       </Card>
+
+      <SaveConfirmation
+        open={showSaveConfirmation}
+        title="Save platform settings"
+        description="These values apply across the whole product. Save now?"
+        loading={saving}
+        onConfirm={() => void save()}
+        onCancel={() => setShowSaveConfirmation(false)}
+      />
     </div>
   );
 }

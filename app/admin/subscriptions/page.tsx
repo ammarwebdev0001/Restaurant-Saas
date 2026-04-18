@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { Pencil } from 'lucide-react';
+import { toast } from 'react-toastify';
 
 import { SubscriptionEditDialog } from '@/components/admin/subscription-edit-dialog';
 import { Badge } from '@/components/ui/badge';
@@ -25,6 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 
 type Subscription = {
   id: string;
@@ -65,6 +67,7 @@ export default function AdminSubscriptionsPage() {
   const [planDescription, setPlanDescription] = useState('');
   const [planFeaturesText, setPlanFeaturesText] = useState('');
   const [savingPlan, setSavingPlan] = useState(false);
+  const [showCatalogSaveConfirmation, setShowCatalogSaveConfirmation] = useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -111,11 +114,22 @@ export default function AdminSubscriptionsPage() {
           .map((s) => s.trim())
           .filter(Boolean),
       });
+      toast.success('Pricing catalog updated');
+      setShowCatalogSaveConfirmation(false);
       setEditingPlan(null);
       loadCatalog();
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: unknown } } };
+      const msg =
+        typeof err.response?.data?.error === 'string' ? err.response.data.error : 'Could not update plan';
+      toast.error(msg);
     } finally {
       setSavingPlan(false);
     }
+  };
+
+  const handleCatalogSaveClick = () => {
+    setShowCatalogSaveConfirmation(true);
   };
 
   if (loading) {
@@ -252,7 +266,15 @@ export default function AdminSubscriptionsPage() {
         />
       )}
 
-      <Dialog open={!!editingPlan} onOpenChange={(o) => !o && setEditingPlan(null)}>
+      <Dialog
+        open={!!editingPlan}
+        onOpenChange={(o) => {
+          if (!o) {
+            setEditingPlan(null);
+            setShowCatalogSaveConfirmation(false);
+          }
+        }}
+      >
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -296,12 +318,22 @@ export default function AdminSubscriptionsPage() {
             <Button variant="outline" type="button" onClick={() => setEditingPlan(null)}>
               Cancel
             </Button>
-            <Button type="button" disabled={savingPlan} onClick={() => void saveCatalogPlan()}>
+            <Button type="button" disabled={savingPlan} onClick={handleCatalogSaveClick}>
               {savingPlan ? 'Saving...' : 'Save'}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SaveConfirmation
+        open={showCatalogSaveConfirmation}
+        title="Save pricing catalog"
+        description="Apply these changes to the public plan name, price, description, and features?"
+        itemName={editingPlan?.plan}
+        loading={savingPlan}
+        onConfirm={() => void saveCatalogPlan()}
+        onCancel={() => setShowCatalogSaveConfirmation(false)}
+      />
     </div>
   );
 }

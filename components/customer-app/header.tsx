@@ -2,10 +2,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { IconMenu2 } from '@tabler/icons-react';
-import { ModeToggle } from '../darkmode/darkmode';
 import { usePathname, useSearchParams } from 'next/navigation';
+import { IconMenu2 } from '@tabler/icons-react';
+
+import { Button } from '@/components/ui/button';
 
 type RestaurantBrand = {
   name: string | null;
@@ -15,7 +15,6 @@ type RestaurantBrand = {
 export function Header() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  // Order flow sends `restaurantSlug`; keep `slug` as backward-compatible fallback.
   const queryRestaurantSlug =
     searchParams.get('restaurantSlug') ?? searchParams.get('slug') ?? undefined;
   const pathSlug = pathname?.match(/^\/web-app\/([^/]+)/)?.[1] ?? undefined;
@@ -31,8 +30,6 @@ export function Header() {
     if (typeof window === 'undefined') return null;
 
     const hostname = window.location.hostname || '';
-    // Env-driven subdomain parsing, e.g. royalspoon.<root-domain>.
-    // Set NEXT_PUBLIC_ROOT_DOMAIN=localhost for local, and domain.com for prod.
     const rootDomain = process.env.NEXT_PUBLIC_ROOT_DOMAIN;
     if (rootDomain) {
       const suffix = `.${rootDomain}`;
@@ -42,7 +39,6 @@ export function Header() {
       }
     }
 
-    // Generic fallback for hosts with 3+ parts
     const parts = hostname.split('.');
     return parts.length >= 3 ? parts[0] : null;
   }, []);
@@ -79,10 +75,10 @@ export function Header() {
   }, [inferredSubdomain, slugForApi]);
 
   return (
-    <header className="border-b bg-primary px-6 py-4 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between ">
+    <header className="border-b border-[#c2410c] bg-[#ea580c] px-6 py-4 text-white backdrop-blur">
+      <div className="mx-auto flex max-w-6xl items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-primary/20 ring-1 ring-primary/20">
+          <span className="inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-[#fff7ed]/25 ring-1 ring-[#fed7aa]/50">
             {brand.logoUrl && !logoLoadFailed ? (
               <img
                 src={brand.logoUrl}
@@ -101,14 +97,15 @@ export function Header() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-primary-foreground/80 text-white">
-            {/* Keep customer header lightweight; show name if we have it from query */}
-            Welcome
-          </span>
-          <Button variant="secondary" size="sm" className="rounded-full">
+          <span className="text-sm text-white/85">Welcome</span>
+          <Button
+            type="button"
+            variant="secondary"
+            size="sm"
+            className="rounded-full border border-[#fed7aa] bg-[#fff7ed] text-[#9a3412] hover:bg-white"
+          >
             <IconMenu2 className="h-4 w-4" />
           </Button>
-          <ModeToggle />
         </div>
       </div>
     </header>

@@ -170,23 +170,21 @@ export function Sidebar({
   };
 
   return (
-    <section className="md:sticky md:top-20 md:self-start md:z-50 flex flex-col gap-6 bg-foreground rounded-3xl p-6 shadow-lg">
+    <section className="md:sticky max-w-2xl md:top-20 md:z-50 flex flex-col gap-6 self-start rounded-3xl border border-[#e2e8f0] bg-white p-6 text-[#0f172a] shadow-[0_10px_40px_-10px_rgba(15,23,42,0.12)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#ea580c] text-xl font-bold text-white">
             <User2Icon className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-primary">Hi User</p>
-            <p className="text-xs text-muted-foreground dark:text-black/80">
-              Welcome to the app
-            </p>
+            <p className="text-sm font-semibold text-[#c2410c]">Hi User</p>
+            <p className="text-xs text-[#64748b]">Welcome to the app</p>
           </div>
         </div>
       </div>
       {menuBanners.length > 0 ? (
         <>
-          <div className="relative overflow-hidden rounded-2xl border border-border">
+          <div className="relative overflow-hidden rounded-2xl border border-[#e2e8f0]">
             <img
               src={menuBanners[bannerIndex]}
               alt={`Menu banner ${bannerIndex + 1}`}
@@ -229,8 +227,8 @@ export function Sidebar({
                   type="button"
                   className={`h-2 rounded-full transition-all ${
                     idx === bannerIndex
-                      ? 'w-5 bg-primary'
-                      : 'w-2 bg-muted-foreground/40'
+                      ? 'w-5 bg-[#ea580c]'
+                      : 'w-2 bg-[#94a3b8]/50'
                   }`}
                   onClick={() => setBannerIndex(idx)}
                   aria-label={`Go to banner ${idx + 1}`}
@@ -240,19 +238,17 @@ export function Sidebar({
           )}
         </>
       ) : (
-        <div className="flex items-center justify-between text-center rounded-2xl border border-border p-4">
+        <div className="flex items-center justify-between rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4 text-center">
           <div className="flex flex-col items-center gap-2">
-            <p className="text-lg font-semibold text-background">
-              No menu banners
-            </p>
-            <p className="text-md font-bold text-muted-foreground">
+            <p className="text-lg font-semibold text-[#0f172a]">No menu banners</p>
+            <p className="text-base font-bold text-[#64748b]">
               Add banner images in Settings
             </p>
           </div>
         </div>
       )}
 
-      <Card className="rounded-3xl bg-card shadow-xl overflow-hidden border border-primary">
+      <Card className="overflow-hidden rounded-3xl border border-[#fdba74] bg-white shadow-xl">
         <CardContent className="space-y-4">
           <div className="flex items-center justify-center gap-2 py-5">
             <Button
@@ -273,35 +269,35 @@ export function Sidebar({
 
           {mode === 'delivery' && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
                 Delivery address
               </p>
               <Input
                 placeholder="Your Address"
                 value={deliveryAddress}
                 onChange={(event) => setDeliveryAddress(event.target.value)}
-                className="bg-card text-foreground placeholder:text-muted-foreground rounded-2xl"
+                className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
                 placeholder="Your Name"
                 value={addressName}
                 onChange={(event) => setAddressName(event.target.value)}
-                className="bg-card text-foreground placeholder:text-muted-foreground rounded-2xl"
+                className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
                 placeholder="Apartment or door number"
                 value={apartmentDoorNumber}
                 onChange={(event) => setApartmentDoorNumber(event.target.value)}
-                className="bg-card text-foreground placeholder:text-muted-foreground rounded-2xl"
+                className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
                 placeholder="Gate code, intercom..."
                 value={gateCode}
                 onChange={(event) => setGateCode(event.target.value)}
-                className="bg-card text-foreground placeholder:text-muted-foreground rounded-2xl"
+                className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
 
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-[#64748b]">
                 This information will be used to identify your order and contact
                 you if necessary.
               </p>
@@ -317,42 +313,34 @@ export function Sidebar({
 
           {mode === 'takeaway' && (
             <div className="space-y-3">
-              <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
                 Select a branch (scroll if needed)
               </p>
-              <div className="max-h-72 overflow-y-auto space-y-3 pr-1">
+              <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
                 {branchesLoading && (
-                  <p className="text-xs text-muted-foreground">
-                    Loading branches...
-                  </p>
+                  <p className="text-xs text-[#64748b]">Loading branches...</p>
                 )}
                 {!branchesLoading && activeStores?.length === 0 && (
-                  <p className="text-xs text-muted-foreground">
+                  <p className="text-xs text-[#64748b]">
                     No branches available for takeaway.
                   </p>
                 )}
                 {activeStores?.map((store) => (
                   <div
                     key={store.id}
-                    className={`flex items-start justify-between rounded-3xl border bg-card p-4 transition ${
+                    className={`flex items-start justify-between rounded-3xl border bg-[#f8fafc] p-4 transition ${
                       selectedStoreId === store.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-border'
+                        ? 'border-[#ea580c] bg-[#fff7ed]'
+                        : 'border-[#e2e8f0]'
                     }`}
                   >
                     <div className="flex flex-1 flex-col gap-1">
-                      <p className="text-sm font-semibold text-foreground">
-                        {store.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {store.address}
-                      </p>
+                      <p className="text-sm font-semibold text-[#0f172a]">{store.name}</p>
+                      <p className="text-xs text-[#64748b]">{store.address}</p>
                       {store.phone ? (
-                        <p className="text-xs text-muted-foreground">
-                          Phone: {store.phone}
-                        </p>
+                        <p className="text-xs text-[#64748b]">Phone: {store.phone}</p>
                       ) : null}
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-[#64748b]">
                         {store.collectionFrom
                           ? `Order collection from ${store.collectionFrom}`
                           : 'Takeaway collection available'}
@@ -366,16 +354,16 @@ export function Sidebar({
                         size="sm"
                         className={
                           selectedStoreId === store.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'text-foreground/80'
+                            ? 'bg-[#ea580c] text-white hover:bg-[#c2410c]'
+                            : 'border-[#e2e8f0] text-[#334155] hover:bg-[#f1f5f9]'
                         }
                         onClick={() => setSelectedStoreId(store.id)}
                       >
                         {selectedStoreId === store.id ? 'Selected' : 'Select'}
                         <IconChevronRight className="ml-2 h-4 w-4" />
                       </Button>
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <IconHeart className="h-3.5 w-3.5 text-primary" />
+                      <span className="flex items-center gap-1 text-xs text-[#64748b]">
+                        <IconHeart className="h-3.5 w-3.5 text-[#ea580c]" />
                         {store.isFavorite ? 'Favorite' : 'Add to favorites'}
                       </span>
                     </div>

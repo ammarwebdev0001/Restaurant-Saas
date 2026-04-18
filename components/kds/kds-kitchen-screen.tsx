@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { RefreshCw } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -27,7 +28,11 @@ function fmt(v: number) {
   });
 }
 
-function remainingSeconds(startedAtIso: string, selectedMinutes: number, nowMs: number) {
+function remainingSeconds(
+  startedAtIso: string,
+  selectedMinutes: number,
+  nowMs: number
+) {
   const started = new Date(startedAtIso).getTime();
   const end = started + selectedMinutes * 60_000;
   return Math.floor((end - nowMs) / 1000);
@@ -47,10 +52,15 @@ function formatCountdown(sec: number) {
 export function KdsKitchenScreen() {
   const [tickets, setTickets] = useState<Ticket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeUpdatingTicketId, setActiveUpdatingTicketId] = useState<
+    string | null
+  >(null);
+  const [activeUpdateCount, setActiveUpdateCount] = useState(0);
   const [nowMs, setNowMs] = useState(Date.now());
 
   const load = useCallback(async () => {
+    setRefreshing(true);
     try {
       const res = await axios.get<{ data: Ticket[] }>(
         '/api/restaurant/kds/tickets?status=making'
@@ -60,6 +70,7 @@ export function KdsKitchenScreen() {
       setTickets([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -82,18 +93,29 @@ export function KdsKitchenScreen() {
   const sorted = useMemo(
     () =>
       [...tickets].sort(
-        (a, b) => new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
+        (a, b) =>
+          new Date(a.startedAt).getTime() - new Date(b.startedAt).getTime()
       ),
     [tickets]
   );
 
-  async function updateStatus(ticketId: string, status: 'completed' | 'canceled') {
-    setUpdating(ticketId);
+  async function updateStatus(
+    ticketId: string,
+    status: 'completed' | 'canceled'
+  ) {
+    setActiveUpdateCount((prev) => prev + 1);
+    setActiveUpdatingTicketId(ticketId);
     try {
       await axios.patch(`/api/restaurant/kds/tickets/${ticketId}`, { status });
       await load();
     } finally {
-      setUpdating(null);
+      setActiveUpdateCount((prev) => {
+        const next = Math.max(0, prev - 1);
+        if (next === 0) {
+          setActiveUpdatingTicketId(null);
+        }
+        return next;
+      });
     }
   }
 
@@ -102,15 +124,26 @@ export function KdsKitchenScreen() {
       <div className="mb-4 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Kitchen Display</h1>
-          <p className="text-sm text-muted-foreground">Showing all making orders</p>
+          <p className="text-sm text-muted-foreground">
+            Showing all making orders
+          </p>
         </div>
-        <Button variant="outline" onClick={() => void load()}>
+        <Button
+          variant="outline"
+          onClick={() => void load()}
+          disabled={refreshing}
+        >
+          <RefreshCw
+            className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+          />
           Refresh
         </Button>
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">Loading kitchen tickets...</p>
+        <p className="text-sm text-muted-foreground">
+          Loading kitchen tickets...
+        </p>
       ) : sorted.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
@@ -120,15 +153,23 @@ export function KdsKitchenScreen() {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {sorted.map((t) => {
-            const left = remainingSeconds(t.startedAt, t.selectedMinutes, nowMs);
+            const left = remainingSeconds(
+              t.startedAt,
+              t.selectedMinutes,
+              nowMs
+            );
             const overdue = left < 0;
             return (
               <Card key={t.id} className={overdue ? 'border-red-500' : ''}>
                 <CardContent className="space-y-3 pt-5">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="font-mono text-xs">{t.orderId.slice(0, 10)}</p>
-                      <p className="text-sm font-medium">{t.customerName || 'Walk-in'}</p>
+                      <p className="font-mono text-xs">
+                        {t.orderId.slice(0, 10)}
+                      </p>
+                      <p className="text-sm font-medium">
+                        {t.customerName || 'Walk-in'}
+                      </p>
                     </div>
                     <Badge variant={overdue ? 'destructive' : 'secondary'}>
                       {t.sourceType}
@@ -136,8 +177,12 @@ export function KdsKitchenScreen() {
                   </div>
 
                   <div className="rounded-md border p-2">
-                    <p className="text-xs text-muted-foreground">Selected time</p>
-                    <p className={`text-lg font-bold tabular-nums ${overdue ? 'text-red-500' : ''}`}>
+                    <p className="text-xs text-muted-foreground">
+                      Selected time
+                    </p>
+                    <p
+                      className={`text-lg font-bold tabular-nums ${overdue ? 'text-red-500' : ''}`}
+                    >
                       {formatCountdown(left)}
                     </p>
                     <p className="text-[11px] text-muted-foreground">
@@ -153,23 +198,41 @@ export function KdsKitchenScreen() {
                     ))}
                   </div>
 
-                  <p className="text-xs font-semibold">PKR {fmt(t.orderTotal)}</p>
+                  <p className="text-xs font-semibold">
+                    PKR {fmt(t.orderTotal)}
+                  </p>
 
                   <div className="grid grid-cols-2 gap-2">
                     <Button
                       type="button"
-                      disabled={updating === t.id}
+                      disabled={
+                        (activeUpdateCount > 0 &&
+                          activeUpdatingTicketId !== null &&
+                          activeUpdatingTicketId !== t.id) ||
+                        (activeUpdatingTicketId !== null &&
+                          activeUpdatingTicketId === t.id)
+                      }
                       onClick={() => void updateStatus(t.id, 'completed')}
                     >
-                      Complete
+                      {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
+                        ? 'Loading...'
+                        : 'Complete'}
                     </Button>
                     <Button
                       type="button"
                       variant="destructive"
-                      disabled={updating === t.id}
+                      disabled={
+                        (activeUpdateCount > 0 &&
+                          activeUpdatingTicketId !== null &&
+                          activeUpdatingTicketId !== t.id) ||
+                        (activeUpdatingTicketId !== null &&
+                          activeUpdatingTicketId === t.id)
+                      }
                       onClick={() => void updateStatus(t.id, 'canceled')}
                     >
-                      Cancel
+                      {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
+                        ? 'Loading...'
+                        : 'Cancel'}
                     </Button>
                   </div>
                 </CardContent>

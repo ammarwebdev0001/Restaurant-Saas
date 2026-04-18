@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DeleteConfirmation } from '@/components/ui/confirmation-dialogs';
 import { Input } from '@/components/ui/input';
 
 import type { MenuCategoryRow } from './types';
@@ -18,9 +19,15 @@ type Props = {
 
 export function CategoriesTab({ categories, onRefresh }: Props) {
   const [name, setName] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  const canAdd = Boolean(name.trim()) && !adding;
 
   const add = async () => {
-    if (!name.trim()) return;
+    if (!name.trim() || adding) return;
+    setAdding(true);
     try {
       await axios.post('/api/restaurant/menu/categories', { name: name.trim() });
       toast.success('Category created');
@@ -30,6 +37,8 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
       const err = e as { response?: { data?: unknown } };
       toast.error('Could not create category');
       console.error(err.response?.data);
+    } finally {
+      setAdding(false);
     }
   };
 
@@ -44,11 +53,13 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm('Delete this category?')) return;
+  const remove = async () => {
+    if (!deletingId) return;
     try {
-      await axios.delete(`/api/restaurant/menu/categories/${id}`);
+      await axios.delete(`/api/restaurant/menu/categories/${deletingId}`);
       toast.success('Deleted');
+      setConfirmDeleteOpen(false);
+      setDeletingId(null);
       await onRefresh();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
@@ -57,6 +68,7 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
   };
 
   return (
+    <>
     <Card>
       <CardHeader>
         <CardTitle>Categories</CardTitle>
@@ -72,17 +84,36 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
             value={name}
             onChange={(e) => setName(e.target.value)}
             className="max-w-sm"
-            onKeyDown={(e) => e.key === 'Enter' && void add()}
+            disabled={adding}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && canAdd) void add();
+            }}
           />
-          <Button type="button" onClick={() => void add()}>
-            <Plus className="mr-2 h-4 w-4" />
-            Add category
+          <Button
+            type="button"
+            disabled={!canAdd}
+            onClick={() => void add()}
+          >
+            {adding ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Plus className="mr-2 h-4 w-4" aria-hidden />
+            )}
+            {adding ? 'Adding…' : 'Add category'}
           </Button>
         </div>
 
         <ul className="space-y-2">
           {categories.map((c) => (
-            <CategoryRow key={c.id} category={c} onRename={rename} onDelete={remove} />
+            <CategoryRow
+              key={c.id}
+              category={c}
+              onRename={rename}
+              onDelete={(id) => {
+                setDeletingId(id);
+                setConfirmDeleteOpen(true);
+              }}
+            />
           ))}
         </ul>
         {categories.length === 0 && (
@@ -90,6 +121,18 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
         )}
       </CardContent>
     </Card>
+    <DeleteConfirmation
+      open={confirmDeleteOpen}
+      title="Delete category"
+      description="This category will be removed. Products in this category may need reassignment."
+      itemName={categories.find((c) => c.id === deletingId)?.name}
+      onConfirm={() => void remove()}
+      onCancel={() => {
+        setConfirmDeleteOpen(false);
+        setDeletingId(null);
+      }}
+    />
+    </>
   );
 }
 

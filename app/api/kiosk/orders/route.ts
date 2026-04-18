@@ -1,0 +1,230 @@
+import type { NextRequest } from 'next/server';
+import { NextResponse } from 'next/server';
+import { OrderSourceType } from '@prisma/client';
+import { z } from 'zod';
+
+import { db } from '@/lib/db';
+
+const SELECTED_MINUTES_KIOSK = 25;
+
+const modifierSelectionSchema = z.object({
+  menuItemId: z.string().min(1),
+  name: z.string().min(1),
+  unitPrice: z.number().finite().nonnegative(),
+});
+
+const modifierGroupSchema = z.object({
+  attributeGroupId: z.string(),
+  groupName: z.string(),
+  selections: z.array(modifierSelectionSchema),
+});
+
+const lineSchema = z.object({
+  menuItemId: z.string().min(1),
+  quantity: z.number().int().positive(),
+  unitPrice: z.number().finite().nonnegative(),
+  productName: z.string().min(1),
+  modifiers: z.array(modifierGroupSchema).default([]),
+});
+
+const postSchema = z.object({
+  restaurantSlug: z.string().min(1).max(200),
+  fulfillment: z.enum(['dine_in', 'take_away']),
+  lines: z.array(lineSchema).min(1).max(200),
+  subtotal: z.number().finite().nonnegative(),
+  total: z.number().finite().nonnegative(),
+  cookingNote: z.string().max(2000).optional(),
+  customerName: z.string().max(120).optional(),
+  customerPhone: z.string().max(40).optional(),
+});
+
+function buildKioskAddressSnapshot(
+  fulfillment: 'dine_in' | 'take_away',
+  cookingNote?: string,
+  customerName?: string,
+  customerPhone?: string
+): string {
+  const lines: string[] = [
+    'Source: Kiosk',
+    `Fulfillment: ${fulfillment === 'dine_in' ? 'Dine in' : 'Take away'}`,
+  ];
+  if (customerName?.trim()) lines.push(`Name: ${customerName.trim()}`);
+  if (customerPhone?.trim()) lines.push(`Phone: ${customerPhone.trim()}`);
+  if (cookingNote?.trim()) lines.push(`Cooking / notes: ${cookingNote.trim()}`);
+  return lines.join('\n');
+}
+
+function ticketProductName(
+  productName: string,
+  groups: z.infer<typeof modifierGroupSchema>[]
+): string {
+  if (!groups.length) return productName;
+  const bits = groups.map((g) => {
+    const names = g.selections.map((s) => s.name).join(', ');
+    return `${g.groupName}: ${names}`;
+  });
+  return `${productName} (${bits.join('; ')})`;
+}
+
+export async function POST(req: NextRequest) {
+  if (!('KIOSK' in OrderSourceType)) {
+    return NextResponse.json(
+      {
+        error:
+          'Kiosk orders are not available: this build’s Prisma client is missing OrderSourceType.KIOSK. Stop the dev server, run `npx prisma migrate deploy` (or `migrate dev`), then `npx prisma generate`, and start again.',
+      },
+      { status: 503 }
+    );
+  }
+
+  let json: unknown;
+  try {
+    json = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+
+  const parsed = postSchema.safeParse(json);
+  if (!parsed.success) {
+    return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+  }
+
+  const {
+    restaurantSlug,
+    fulfillment,
+    lines,
+    subtotal,
+    total,
+    cookingNote,
+    customerName,
+    customerPhone,
+  } = parsed.data;
+
+  const slug = restaurantSlug.trim();
+  const restaurant = await db.restaurant.findUnique({
+    where: { slug },
+    select: { id: true },
+  });
+
+  if (!restaurant) {
+    return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
+  }
+
+  const computedSubtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
+  if (Math.abs(computedSubtotal - subtotal) > 0.02) {
+    return NextResponse.json({ error: 'Subtotal does not match cart lines' }, { status: 400 });
+  }
+
+  if (Math.abs(computedSubtotal - total) > 0.02) {
+    return NextResponse.json(
+      { error: 'Total must match subtotal for kiosk checkout' },
+      { status: 400 }
+    );
+  }
+
+  const menuIds = new Set<string>();
+  for (const line of lines) {
+    menuIds.add(line.menuItemId);
+    for (const g of line.modifiers) {
+      for (const s of g.selections) {
+        menuIds.add(s.menuItemId);
+      }
+    }
+  }
+
+  const menuRows = await db.menuItem.findMany({
+    where: { restaurantId: restaurant.id, id: { in: [...menuIds] } },
+    select: { id: true },
+  });
+  if (menuRows.length !== menuIds.size) {
+    return NextResponse.json(
+      { error: 'One or more menu items are invalid for this restaurant' },
+      { status: 400 }
+    );
+  }
+
+  const addressSnapshot = buildKioskAddressSnapshot(
+    fulfillment,
+    cookingNote,
+    customerName,
+    customerPhone
+  );
+
+  try {
+    const result = await db.$transaction(async (tx) => {
+      const order = await tx.order.create({
+        data: {
+          restaurantId: restaurant.id,
+          customerId: null,
+          status: 'pending',
+          total: computedSubtotal,
+          sourceType: OrderSourceType.KIOSK,
+          address: addressSnapshot || null,
+          taxAmount: 0,
+          discountAmount: 0,
+        },
+      });
+
+      for (const line of lines) {
+        const orderItem = await tx.orderItem.create({
+          data: {
+            orderId: order.id,
+            menuItemId: line.menuItemId,
+            quantity: line.quantity,
+            price: line.unitPrice,
+          },
+        });
+
+        const flatMods = line.modifiers.flatMap((g) => g.selections);
+        if (flatMods.length > 0) {
+          await tx.orderItemModifier.createMany({
+            data: flatMods.map((s) => ({
+              orderItemId: orderItem.id,
+              menuItemId: s.menuItemId,
+              name: s.name,
+              unitPrice: s.unitPrice,
+              quantity: 1,
+            })),
+          });
+        }
+      }
+
+      const ticket = await tx.kitchenTicket.create({
+        data: {
+          restaurantId: restaurant.id,
+          orderId: order.id,
+          status: 'pending',
+          selectedMinutes: SELECTED_MINUTES_KIOSK,
+        },
+      });
+
+      await tx.kitchenTicketItem.createMany({
+        data: lines.map((line) => ({
+          kitchenTicketId: ticket.id,
+          productName: ticketProductName(line.productName, line.modifiers),
+          quantity: line.quantity,
+        })),
+      });
+
+      await tx.payment.create({
+        data: {
+          orderId: order.id,
+          amount: computedSubtotal,
+          status: 'completed',
+          method: 'Kiosk',
+          restaurantId: restaurant.id,
+        },
+      });
+
+      return order;
+    });
+
+    return NextResponse.json(
+      { data: { orderId: result.id, restaurantId: restaurant.id } },
+      { status: 201 }
+    );
+  } catch (e) {
+    console.error(e);
+    return NextResponse.json({ error: 'Failed to place order' }, { status: 500 });
+  }
+}

@@ -30,6 +30,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { DeleteConfirmation, SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 
 import type { MenuCategoryRow } from './types';
 
@@ -54,6 +55,14 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
   );
 
   const [attrOpen, setAttrOpen] = useState(false);
+  const [saveRuleConfirmOpen, setSaveRuleConfirmOpen] = useState(false);
+  const [savingRule, setSavingRule] = useState(false);
+  const [deletingRuleId, setDeletingRuleId] = useState<string | null>(null);
+  const [deleteRuleConfirmOpen, setDeleteRuleConfirmOpen] = useState(false);
+  const [deletingRule, setDeletingRule] = useState(false);
+  const [deletingOfferId, setDeletingOfferId] = useState<string | null>(null);
+  const [deleteOfferConfirmOpen, setDeleteOfferConfirmOpen] = useState(false);
+  const [deletingOffer, setDeletingOffer] = useState(false);
   const [attrForm, setAttrForm] = useState({
     name: '',
     selectionType: 'SINGLE' as 'SINGLE' | 'MULTIPLE',
@@ -80,6 +89,7 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
       toast.error('Label and linked category are required.');
       return;
     }
+    setSavingRule(true);
     try {
       await axios.post(`/api/restaurant/menu/items/${selected.id}/attributes`, {
         name: attrForm.name.trim(),
@@ -89,21 +99,45 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
       });
       toast.success('Recommendation rule added');
       setAttrOpen(false);
+      setSaveRuleConfirmOpen(false);
       await onRefresh();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
       toast.error(err.response?.data?.error || 'Could not save');
+    } finally {
+      setSavingRule(false);
     }
   };
 
-  const deleteRule = async (groupId: string) => {
-    if (!confirm('Remove this add-on rule?')) return;
+  const deleteRule = async () => {
+    if (!deletingRuleId) return;
+    setDeletingRule(true);
     try {
-      await axios.delete(`/api/restaurant/menu/attributes/${groupId}`);
+      await axios.delete(`/api/restaurant/menu/attributes/${deletingRuleId}`);
       toast.success('Removed');
+      setDeleteRuleConfirmOpen(false);
+      setDeletingRuleId(null);
       await onRefresh();
     } catch {
       toast.error('Could not remove');
+    } finally {
+      setDeletingRule(false);
+    }
+  };
+
+  const deleteOffer = async () => {
+    if (!deletingOfferId) return;
+    setDeletingOffer(true);
+    try {
+      await axios.delete(`/api/restaurant/menu/offers/${deletingOfferId}`);
+      toast.success('Removed offered product');
+      setDeleteOfferConfirmOpen(false);
+      setDeletingOfferId(null);
+      await onRefresh();
+    } catch {
+      toast.error('Could not remove offered product');
+    } finally {
+      setDeletingOffer(false);
     }
   };
 
@@ -214,7 +248,10 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
                             size="icon"
                             variant="ghost"
                             className="text-destructive"
-                            onClick={() => void deleteRule(g.id)}
+                            onClick={() => {
+                              setDeletingRuleId(g.id);
+                              setDeleteRuleConfirmOpen(true);
+                            }}
                             aria-label="Remove rule"
                           >
                             <Trash2 className="h-4 w-4" />
@@ -300,22 +337,9 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
                             size="icon"
                             variant="ghost"
                             className="text-destructive"
-                            onClick={async () => {
-                              if (
-                                !confirm(
-                                  'Remove this offered product from this item?'
-                                )
-                              )
-                                return;
-                              try {
-                                await axios.delete(
-                                  `/api/restaurant/menu/offers/${offer.id}`
-                                );
-                                toast.success('Removed offered product');
-                                await onRefresh();
-                              } catch {
-                                toast.error('Could not remove offered product');
-                              }
+                            onClick={() => {
+                              setDeletingOfferId(offer.id);
+                              setDeleteOfferConfirmOpen(true);
                             }}
                             aria-label="Remove offered product"
                           >
@@ -408,12 +432,52 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
             >
               Cancel
             </Button>
-            <Button type="button" onClick={() => void saveRule()}>
+            <Button type="button" onClick={() => setSaveRuleConfirmOpen(true)}>
               Save rule
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SaveConfirmation
+        open={saveRuleConfirmOpen}
+        title="Save add-on rule"
+        description="Create this recommendation rule now?"
+        itemName={attrForm.name.trim() || selected?.name || 'Rule'}
+        loading={savingRule}
+        onConfirm={() => void saveRule()}
+        onCancel={() => setSaveRuleConfirmOpen(false)}
+      />
+
+      <DeleteConfirmation
+        open={deleteRuleConfirmOpen}
+        title="Remove rule"
+        description="This add-on rule will be removed from this product."
+        itemName={
+          selected?.attributeGroups.find((g) => g.id === deletingRuleId)?.name
+        }
+        loading={deletingRule}
+        onConfirm={() => void deleteRule()}
+        onCancel={() => {
+          setDeleteRuleConfirmOpen(false);
+          setDeletingRuleId(null);
+        }}
+      />
+
+      <DeleteConfirmation
+        open={deleteOfferConfirmOpen}
+        title="Remove offered product"
+        description="This offered product link will be removed."
+        itemName={
+          currentOffers.find((o) => o.id === deletingOfferId)?.offeredItem.name
+        }
+        loading={deletingOffer}
+        onConfirm={() => void deleteOffer()}
+        onCancel={() => {
+          setDeleteOfferConfirmOpen(false);
+          setDeletingOfferId(null);
+        }}
+      />
     </Card>
   );
 }

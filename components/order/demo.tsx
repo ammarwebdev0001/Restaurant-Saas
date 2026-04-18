@@ -20,7 +20,7 @@ export function Orders() {
           <CardHeader>
             <CardTitle>Sales</CardTitle>
             <CardDescription>
-              Online and POS orders, totals, and per-order details.
+              Online, POS, and kiosk orders, totals, and per-order details.
             </CardDescription>
             <FullscreenButton targetRef={tableRef} />
           </CardHeader>

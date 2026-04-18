@@ -10,6 +10,9 @@ function parseSourceType(v: unknown): OrderSourceType {
   if (v === 'POS' || v === 'ONLINE' || v === 'WALK_IN' || v === 'OTHER') {
     return v;
   }
+  if (v === 'KIOSK') {
+    return OrderSourceType.KIOSK;
+  }
   return OrderSourceType.WALK_IN;
 }
 

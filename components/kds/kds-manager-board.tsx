@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { RefreshCw } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,15 +33,20 @@ const MAX_CUSTOM_MINUTES = 240;
 export function KdsManagerBoard() {
   const [orders, setOrders] = useState<PendingOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   /** Resolved prep minutes per order (from presets or custom input). */
   const [prepMinutes, setPrepMinutes] = useState<Record<string, number>>({});
   /** Raw text for the optional custom minutes field per order. */
   const [customMinutesText, setCustomMinutesText] = useState<
     Record<string, string>
   >({});
-  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [activeSubmittingOrderId, setActiveSubmittingOrderId] = useState<
+    string | null
+  >(null);
+  const [activeSubmitCount, setActiveSubmitCount] = useState(0);
 
   const load = useCallback(async () => {
+    setRefreshing(true);
     try {
       const res = await fetch('/api/restaurant/kds/manager-orders', {
         method: 'GET',
@@ -53,6 +59,7 @@ export function KdsManagerBoard() {
       setOrders([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
@@ -88,7 +95,8 @@ export function KdsManagerBoard() {
       );
       return;
     }
-    setSubmitting(orderId);
+    setActiveSubmitCount((prev) => prev + 1);
+    setActiveSubmittingOrderId(orderId);
     try {
       const res = await fetch('/api/restaurant/kds/tickets', {
         method: 'POST',
@@ -101,7 +109,13 @@ export function KdsManagerBoard() {
       if (!res.ok) throw new Error('Failed to proceed');
       await load();
     } finally {
-      setSubmitting(null);
+      setActiveSubmitCount((prev) => {
+        const next = Math.max(0, prev - 1);
+        if (next === 0) {
+          setActiveSubmittingOrderId(null);
+        }
+        return next;
+      });
     }
   }
 
@@ -117,9 +131,18 @@ export function KdsManagerBoard() {
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="default">
-            <Link href="/kds-screen">Open KDS Screen</Link>
+            <Link href="/kds-screen" target="_blank">
+              Open KDS Screen
+            </Link>
           </Button>
-          <Button variant="outline" onClick={() => void load()}>
+          <Button
+            variant="outline"
+            onClick={() => void load()}
+            disabled={refreshing}
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`}
+            />
             Refresh
           </Button>
         </div>
@@ -223,10 +246,17 @@ export function KdsManagerBoard() {
                 <Button
                   className="w-full"
                   type="button"
-                  disabled={submitting === o.id}
+                  disabled={
+                    (activeSubmitCount > 0 &&
+                      activeSubmittingOrderId !== o.id) ||
+                    (activeSubmittingOrderId !== null &&
+                      activeSubmittingOrderId === o.id)
+                  }
                   onClick={() => void proceed(o.id)}
                 >
-                  {submitting === o.id ? 'Proceeding...' : 'Proceed'}
+                  {activeSubmitCount > 0 && activeSubmittingOrderId === o.id
+                    ? 'Proceeding...'
+                    : 'Proceed'}
                 </Button>
               </CardContent>
             </Card>

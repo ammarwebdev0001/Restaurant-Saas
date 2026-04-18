@@ -6,6 +6,8 @@ import ShopnameCard from './components/shopname';
 import TaxrateCard from './components/taxrate';
 import RolesCard from './components/roles';
 import RestaurantUsersCard from './components/restaurant-users';
+import { CustomerEntryLinks } from './components/customer-entry-links';
+import { RestaurantBrandingCard } from './components/restaurant-branding';
 import eventBus from '@/lib/even';
 export function Setting() {
   const [storeName, setStoreName] = useState<string | null>(null);
@@ -61,8 +63,10 @@ export function Setting() {
       <div className="flex min-h-[calc(100vh_-_theme(spacing.16))] flex-1 flex-col gap-4 bg-muted/40 p-4 md:gap-8 md:p-10">
         <div className="mx-auto grid w-full max-w-6xl items-start gap-6 ">
           <div className="grid gap-6">
-            <ShopnameCard storeName={storeName} storeId={storeId} />
-            <TaxrateCard tax={taxRate} storeId={storeId} />
+            <CustomerEntryLinks />
+            <RestaurantBrandingCard />
+            {/* <ShopnameCard storeName={storeName} storeId={storeId} />
+            <TaxrateCard tax={taxRate} storeId={storeId} /> */}
             <RestaurantUsersCard />
             <RolesCard />
           </div>

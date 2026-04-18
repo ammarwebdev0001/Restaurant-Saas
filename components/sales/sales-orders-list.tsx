@@ -50,7 +50,11 @@ export function SalesOrdersList({
       const d = res.data;
       setRows(
         d.orders ??
-          [...(d.onlineOrders ?? []), ...(d.posOrders ?? [])].sort(
+          [
+            ...(d.onlineOrders ?? []),
+            ...(d.posOrders ?? []),
+            ...(d.kioskOrders ?? []),
+          ].sort(
             (a, b) =>
               new Date(b.createdAt).getTime() -
               new Date(a.createdAt).getTime()

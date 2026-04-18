@@ -6,6 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -24,6 +34,7 @@ import { cn } from '@/lib/utils';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import eventBus from '@/lib/even';
+import { usePosCartGuard } from '@/components/pos/pos-cart-guard-context';
 
 export type OrderMode = 'new' | 'tables' | 'delivery' | 'takeaway' | 'queue';
 
@@ -73,6 +84,7 @@ function formatMoney(n: number) {
 }
 
 export function PosScreen() {
+  const { setPosCartHasItems } = usePosCartGuard();
   const [orderMode, setOrderMode] = useState<OrderMode>('tables');
   const [categoryId, setCategoryId] = useState<string>('all');
   const [categories, setCategories] = useState<Category[]>([
@@ -95,9 +107,9 @@ export function PosScreen() {
   const [paymentMode, setPaymentMode] = useState('cash');
   const [payment, setPayment] = useState('');
   const [kotNote, setKotNote] = useState('');
-  const [kotPrint, setKotPrint] = useState(true);
-  const [kdsPrint, setKdsPrint] = useState(false);
+  const [kdsPrint, setKdsPrint] = useState(true);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
@@ -158,6 +170,21 @@ export function PosScreen() {
     };
   }, []);
 
+  useEffect(() => {
+    setPosCartHasItems(cart.length > 0);
+    return () => setPosCartHasItems(false);
+  }, [cart, setPosCartHasItems]);
+
+  useEffect(() => {
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (cart.length === 0) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [cart]);
+
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
     return products.filter((p) => {
@@ -196,6 +223,74 @@ export function PosScreen() {
 
   const paymentEntered = payment.trim() !== '';
   const canSaveOrder = cart.length > 0 && paymentEntered && !savingOrder;
+  const isTableMode = orderMode === 'tables';
+  const isDeliveryMode = orderMode === 'delivery';
+
+  function printOrderReceipt(orderRef: string) {
+    if (typeof window === 'undefined') return;
+    const receipt = window.open('', '_blank', 'width=420,height=720');
+    if (!receipt) {
+      toast.warn('Popup blocked. Allow popups to print receipt.');
+      return;
+    }
+
+    const rows = cart
+      .map((line) => {
+        const gross = line.unitPrice * line.qty;
+        const discAmt = gross * (line.lineDiscPct / 100);
+        const lineTotal = gross - discAmt;
+        return `<tr>
+          <td>${line.name}</td>
+          <td style="text-align:center;">${line.qty}</td>
+          <td style="text-align:right;">${formatMoney(lineTotal)}</td>
+        </tr>`;
+      })
+      .join('');
+
+    const html = `<!doctype html>
+<html>
+  <head>
+    <title>Order Receipt</title>
+    <style>
+      body { font-family: Arial, sans-serif; padding: 16px; color: #111; }
+      h2 { margin: 0 0 8px; }
+      .muted { color: #555; font-size: 12px; }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+      th, td { border-bottom: 1px solid #ddd; padding: 6px 4px; font-size: 12px; }
+      .totals { margin-top: 10px; font-size: 12px; }
+      .totals div { display:flex; justify-content:space-between; margin-top: 2px; }
+      .grand { font-weight: bold; font-size: 14px; margin-top: 6px; }
+    </style>
+  </head>
+  <body>
+    <h2>${branch}</h2>
+    <div class="muted">Order: ${orderRef}</div>
+    <div class="muted">Mode: ${orderMode}</div>
+    ${tableId ? `<div class="muted">Table: ${tableId}</div>` : ''}
+    ${customerName ? `<div class="muted">Customer: ${customerName}</div>` : ''}
+    ${customerPhone ? `<div class="muted">Phone: ${customerPhone}</div>` : ''}
+    ${orderAddress ? `<div class="muted">Address: ${orderAddress}</div>` : ''}
+    ${kotNote ? `<div class="muted">Note: ${kotNote}</div>` : ''}
+    <table>
+      <thead>
+        <tr><th style="text-align:left;">Item</th><th>Qty</th><th style="text-align:right;">Amount</th></tr>
+      </thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="totals">
+      <div><span>Subtotal</span><span>${formatMoney(subtotal)}</span></div>
+      <div><span>Tax</span><span>${formatMoney(taxAmount)}</span></div>
+      <div><span>Discount</span><span>${formatMoney(disAmount)}</span></div>
+      <div class="grand"><span>Grand Total</span><span>${formatMoney(grandTotal)}</span></div>
+    </div>
+  </body>
+</html>`;
+    receipt.document.open();
+    receipt.document.write(html);
+    receipt.document.close();
+    receipt.focus();
+    receipt.print();
+  }
 
   function addProduct(p: Product) {
     if (p.price <= 0) {
@@ -255,39 +350,60 @@ export function PosScreen() {
     }
     const nameTrim = customerName.trim();
     const phoneTrim = customerPhone.trim();
+    const tableTrim = tableId.trim();
+    const addressTrim = orderAddress.trim();
     if (nameTrim && !phoneTrim) {
       toast.warn(
         'Enter customer phone to save customer details, or clear the name.'
       );
       return;
     }
+    if (isTableMode && !tableTrim) {
+      toast.warn('Select a table for table orders.');
+      return;
+    }
+    if (isDeliveryMode && (!addressTrim || !phoneTrim)) {
+      toast.warn('Delivery requires customer phone and address.');
+      return;
+    }
     setSavingOrder(true);
     try {
-      await axios.post('/api/restaurant/pos-order', {
-        grandTotal,
-        payment: payment.trim(),
-        paymentMode,
-        address: orderAddress.trim() || undefined,
-        taxAmount,
-        discountAmount: disAmount,
-        customerName: nameTrim || undefined,
-        customerPhone: phoneTrim || undefined,
-        items: cart.map((l) => ({
-          productId: l.productId,
-          qty: l.qty,
-          unitPrice: l.unitPrice,
-          lineDiscPct: l.lineDiscPct,
-        })),
-      });
+      const res = await axios.post<{ id?: string }>(
+        '/api/restaurant/pos-order',
+        {
+          grandTotal,
+          payment: payment.trim(),
+          paymentMode,
+          address: addressTrim || undefined,
+          taxAmount,
+          discountAmount: disAmount,
+          customerName: nameTrim || undefined,
+          customerPhone: phoneTrim || undefined,
+          tableId: tableTrim || undefined,
+          orderMode,
+          items: cart.map((l) => ({
+            productId: l.productId,
+            qty: l.qty,
+            unitPrice: l.unitPrice,
+            lineDiscPct: l.lineDiscPct,
+          })),
+        }
+      );
+      const orderRef = res.data?.id || `POS-${Date.now()}`;
       toast.success(
         `Order saved — ${itemsCount} items · PKR ${formatMoney(grandTotal)} · ${paymentMode}`
       );
+      if (kdsPrint) {
+        printOrderReceipt(orderRef);
+      }
       eventBus.emit('refreshSalesOrders');
       clearCart();
       setPayment('');
       setOrderAddress('');
       setCustomerName('');
       setCustomerPhone('');
+      setTableId('');
+      setShowSaveConfirm(false);
     } catch (e: unknown) {
       const msg =
         axios.isAxiosError(e) && e.response?.data?.error
@@ -301,52 +417,55 @@ export function PosScreen() {
 
   const modeButtons: { id: OrderMode; label: string; suffix?: string }[] = [
     { id: 'new', label: 'New Order', suffix: '+' },
-    { id: 'tables', label: 'Tables' },
+    { id: 'tables', label: 'Tables', suffix: '+' },
     { id: 'delivery', label: 'Delivery', suffix: '+' },
     { id: 'takeaway', label: 'Take Away', suffix: '+' },
-    { id: 'queue', label: 'Order Queue' },
   ];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
       {/* Top bar */}
-      <div className="flex flex-col gap-3 border-b bg-muted/30 px-3 py-3 sm:px-4">
-        <div className="relative w-full max-w-xl lg:max-w-2xl">
-          <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={
-              categoryId === 'all'
-                ? 'Search all products…'
-                : 'Search in this category…'
-            }
-            className="h-10 bg-background pl-9"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-        </div>
 
-        <div className="flex flex-wrap gap-2">
-          {modeButtons.map((b) => {
-            const active = orderMode === b.id;
-            return (
-              <Button
-                key={b.id}
-                type="button"
-                variant={active ? 'default' : 'outline'}
-                size="sm"
-                className={cn('h-9 gap-1 rounded-lg', active && 'shadow-sm')}
-                onClick={() => setOrderMode(b.id)}
-              >
-                {active && b.id === 'tables' && (
-                  <Check className="h-3.5 w-3.5" aria-hidden />
-                )}
-                {b.label}
-                {b.suffix ? (
-                  <span className="text-xs opacity-80">{b.suffix}</span>
-                ) : null}
-              </Button>
-            );
-          })}
+      <div className="flex flex-col flex-1 gap-3 py-3 px-3 border-b bg-muted/30">
+        <div className="flex justify-between flex-1 gap-3  px-3 sm:px-4">
+          <div className="relative w-full max-w-xl lg:max-w-2xl">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={
+                categoryId === 'all'
+                  ? 'Search all products…'
+                  : 'Search in this category…'
+              }
+              className="h-10 bg-background pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            {modeButtons.map((b) => {
+              const active = orderMode === b.id;
+              return (
+                <Button
+                  key={b.id}
+                  type="button"
+                  variant={active ? 'default' : 'outline'}
+                  size="sm"
+                  className={cn(
+                    'h-9 gap-2 w-fit rounded-lg',
+                    active && 'shadow-sm'
+                  )}
+                  onClick={() => setOrderMode(b.id)}
+                >
+                  {active && <Check className="h-3.5 w-3.5" aria-hidden />}
+                  {b.label}
+                  {b.suffix ? (
+                    <span className="text-xs opacity-80">{b.suffix}</span>
+                  ) : null}
+                </Button>
+              );
+            })}
+          </div>
         </div>
 
         <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
@@ -412,81 +531,106 @@ export function PosScreen() {
         <div className="flex min-h-0 flex-col gap-3 border-t bg-muted/20 p-3 lg:border-t-0">
           <div className="grid gap-2 sm:grid-cols-2">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">
-                Select Tables
-              </label>
-              <Select value={tableId} onValueChange={setTableId}>
-                <SelectTrigger className="h-9 bg-background">
-                  <SelectValue placeholder="Select table" />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEMO_TABLES.map((t) => (
-                    <SelectItem key={t} value={t}>
-                      {t}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <label className="text-xs text-muted-foreground">Branch</label>
+              <Input
+                readOnly
+                className="h-9 bg-muted/50 text-sm font-medium"
+                value={branch}
+              />
             </div>
+            {isTableMode ? (
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">
+                  Select Table
+                </label>
+                <Select value={tableId} onValueChange={setTableId}>
+                  <SelectTrigger className="h-9 bg-background">
+                    <SelectValue placeholder="Select table" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DEMO_TABLES.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <label className="text-xs text-muted-foreground">
+                  Order mode
+                </label>
+                <Input
+                  readOnly
+                  className="h-9 bg-muted/50 text-sm font-medium"
+                  value={orderMode.toUpperCase()}
+                />
+              </div>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground">
+              Customer name
+            </label>
+            <div className="flex gap-1">
+              <Input
+                className="h-9 flex-1 bg-background"
+                placeholder="Name (optional if no phone)"
+                value={customerName}
+                onChange={(e) => setCustomerName(e.target.value)}
+              />
+              <Button
+                type="button"
+                size="icon"
+                variant="secondary"
+                className="h-9 w-9 shrink-0 bg-primary/15 text-primary hover:bg-primary/25"
+                aria-label="Add customer"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          {(isDeliveryMode ||
+            customerPhone.trim() !== '' ||
+            customerName.trim() !== '') && (
             <div className="space-y-1">
               <label className="text-xs text-muted-foreground">
-                Customer name
+                Customer phone
               </label>
-              <div className="flex gap-1">
-                <Input
-                  className="h-9 flex-1 bg-background"
-                  placeholder="Name (optional if no phone)"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                />
-                <Button
-                  type="button"
-                  size="icon"
-                  variant="secondary"
-                  className="h-9 w-9 shrink-0 bg-primary/15 text-primary hover:bg-primary/25"
-                  aria-label="Add customer"
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Input
+                className="h-9 bg-background"
+                inputMode="tel"
+                autoComplete="tel"
+                placeholder={
+                  isDeliveryMode
+                    ? 'Phone (required for delivery)'
+                    : 'Phone (optional)'
+                }
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+              />
+              <p className="text-[10px] text-muted-foreground">
+                Same phone for this restaurant reuses the customer; name updates
+                if you change it.
+              </p>
             </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              Customer phone
-            </label>
-            <Input
-              className="h-9 bg-background"
-              inputMode="tel"
-              autoComplete="tel"
-              placeholder="Phone (saves customer on order when set)"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Same phone for this restaurant reuses the customer; name updates
-              if you change it.
-            </p>
-          </div>
+          )}
 
-          <Input
-            readOnly
-            className="h-9 bg-muted/50 text-sm font-medium"
-            value={branch}
-          />
-
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              Address (optional)
-            </label>
-            <textarea
-              className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="Delivery or pickup address, table area, etc."
-              value={orderAddress}
-              onChange={(e) => setOrderAddress(e.target.value)}
-              rows={3}
-            />
-          </div>
+          {isDeliveryMode && (
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">
+                Delivery address
+              </label>
+              <textarea
+                className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+                placeholder="Enter delivery address"
+                value={orderAddress}
+                onChange={(e) => setOrderAddress(e.target.value)}
+                rows={3}
+              />
+            </div>
+          )}
 
           <div className="min-h-[140px] flex-1 overflow-hidden rounded-lg border bg-background">
             <Table>
@@ -712,15 +856,6 @@ export function PosScreen() {
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded border-input accent-primary"
-                  checked={kotPrint}
-                  onChange={(e) => setKotPrint(e.target.checked)}
-                />
-                KOT Print
-              </label>
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-input accent-primary"
                   checked={kdsPrint}
                   onChange={(e) => setKdsPrint(e.target.checked)}
                 />
@@ -742,7 +877,9 @@ export function PosScreen() {
                     ? 'Add items to the cart'
                     : undefined
               }
-              onClick={() => void saveOrder()}
+              onClick={() => {
+                if (canSaveOrder) setShowSaveConfirm(true);
+              }}
             >
               {savingOrder ? 'Saving…' : 'Save'}
             </Button>
@@ -757,6 +894,27 @@ export function PosScreen() {
           </div>
         </div>
       </div>
+      <AlertDialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Save POS order?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will save the current cart as an order.
+              {kdsPrint ? ' Receipt print preview will open after save.' : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              type="button"
+              disabled={savingOrder}
+              onClick={() => void saveOrder()}
+            >
+              {savingOrder ? 'Saving…' : 'Confirm Save'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -2,11 +2,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import axios from 'axios';
+import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import type { OrderInfo } from '@/components/order/order-types';
 import { orderPathWithQuery } from '@/lib/order-search-params';
+
+const SERVICE_FEE = 0.99;
 
 type CheckoutPageProps = {
   orderType: 'delivery' | 'pickUp';
@@ -99,18 +103,71 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
   const router = useRouter();
   const [cutlery, setCutlery] = useState(false);
   const [comment, setComment] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     setCart(parseCartFromStorage(localStorage.getItem(`cart-${orderId}`)));
   }, [orderId]);
 
   const total = useMemo(() => cart.reduce((sum, item) => sum + lineTotal(item), 0), [cart]);
+  const grandTotal = total + SERVICE_FEE;
 
-  const confirmOrder = () => {
-    const fee = 0.99;
-    alert(`Order confirmed! Total: €${(total + fee).toFixed(2)}. Order ID: ${orderId}`);
-    localStorage.removeItem(`cart-${orderId}`);
-    router.push('/');
+  const confirmOrder = async () => {
+    const slug = orderInfo?.restaurantSlug?.trim();
+    if (!slug) {
+      toast.error('Missing store link. Open the menu from your restaurant page, then checkout again.');
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      const { data } = await axios.post<{ data?: { orderId?: string } }>('/api/customer/orders', {
+        restaurantSlug: slug,
+        orderType,
+        orderInfo: {
+          mode: orderType,
+          restaurantName: orderInfo?.restaurantName,
+          storeId: orderInfo?.storeId,
+          storeName: orderInfo?.storeName,
+          storeAddress: orderInfo?.storeAddress,
+          address: orderInfo?.address,
+          apartment: orderInfo?.apartment,
+          gateCode: orderInfo?.gateCode,
+          addressName: orderInfo?.addressName,
+          restaurantSlug: slug,
+        },
+        lines: cart.map((line) => ({
+          menuItemId: line.menuItemId,
+          quantity: line.quantity,
+          unitPrice: lineUnitTotal(line),
+          productName: line.productName,
+          modifiers: line.modifiers,
+        })),
+        subtotal: total,
+        total: grandTotal,
+        cutlery,
+        comment: comment.trim() || undefined,
+      });
+
+      const placedId = data?.data?.orderId;
+      toast.success(
+        placedId ? `Order placed. Reference: ${placedId}` : 'Order placed successfully.'
+      );
+      localStorage.removeItem(`cart-${orderId}`);
+      router.push(`/web-app/${encodeURIComponent(slug)}`);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: unknown } } };
+      const msg = err.response?.data?.error;
+      const text =
+        typeof msg === 'string'
+          ? msg
+          : msg && typeof msg === 'object' && 'formErrors' in (msg as object)
+            ? 'Invalid order data'
+            : 'Could not place order. Please try again.';
+      toast.error(text);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (cart.length === 0) {
@@ -266,21 +323,26 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
                   </div>
                   <div className="flex justify-between">
                     <span>Service fees</span>
-                    <span>€0.99</span>
+                    <span>€{SERVICE_FEE.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-bold">
                     <span>Total</span>
-                    <span>€{(total + 0.99).toFixed(2)}</span>
+                    <span>€{grandTotal.toFixed(2)}</span>
                   </div>
                 </div>
 
                 <div className="mt-4">
-                  <Button className="w-full" onClick={confirmOrder} type="button">
-                    Pay (€{(total + 0.99).toFixed(2)})
+                  <Button
+                    className="w-full"
+                    onClick={() => void confirmOrder()}
+                    type="button"
+                    disabled={submitting}
+                  >
+                    {submitting ? 'Placing order…' : `Pay (€${grandTotal.toFixed(2)})`}
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  By continuing, I accept the Enjoy Tacos terms and conditions of sale.
+                  By continuing, you confirm your order for pickup or delivery as shown above.
                 </p>
               </CardContent>
             </Card>

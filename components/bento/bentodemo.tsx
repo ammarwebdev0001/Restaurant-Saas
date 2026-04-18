@@ -35,29 +35,29 @@ export function BentoGridHome() {
 }
 
 const items = [
-  {
-    title: "Don't Forget To Rest Your Soul",
-    description: <span className="text-sm">Experience the power of time.</span>,
-    header: <DigitalClock />,
-    className: 'md:col-span-1',
-    icon: <IconClock className="h-4 w-4 text-neutral-500" />,
-  },
-  {
-    title: "Human Can't Predict A Future",
-    description: (
-      <span className="text-sm">Don't forget bring you'r umberella.</span>
-    ),
-    header: <WeatherComponent />,
-    className: 'md:col-span-1',
-    icon: <IconCloud className="h-4 w-4 text-neutral-500" />,
-  },
-  {
-    title: 'Tomorrow is Tomorrow not Today',
-    description: <span className="text-sm">Every Day is Amazing</span>,
-    header: <DateComponent />,
-    className: 'md:col-span-1',
-    icon: <IconCalendarMonth className="h-4 w-4 text-neutral-500" />,
-  },
+  // {
+  //   title: "Don't Forget To Rest Your Soul",
+  //   description: <span className="text-sm">Experience the power of time.</span>,
+  //   header: <DigitalClock />,
+  //   className: 'md:col-span-1',
+  //   icon: <IconClock className="h-4 w-4 text-neutral-500" />,
+  // },
+  // {
+  //   title: "Human Can't Predict A Future",
+  //   description: (
+  //     <span className="text-sm">Don't forget bring you'r umberella.</span>
+  //   ),
+  //   header: <WeatherComponent />,
+  //   className: 'md:col-span-1',
+  //   icon: <IconCloud className="h-4 w-4 text-neutral-500" />,
+  // },
+  // {
+  //   title: 'Tomorrow is Tomorrow not Today',
+  //   description: <span className="text-sm">Every Day is Amazing</span>,
+  //   header: <DateComponent />,
+  //   className: 'md:col-span-1',
+  //   icon: <IconCalendarMonth className="h-4 w-4 text-neutral-500" />,
+  // },
   {
     title: 'Analysis',
     description: <span className="text-sm">Understand the sale analysis.</span>,
@@ -66,11 +66,11 @@ const items = [
     icon: <IconTableColumn className="h-4 w-4 text-neutral-500" />,
   },
 
-  {
-    title: 'Network Speed',
-    description: <span className="text-sm">Summarize your Network Speed.</span>,
-    header: <NetworkSpeed />,
-    className: 'md:col-span-1',
-    icon: <IconWifi className="h-4 w-4 text-neutral-500" />,
-  },
+  // {
+  //   title: 'Network Speed',
+  //   description: <span className="text-sm">Summarize your Network Speed.</span>,
+  //   header: <NetworkSpeed />,
+  //   className: 'md:col-span-1',
+  //   icon: <IconWifi className="h-4 w-4 text-neutral-500" />,
+  // },
 ];

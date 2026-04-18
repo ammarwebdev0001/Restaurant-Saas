@@ -29,11 +29,13 @@ export async function GET(_req: NextRequest) {
       const emptyStats: SalesOrdersStats = {
         online: { count: 0, totalAmount: 0 },
         pos: { count: 0, totalAmount: 0 },
+        kiosk: { count: 0, totalAmount: 0 },
         all: { count: 0, totalAmount: 0 },
       };
       return NextResponse.json({
         onlineOrders: empty,
         posOrders: empty,
+        kioskOrders: empty,
         stats: emptyStats,
         orders: empty,
       });
@@ -151,6 +153,13 @@ export async function GET(_req: NextRequest) {
           new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
       );
 
+    const kioskOrders = fromMenu
+      .filter((o) => o.sourceType === 'KIOSK')
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
     const posMenuOrders = fromMenu.filter(
       (o) => o.sourceType === 'POS' || o.sourceType === 'OTHER'
     );
@@ -169,6 +178,10 @@ export async function GET(_req: NextRequest) {
         count: posOrders.length,
         totalAmount: posOrders.reduce((s, r) => s + rowTotal(r), 0),
       },
+      kiosk: {
+        count: kioskOrders.length,
+        totalAmount: kioskOrders.reduce((s, r) => s + rowTotal(r), 0),
+      },
       all: {
         count: allMerged.length,
         totalAmount: allMerged.reduce((s, r) => s + rowTotal(r), 0),
@@ -183,6 +196,7 @@ export async function GET(_req: NextRequest) {
     return NextResponse.json({
       onlineOrders,
       posOrders,
+      kioskOrders,
       stats,
       orders,
     });

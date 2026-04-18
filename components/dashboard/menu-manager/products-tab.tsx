@@ -8,6 +8,7 @@ import { Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { DeleteConfirmation, SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -37,6 +38,11 @@ export function ProductsTab({ categories, onRefresh }: Props) {
 
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<MenuItemRow | null>(null);
+  const [saveConfirmOpen, setSaveConfirmOpen] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deletingProduct, setDeletingProduct] = useState<MenuItemRow | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [form, setForm] = useState({
     name: '',
     description: '',
@@ -84,6 +90,7 @@ export function ProductsTab({ categories, onRefresh }: Props) {
       return;
     }
 
+    setSaving(true);
     try {
       if (editing) {
         await axios.patch(`/api/restaurant/menu/items/${editing.id}`, {
@@ -107,22 +114,30 @@ export function ProductsTab({ categories, onRefresh }: Props) {
         toast.success('Product created');
       }
       setOpen(false);
+      setSaveConfirmOpen(false);
       await onRefresh();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: unknown } } };
       toast.error(typeof err.response?.data?.error === 'string' ? err.response.data.error : 'Save failed');
+    } finally {
+      setSaving(false);
     }
   };
 
-  const remove = async (id: string) => {
-    if (!confirm('Delete this product?')) return;
+  const remove = async () => {
+    if (!deletingProduct) return;
+    setDeleting(true);
     try {
-      await axios.delete(`/api/restaurant/menu/items/${id}`);
+      await axios.delete(`/api/restaurant/menu/items/${deletingProduct.id}`);
       toast.success('Deleted');
+      setDeleteConfirmOpen(false);
+      setDeletingProduct(null);
       await onRefresh();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
       toast.error(err.response?.data?.error || 'Delete failed');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -194,7 +209,10 @@ export function ProductsTab({ categories, onRefresh }: Props) {
                           size="icon"
                           variant="outline"
                           className="text-destructive"
-                          onClick={() => void remove(item.id)}
+                          onClick={() => {
+                            setDeletingProduct(item);
+                            setDeleteConfirmOpen(true);
+                          }}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -280,12 +298,35 @@ export function ProductsTab({ categories, onRefresh }: Props) {
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button type="button" onClick={() => void save()}>
+            <Button type="button" onClick={() => setSaveConfirmOpen(true)}>
               Save
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SaveConfirmation
+        open={saveConfirmOpen}
+        title={editing ? 'Update product' : 'Create product'}
+        description={editing ? 'Save changes to this product?' : 'Create this new product now?'}
+        itemName={form.name.trim() || editing?.name || 'Product'}
+        loading={saving}
+        onConfirm={() => void save()}
+        onCancel={() => setSaveConfirmOpen(false)}
+      />
+
+      <DeleteConfirmation
+        open={deleteConfirmOpen}
+        title="Delete product"
+        description="This product will be removed permanently."
+        itemName={deletingProduct?.name}
+        loading={deleting}
+        onConfirm={() => void remove()}
+        onCancel={() => {
+          setDeleteConfirmOpen(false);
+          setDeletingProduct(null);
+        }}
+      />
     </Card>
   );
 }
