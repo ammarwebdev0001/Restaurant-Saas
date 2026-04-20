@@ -15,6 +15,15 @@ export type MenuItemRow = {
   price: number;
   salePrice: number | null;
   categoryId: string;
+  variations?: {
+    id: string;
+    name?: string;
+    title?: string;
+    imageUrl?: string | null;
+    swatchHex: string | null;
+    priceDelta: number;
+    sortOrder: number;
+  }[];
   attributeGroups: AttrGroupRow[];
   offersFromThis?: {
     id: string;

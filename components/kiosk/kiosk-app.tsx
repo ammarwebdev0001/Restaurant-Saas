@@ -21,6 +21,7 @@ import { toast } from 'react-toastify';
 import {
   ProductCustomizeDialog,
   type AttributeGroup,
+  type SelectedProductVariation,
 } from '@/components/order/product-customize-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -43,6 +44,9 @@ type CartLine = {
   imageUrl: string | null;
   baseUnitPrice: number;
   quantity: number;
+  variationId: string | null;
+  variationName: string | null;
+  variationPriceDelta: number;
   modifiers: CartModifierSelection[];
   modifiersSignature: string;
 };
@@ -55,6 +59,14 @@ type CustomerMenuProduct = {
   price: number;
   salePrice: number | null;
   categoryId: string;
+  variations?: {
+    id: string;
+    name?: string;
+    title?: string;
+    swatchHex: string | null;
+    priceDelta: number;
+    sortOrder: number;
+  }[];
   attributeGroups: {
     id: string;
     name: string;
@@ -70,6 +82,15 @@ type CustomerMenuProduct = {
         imageUrl: string | null;
         price: number;
         salePrice: number | null;
+        variations?: {
+          id: string;
+          name?: string;
+          title?: string;
+          imageUrl?: string | null;
+          swatchHex?: string | null;
+          priceDelta: number;
+          sortOrder?: number;
+        }[];
       }[];
     };
   }[];
@@ -107,25 +128,30 @@ function effectiveUnitPrice(price: number, salePrice: number | null) {
   return price;
 }
 
-function getSignature(mods: CartModifierSelection[]): string {
+function getSignature(
+  mods: CartModifierSelection[],
+  variationId: string | null
+): string {
   return [...mods]
     .sort((a, b) => a.attributeGroupId.localeCompare(b.attributeGroupId))
     .map(
       (m) =>
         `${m.attributeGroupId}:${m.selections
-          .map((s) => s.menuItemId)
+          .map((s) => `${s.menuItemId}:${s.name}`)
           .sort()
           .join(',')}`
     )
-    .join('|');
+    .join('|')
+    .concat(`::v:${variationId ?? ''}`);
 }
 
 function lineUnitTotal(line: CartLine) {
+  const base = line.variationId ? line.variationPriceDelta : line.baseUnitPrice;
   const modTotal = line.modifiers.reduce(
     (sum, m) => sum + m.selections.reduce((s2, sel) => s2 + sel.unitPrice, 0),
     0
   );
-  return line.baseUnitPrice + modTotal;
+  return base + modTotal;
 }
 
 function lineTotal(line: CartLine) {
@@ -172,12 +198,15 @@ function formatPkr(n: number) {
 
 /** Single-line label for cart / kitchen (matches server `ticketProductName` shape). */
 function cartLineDisplayName(line: CartLine): string {
-  if (!line.modifiers.length) return line.productName;
+  const base = line.variationName
+    ? `${line.productName} (${line.variationName})`
+    : line.productName;
+  if (!line.modifiers.length) return base;
   const bits = line.modifiers.map((g) => {
     const names = g.selections.map((s) => s.name).join(', ');
-    return `${names}`;
+    return `${g.groupName}: ${names}`;
   });
-  return `${line.productName} (${bits.join(', ')})`;
+  return `${base} (${bits.join('; ')})`;
 }
 
 function cartSummaryLines(cart: CartLine[], maxLines: number): string[] {
@@ -313,16 +342,19 @@ export function KioskApp({ slug }: { slug: string }) {
         imageUrl: it.imageUrl,
         price: it.price,
         salePrice: it.salePrice,
+        variations: it.variations ?? [],
       })),
     }));
   }, [customizeProduct]);
 
   const addToCart = (
     product: CustomerMenuProduct,
-    modifiers: CartModifierSelection[]
+    modifiers: CartModifierSelection[],
+    variation?: SelectedProductVariation | null
   ) => {
     const baseUnitPrice = effectiveUnitPrice(product.price, product.salePrice);
-    const modifiersSignature = getSignature(modifiers);
+    const variationId = variation?.id ?? null;
+    const modifiersSignature = getSignature(modifiers, variationId);
 
     setCart((current) => {
       const existing = current.find(
@@ -347,6 +379,9 @@ export function KioskApp({ slug }: { slug: string }) {
           imageUrl: product.imageUrl ?? null,
           baseUnitPrice,
           quantity: 1,
+          variationId,
+          variationName: variation?.name ?? null,
+          variationPriceDelta: variation?.priceDelta ?? 0,
           modifiers,
           modifiersSignature,
         };
@@ -363,7 +398,8 @@ export function KioskApp({ slug }: { slug: string }) {
   };
 
   const onProductTap = (p: CustomerMenuProduct) => {
-    if (hasRequiredAddons(p)) openCustomize(p);
+    const hasVariations = (p.variations?.length ?? 0) > 0;
+    if (hasRequiredAddons(p) || hasVariations) openCustomize(p);
     else addToCart(p, []);
   };
 
@@ -379,7 +415,8 @@ export function KioskApp({ slug }: { slug: string }) {
     if (delta > 0) {
       const p = allProducts.find((x) => x.id === productId);
       if (!p) return;
-      if (hasRequiredAddons(p)) openCustomize(p);
+      const hasVariations = (p.variations?.length ?? 0) > 0;
+      if (hasRequiredAddons(p) || hasVariations) openCustomize(p);
       else addToCart(p, []);
       return;
     }
@@ -422,7 +459,7 @@ export function KioskApp({ slug }: { slug: string }) {
         menuItemId: line.menuItemId,
         quantity: line.quantity,
         unitPrice: lineUnitTotal(line),
-        productName: line.productName,
+        productName: cartLineDisplayName(line),
         modifiers: line.modifiers,
       }));
       const res = await axios.post<{ data: { orderId: string } }>(
@@ -1051,13 +1088,20 @@ export function KioskApp({ slug }: { slug: string }) {
 
         <ProductCustomizeDialog
           productName={customizeProduct?.name ?? ''}
+          productImageUrl={customizeProduct?.imageUrl ?? null}
           attributeGroups={attributeGroupsForDialog}
+        variations={(customizeProduct?.variations ?? []).map((v) => ({
+          id: v.id,
+          name: v.name ?? v.title ?? 'Variation',
+          swatchHex: v.swatchHex,
+          priceDelta: v.priceDelta,
+        }))}
           open={dialogOpen}
           onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) setCustomizeProduct(null);
           }}
-          onConfirm={(mods) => {
+        onConfirm={(mods, variation) => {
             if (!customizeProduct) return;
             const mapped: CartModifierSelection[] = mods.map((m) => ({
               attributeGroupId: m.attributeGroupId,
@@ -1068,7 +1112,7 @@ export function KioskApp({ slug }: { slug: string }) {
                 unitPrice: s.unitPrice,
               })),
             }));
-            addToCart(customizeProduct, mapped);
+          addToCart(customizeProduct, mapped, variation ?? null);
             setDialogOpen(false);
             setCustomizeProduct(null);
           }}

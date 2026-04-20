@@ -290,6 +290,7 @@ model MenuItem {
   restaurant        Restaurant               @relation(fields: [restaurantId], references: [id])
   orderItems        OrderItem[]
   attributeGroups   MenuItemAttributeGroup[]
+  variations        MenuItemVariation[]
   orderAddonChoices OrderItemModifier[]      @relation("OrderAddonProduct")
 
   offersFromThis MenuItemOffer[] @relation("BaseItemOffers")
@@ -297,6 +298,25 @@ model MenuItem {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model MenuItemVariation {
+  id         String  @id @default(uuid())
+  menuItemId String
+  name       String
+  title      String
+  imageUrl   String?
+  imageKey   String?
+  swatchHex  String?
+  sortOrder  Int     @default(0)
+  priceDelta Float   @default(0)
+
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([menuItemId, sortOrder])
 }
 
 model MenuItemOffer {

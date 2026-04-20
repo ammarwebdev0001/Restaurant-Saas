@@ -287,6 +287,31 @@ export function fakeMenuItemComplete() {
     updatedAt: faker.date.anytime(),
   };
 }
+export function fakeMenuItemVariation() {
+  return {
+    name: faker.person.fullName(),
+    title: faker.lorem.words(5),
+    imageUrl: undefined,
+    imageKey: undefined,
+    swatchHex: undefined,
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeMenuItemVariationComplete() {
+  return {
+    id: faker.string.uuid(),
+    menuItemId: faker.string.uuid(),
+    name: faker.person.fullName(),
+    title: faker.lorem.words(5),
+    imageUrl: undefined,
+    imageKey: undefined,
+    swatchHex: undefined,
+    sortOrder: 0,
+    priceDelta: 0,
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
+  };
+}
 export function fakeMenuItemOffer() {
   return {
     updatedAt: faker.date.anytime(),

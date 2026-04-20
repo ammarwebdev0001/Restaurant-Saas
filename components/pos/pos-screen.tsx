@@ -23,6 +23,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   Table,
   TableBody,
   TableCell,
@@ -43,6 +50,14 @@ type Product = {
   name: string;
   price: number;
   categoryId: string;
+  variations?: {
+    id: string;
+    name?: string;
+    title?: string;
+    imageUrl?: string | null;
+    swatchHex?: string | null;
+    priceDelta: number;
+  }[];
 };
 
 type CartLine = {
@@ -51,6 +66,8 @@ type CartLine = {
   unitPrice: number;
   qty: number;
   lineDiscPct: number;
+  variationId?: string | null;
+  variationName?: string | null;
 };
 
 /** `all` shows every product; other ids match `Product.categoryId`. */
@@ -69,6 +86,14 @@ type RestaurantMenuApi = {
         name: string;
         price: number | string | null;
         salePrice: number | string | null;
+        variations?: Array<{
+          id: string;
+          name?: string;
+          title?: string;
+          imageUrl?: string | null;
+          swatchHex?: string | null;
+          priceDelta: number | string | null;
+        }>;
       }>;
     }>;
   };
@@ -110,6 +135,9 @@ export function PosScreen() {
   const [kdsPrint, setKdsPrint] = useState(true);
   const [savingOrder, setSavingOrder] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
+  const [swatchDialogOpen, setSwatchDialogOpen] = useState(false);
+  const [swatchProduct, setSwatchProduct] = useState<Product | null>(null);
+  const [swatchId, setSwatchId] = useState<string>('');
 
   useEffect(() => {
     let isMounted = true;
@@ -147,6 +175,14 @@ export function PosScreen() {
               name: item.name,
               price,
               categoryId: menu.id,
+              variations: (item.variations ?? []).map((v) => ({
+                id: v.id,
+                name: v.name,
+                title: v.title,
+                imageUrl: v.imageUrl ?? null,
+                swatchHex: v.swatchHex ?? null,
+                priceDelta: Number(v.priceDelta ?? 0),
+              })),
             });
           }
         }
@@ -292,28 +328,43 @@ export function PosScreen() {
     receipt.print();
   }
 
-  function addProduct(p: Product) {
+  function addProduct(p: Product, swatch?: { id: string; name: string; price: number } | null) {
+    const productId = swatch ? `${p.id}::sw:${swatch.id}` : p.id;
+    const unitPrice = swatch ? swatch.price : p.price;
+    const displayName = swatch ? `${p.name} (${swatch.name})` : p.name;
     if (p.price <= 0) {
       toast.info('Open modifiers from staff menu — price is 0 for this item.');
     }
     setCart((prev) => {
-      const existing = prev.find((l) => l.productId === p.id);
+      const existing = prev.find((l) => l.productId === productId);
       if (existing) {
         return prev.map((l) =>
-          l.productId === p.id ? { ...l, qty: l.qty + 1 } : l
+          l.productId === productId ? { ...l, qty: l.qty + 1 } : l
         );
       }
       return [
         ...prev,
         {
-          productId: p.id,
-          name: p.name,
-          unitPrice: p.price,
+          productId,
+          name: displayName,
+          unitPrice,
           qty: 1,
           lineDiscPct: 0,
+          variationId: swatch?.id ?? null,
+          variationName: swatch?.name ?? null,
         },
       ];
     });
+  }
+
+  function requestAddProduct(p: Product) {
+    if ((p.variations?.length ?? 0) === 0) {
+      addProduct(p, null);
+      return;
+    }
+    setSwatchProduct(p);
+    setSwatchId('');
+    setSwatchDialogOpen(true);
   }
 
   function setQty(productId: string, qty: number) {
@@ -383,6 +434,7 @@ export function PosScreen() {
           orderMode,
           items: cart.map((l) => ({
             productId: l.productId,
+            name: l.name,
             qty: l.qty,
             unitPrice: l.unitPrice,
             lineDiscPct: l.lineDiscPct,
@@ -496,7 +548,7 @@ export function PosScreen() {
               <button
                 key={p.id}
                 type="button"
-                onClick={() => addProduct(p)}
+                onClick={() => requestAddProduct(p)}
                 className="group flex flex-col items-center gap-2 rounded-xl border bg-background p-3 text-center transition hover:border-primary/40 hover:bg-muted/40"
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-inner ring-2 ring-primary/20 transition group-hover:scale-[1.02]">
@@ -915,6 +967,53 @@ export function PosScreen() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Dialog open={swatchDialogOpen} onOpenChange={setSwatchDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Select swatch</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-2">
+            <label className="text-xs text-muted-foreground">Swatch</label>
+            <Select value={swatchId} onValueChange={setSwatchId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Choose swatch" />
+              </SelectTrigger>
+              <SelectContent>
+                {(swatchProduct?.variations ?? []).map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {(v.name ?? v.title ?? 'Swatch') + ` - ${formatMoney(Number(v.priceDelta ?? 0))}`}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => setSwatchDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={!swatchId || !swatchProduct}
+              onClick={() => {
+                if (!swatchProduct) return;
+                const picked = (swatchProduct.variations ?? []).find((v) => v.id === swatchId);
+                if (!picked) return;
+                addProduct(swatchProduct, {
+                  id: picked.id,
+                  name: picked.name ?? picked.title ?? 'Swatch',
+                  price: Number(picked.priceDelta ?? 0),
+                });
+                setSwatchDialogOpen(false);
+                setSwatchProduct(null);
+                setSwatchId('');
+              }}
+            >
+              Add
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

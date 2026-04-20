@@ -12,6 +12,22 @@ const createSchema = z.object({
   imageUrl: z.string().url().optional().nullable().or(z.literal("")),
   price: z.number().positive(),
   salePrice: z.number().positive().optional().nullable(),
+  variations: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(120),
+        imageUrl: z.string().url().optional().nullable().or(z.literal("")),
+        swatchHex: z
+          .string()
+          .regex(/^#(?:[0-9a-fA-F]{3}){1,2}$/)
+          .optional()
+          .nullable()
+          .or(z.literal("")),
+        priceDelta: z.number().finite().optional(),
+      })
+    )
+    .max(50)
+    .optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -49,6 +65,16 @@ export async function POST(req: NextRequest) {
     parsed.data.salePrice != null && parsed.data.salePrice > 0
       ? parsed.data.salePrice
       : null;
+  const variations = (parsed.data.variations ?? [])
+    .map((v, idx) => ({
+      name: v.name.trim(),
+      title: v.name.trim(),
+      imageUrl: v.imageUrl && v.imageUrl.length > 0 ? v.imageUrl : null,
+      swatchHex: v.swatchHex && v.swatchHex.length > 0 ? v.swatchHex : null,
+      priceDelta: Number.isFinite(v.priceDelta ?? 0) ? Number(v.priceDelta ?? 0) : 0,
+      sortOrder: idx,
+    }))
+    .filter((v) => v.name.length > 0);
 
   try {
     const item = await db.menuItem.create({
@@ -60,6 +86,15 @@ export async function POST(req: NextRequest) {
         salePrice,
         categoryId: parsed.data.categoryId,
         restaurantId: auth.restaurant.id,
+        variations:
+          variations.length > 0
+            ? {
+                create: variations,
+              }
+            : undefined,
+      },
+      include: {
+        variations: { orderBy: { sortOrder: "asc" } },
       },
     });
     return NextResponse.json({ data: item }, { status: 201 });

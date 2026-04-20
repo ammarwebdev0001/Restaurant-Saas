@@ -34,6 +34,18 @@ const menuInclude = {
         price: true,
         salePrice: true,
         categoryId: true,
+        variations: {
+          orderBy: { sortOrder: 'asc' as const },
+          select: {
+            id: true,
+            name: true,
+            title: true,
+            imageUrl: true,
+            swatchHex: true,
+            priceDelta: true,
+            sortOrder: true,
+          },
+        },
         attributeGroups: {
           orderBy: { sortOrder: 'asc' as const },
           select: {
@@ -55,6 +67,18 @@ const menuInclude = {
                     imageUrl: true,
                     price: true,
                     salePrice: true,
+                    variations: {
+                      orderBy: { sortOrder: 'asc' as const },
+                      select: {
+                        id: true,
+                        name: true,
+                        title: true,
+                        imageUrl: true,
+                        swatchHex: true,
+                        priceDelta: true,
+                        sortOrder: true,
+                      },
+                    },
                   },
                 },
               },

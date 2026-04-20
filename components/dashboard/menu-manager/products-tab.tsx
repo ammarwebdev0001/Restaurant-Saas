@@ -89,7 +89,6 @@ export function ProductsTab({ categories, onRefresh }: Props) {
       toast.error('Sale price must be empty or a positive number.');
       return;
     }
-
     setSaving(true);
     try {
       if (editing) {

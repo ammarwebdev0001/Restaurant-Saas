@@ -17,6 +17,7 @@ import {
   ProductCustomizeDialog,
   type AttributeGroup,
   type MenuOption,
+  type SelectedProductVariation,
 } from '@/components/order/product-customize-dialog';
 import type { OrderInfo } from '@/components/order/order-types';
 import {
@@ -39,6 +40,15 @@ type CustomerMenuProduct = {
   price: number;
   salePrice: number | null;
   categoryId: string;
+  variations?: {
+    id: string;
+    name?: string;
+    title?: string;
+    imageUrl?: string | null;
+    swatchHex?: string | null;
+    priceDelta: number;
+    sortOrder?: number;
+  }[];
   attributeGroups: {
     id: string;
     name: string;
@@ -54,6 +64,15 @@ type CustomerMenuProduct = {
         imageUrl: string | null;
         price: number;
         salePrice: number | null;
+        variations?: {
+          id: string;
+          name?: string;
+          title?: string;
+          imageUrl?: string | null;
+          swatchHex?: string | null;
+          priceDelta: number;
+          sortOrder?: number;
+        }[];
       }[];
     };
   }[];
@@ -76,6 +95,8 @@ type CustomerMenuResponse =
     }
   | CustomerMenuRestaurant;
 
+const ALL_CATEGORY_ID = 'all';
+
 function effectiveUnitPrice(price: number, salePrice: number | null) {
   if (salePrice != null && salePrice > 0 && salePrice < price) return salePrice;
   return price;
@@ -95,31 +116,42 @@ type CartLine = {
   imageUrl: string | null;
   baseUnitPrice: number;
   quantity: number;
+  variationId?: string | null;
+  variationName?: string | null;
+  variationPriceOverride?: number;
   modifiers: CartModifierSelection[];
   modifiersSignature: string; // used to merge identical customizations
   offeredProductName?: string | null;
 };
 
-function getSignature(mods: CartModifierSelection[]) {
+function getSignature(
+  mods: CartModifierSelection[],
+  variationId?: string | null
+) {
   return mods
     .slice()
     .sort((a, b) => a.attributeGroupId.localeCompare(b.attributeGroupId))
     .map(
       (m) =>
         `${m.attributeGroupId}:${m.selections
-          .map((s) => s.menuItemId)
+          .map((s) => `${s.menuItemId}:${s.name}`)
           .sort()
           .join(',')}`
     )
-    .join('|');
+    .join('|')
+    .concat(`::v:${variationId ?? ''}`);
 }
 
 function lineUnitTotal(line: CartLine) {
+  const base =
+    line.variationId && line.variationPriceOverride != null
+      ? line.variationPriceOverride
+      : line.baseUnitPrice;
   const modTotal = line.modifiers.reduce(
     (sum, m) => sum + m.selections.reduce((s2, sel) => s2 + sel.unitPrice, 0),
     0
   );
-  return line.baseUnitPrice + modTotal;
+  return base + modTotal;
 }
 
 function lineTotal(line: CartLine) {
@@ -250,7 +282,7 @@ function ProductCard({
         <img
           src={product.imageUrl}
           alt={product.name}
-          className="h-40 w-full object-cover"
+          className="h-40 w-full object-cover rounded-t-lg"
         />
       ) : (
         <div className="flex h-40 w-full items-center justify-center bg-muted text-muted-foreground">
@@ -258,9 +290,11 @@ function ProductCard({
         </div>
       )}
       <CardContent className="space-y-2">
-        <h3 className="text-lg font-semibold">{product.name}</h3>
+        <h3 className="text-lg font-semibold line-clamp-1 mt-5">{product.name}</h3>
         {product.description ? (
-          <p className="text-sm text-muted-foreground">{product.description}</p>
+          <p className="text-sm text-muted-foreground">
+            {product.description.slice(0, 60)}...
+          </p>
         ) : null}
         <div className="flex items-center justify-between">
           <span className="font-bold">
@@ -378,10 +412,12 @@ export default function OrderPageClient({
 
   const addToCart = (
     product: CustomerMenuProduct,
-    modifiers: CartModifierSelection[]
+    modifiers: CartModifierSelection[],
+    variation?: SelectedProductVariation | null
   ) => {
     const baseUnitPrice = effectiveUnitPrice(product.price, product.salePrice);
-    const modifiersSignature = getSignature(modifiers);
+    const variationId = variation?.id ?? null;
+    const modifiersSignature = getSignature(modifiers, variationId);
 
     setCart((current) => {
       const existing = current.find(
@@ -406,6 +442,9 @@ export default function OrderPageClient({
         imageUrl: product.imageUrl ?? null,
         baseUnitPrice,
         quantity: 1,
+        variationId,
+        variationName: variation?.name ?? null,
+        variationPriceOverride: variation?.priceDelta ?? undefined,
         modifiers,
         modifiersSignature,
       };
@@ -416,15 +455,36 @@ export default function OrderPageClient({
 
   const hasRequiredAddons = (p: CustomerMenuProduct) =>
     p.attributeGroups.some((g) => g.required);
+  const hasVariations = (p: CustomerMenuProduct) =>
+    (p.variations?.length ?? 0) > 0;
 
   const filteredProducts = useMemo(() => {
-    const base = products.filter((p) => p.categoryId === selectedCategory);
+    const base =
+      selectedCategory === ALL_CATEGORY_ID
+        ? products
+        : products.filter((p) => p.categoryId === selectedCategory);
     if (!search) return base;
     const q = search.toLowerCase();
     return base.filter((p) =>
       (p.name + ' ' + (p.description ?? '')).toLowerCase().includes(q)
     );
   }, [products, selectedCategory, search]);
+
+  const displayedCategories = useMemo(() => {
+    if (selectedCategory === ALL_CATEGORY_ID) {
+      return categories.map((category) => ({
+        ...category,
+        items: filteredProducts.filter((p) => p.categoryId === category.id),
+      }));
+    }
+
+    return categories
+      .filter((category) => category.id === selectedCategory)
+      .map((category) => ({
+        ...category,
+        items: filteredProducts,
+      }));
+  }, [categories, filteredProducts, selectedCategory]);
 
   const total = useMemo(
     () => cart.reduce((sum, line) => sum + lineTotal(line), 0),
@@ -514,8 +574,20 @@ export default function OrderPageClient({
   }, [mounted, orderInfo?.storeId]);
 
   useEffect(() => {
-    if (!selectedCategory && categories.length > 0)
-      setSelectedCategory(categories[0].id);
+    if (categories.length === 0) {
+      if (selectedCategory !== '') setSelectedCategory('');
+      return;
+    }
+    if (!selectedCategory) {
+      setSelectedCategory(ALL_CATEGORY_ID);
+      return;
+    }
+    if (
+      selectedCategory !== ALL_CATEGORY_ID &&
+      !categories.some((category) => category.id === selectedCategory)
+    ) {
+      setSelectedCategory(ALL_CATEGORY_ID);
+    }
   }, [categories, selectedCategory]);
 
   const attributeGroupsForDialog: AttributeGroup[] = useMemo(() => {
@@ -533,6 +605,7 @@ export default function OrderPageClient({
         imageUrl: it.imageUrl,
         price: it.price,
         salePrice: it.salePrice,
+        variations: it.variations ?? [],
       })),
     }));
   }, [customizeProduct]);
@@ -618,6 +691,17 @@ export default function OrderPageClient({
         <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
           <main>
             <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-2">
+              <button
+                type="button"
+                onClick={() => onCategoryClick(ALL_CATEGORY_ID)}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  selectedCategory === ALL_CATEGORY_ID
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-card text-foreground ring-1 ring-border hover:bg-primary/20'
+                }`}
+              >
+                All
+              </button>
               {categories.map((category) => (
                 <button
                   key={category.id}
@@ -656,50 +740,58 @@ export default function OrderPageClient({
             ) : (
               <>
                 <section className="mb-8">
-                  <h2 className="mb-4 text-xl font-semibold">All categories</h2>
+                  <h2 className="mb-4 text-xl font-semibold">
+                    {selectedCategory === ALL_CATEGORY_ID
+                      ? 'All categories'
+                      : categories.find((c) => c.id === selectedCategory)
+                          ?.name ?? 'Selected category'}
+                  </h2>
 
-                  { categories.length > 0 ? categories.map((category) => {
-                    const categoryProducts = category.items.filter((p) => {
-                      if (!search) return true;
-                      const q = search.toLowerCase();
-                      return (p.name + ' ' + (p.description ?? ''))
-                        .toLowerCase()
-                        .includes(q);
-                    });
+                  {displayedCategories.length > 0 ? (
+                    displayedCategories.map((category) => {
+                      const categoryProducts = category.items;
 
-                    if (categoryProducts.length === 0)
+                      if (categoryProducts.length === 0)
+                        return (
+                          <div key={category.id} className="mb-10">
+                            <p className="text-sm text-muted-foreground">
+                              No products found in this category
+                            </p>
+                          </div>
+                        );
+
                       return (
-                        <div className="mb-10">
-                          <p className="text-sm text-muted-foreground">
-                            No products found in this category
-                          </p>
+                        <div
+                          key={category.id}
+                          id={category.id}
+                          className="mb-10"
+                        >
+                          <h3 className="text-lg font-bold mb-3">
+                            {category.name}
+                          </h3>
+                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                            {categoryProducts.map((product) => (
+                              <ProductCard
+                                key={product.id}
+                                product={product}
+                                showCustomizeIndicator={hasRequiredAddons(
+                                  product
+                                )}
+                                onAdd={() => {
+                                  if (
+                                    hasRequiredAddons(product) ||
+                                    hasVariations(product)
+                                  )
+                                    openCustomizeForProduct(product);
+                                  else addToCart(product, []);
+                                }}
+                              />
+                            ))}
+                          </div>
                         </div>
                       );
-
-                    return (
-                      <div key={category.id} id={category.id} className="mb-10">
-                        <h3 className="text-lg font-bold mb-3">
-                          {category.name}
-                        </h3>
-                        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                          {categoryProducts.map((product) => (
-                            <ProductCard
-                              key={product.id}
-                              product={product}
-                              showCustomizeIndicator={hasRequiredAddons(
-                                product
-                              )}
-                              onAdd={() => {
-                                if (hasRequiredAddons(product))
-                                  openCustomizeForProduct(product);
-                                else addToCart(product, []);
-                              }}
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    );
-                  }) : (
+                    })
+                  ) : (
                     <div className="mb-10">
                       <p className="text-sm text-muted-foreground">
                         No categories found
@@ -713,16 +805,21 @@ export default function OrderPageClient({
 
           <aside className="sticky top-20 rounded-2xl border border-border bg-card p-4 max-h-[70vh]">
             <div className="flex h-full flex-col">
-              <h3 className="text-lg font-semibold">Takeaway / Order Info</h3>
+              <h3 className="text-lg font-semibold">
+                {orderType === 'delivery' ? 'Delivery' : 'Takeaway'} / Order
+                Info
+              </h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Order type: {orderType}. Estimated takeaway time 20-30 mins.
+                Order type: {orderType}. Estimated{' '}
+                {orderType === 'delivery' ? 'delivery' : 'takeaway'} time 20-30
+                mins.
               </p>
 
               <h4 className="text-lg font-bold mt-5">Cart</h4>
               <div className="mt-4 flex-1 overflow-y-auto pr-1">
                 {cart.length === 0 ? (
                   <p className="mt-2 text-sm text-muted-foreground">
-                    Cart is empty
+                    cart is empty
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -734,6 +831,9 @@ export default function OrderPageClient({
                         <div className="min-w-0">
                           <p className="font-medium truncate">
                             {line.productName}
+                            {line.variationName
+                              ? ` (${line.variationName})`
+                              : ''}
                           </p>
                           {line.modifiers.length > 0 ? (
                             <div className="mt-1 space-y-1">
@@ -769,7 +869,7 @@ export default function OrderPageClient({
                             </Button>
                             <Button
                               size="sm"
-                              variant="ghost"
+                              variant="destructive"
                               onClick={() => removeFromCart(line.lineId)}
                               type="button"
                             >
@@ -812,8 +912,15 @@ export default function OrderPageClient({
         open={customizeOpen}
         onOpenChange={setCustomizeOpen}
         productName={customizeProduct?.name ?? 'Product'}
+        productImageUrl={customizeProduct?.imageUrl ?? null}
         attributeGroups={attributeGroupsForDialog}
-        onConfirm={(mods) => {
+        variations={(customizeProduct?.variations ?? []).map((v) => ({
+          id: v.id,
+          name: v.name ?? v.title ?? 'Variation',
+          swatchHex: v.swatchHex ?? null,
+          priceDelta: v.priceDelta,
+        }))}
+        onConfirm={(mods, variation) => {
           if (!customizeProduct) return;
 
           const cartMods: CartModifierSelection[] = mods.map((m) => ({
@@ -826,7 +933,7 @@ export default function OrderPageClient({
             })),
           }));
 
-          addToCart(customizeProduct, cartMods);
+          addToCart(customizeProduct, cartMods, variation ?? null);
           setCustomizeOpen(false);
           setCustomizeProduct(null);
         }}

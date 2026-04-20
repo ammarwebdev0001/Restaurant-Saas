@@ -39,9 +39,9 @@ export function Footer() {
         </div>
         <div className="flex flex-col justify-between gap-3 text-xs text-white/80">
           <p>
-            Powered by <span className="text-white">Belorder</span>
+            Powered by <span className="text-white">Restaurant SAAS</span>
           </p>
-          <p>Enjoy Tacos v2.0</p>
+          <p>Restaurant SAAS v2.0</p>
         </div>
       </div>
     </footer>

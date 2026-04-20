@@ -8,6 +8,7 @@ import { getRestaurantForUser } from '@/lib/restaurant-owner';
 
 type LineInput = {
   productId: string;
+  name?: string;
   qty: number;
   unitPrice: number;
   lineDiscPct: number;
@@ -108,11 +109,13 @@ export async function POST(req: NextRequest) {
     const customerPhoneTrim =
       typeof body.customerPhone === 'string' ? body.customerPhone.trim() : '';
 
-    const productIds = items.map((line) => String(line.productId));
+    const baseProductIds = items.map((line) =>
+      String(line.productId).split('::sw:')[0] ?? String(line.productId)
+    );
     const menuItems = await db.menuItem.findMany({
       where: {
         restaurantId: restaurant.id,
-        id: { in: productIds },
+        id: { in: baseProductIds },
       },
       select: { id: true, name: true },
     });
@@ -120,7 +123,9 @@ export async function POST(req: NextRequest) {
 
     const normalizedItems = items
       .map((line) => {
-        const menu = menuMap.get(String(line.productId));
+        const baseProductId =
+          String(line.productId).split('::sw:')[0] ?? String(line.productId);
+        const menu = menuMap.get(baseProductId);
         if (!menu) return null;
 
         const qty = Math.max(1, Math.floor(Number(line.qty) || 0));
@@ -131,7 +136,10 @@ export async function POST(req: NextRequest) {
         const unitAfterDisc = unit * (1 - discPct / 100);
         return {
           menuItemId: menu.id,
-          productName: menu.name,
+          productName:
+            typeof line.name === 'string' && line.name.trim() !== ''
+              ? line.name.trim()
+              : menu.name,
           quantity: qty,
           price: unitAfterDisc,
         };
