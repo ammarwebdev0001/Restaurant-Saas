@@ -40,7 +40,7 @@ import { cn } from '@/lib/utils';
 
 function formatMoney(n: number | null) {
   if (n == null || Number.isNaN(n)) return '—';
-  return n.toLocaleString('en-PK', {
+  return n.toLocaleString('en-IE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -133,7 +133,7 @@ function OrdersTable({
                   </Badge>
                 </TableCell>
                 <TableCell className="text-right tabular-nums">
-                  PKR {formatMoney(row.total)}
+                  €{formatMoney(row.total)}
                 </TableCell>
                 <TableCell className="hidden text-muted-foreground md:table-cell">
                   {row.status}
@@ -274,7 +274,7 @@ export function SalesOrdersTabs() {
             <p className="text-2xl font-semibold tabular-nums">
               {loading
                 ? '…'
-                : `PKR ${formatMoney(stats.online.totalAmount)}`}
+                : `€${formatMoney(stats.online.totalAmount)}`}
             </p>
           </CardContent>
         </Card>
@@ -298,7 +298,7 @@ export function SalesOrdersTabs() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
-              {loading ? '…' : `PKR ${formatMoney(stats.pos.totalAmount)}`}
+              {loading ? '…' : `€${formatMoney(stats.pos.totalAmount)}`}
             </p>
           </CardContent>
         </Card>
@@ -322,7 +322,7 @@ export function SalesOrdersTabs() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
-              {loading ? '…' : `PKR ${formatMoney(stats.kiosk.totalAmount)}`}
+              {loading ? '…' : `€${formatMoney(stats.kiosk.totalAmount)}`}
             </p>
           </CardContent>
         </Card>
@@ -335,7 +335,7 @@ export function SalesOrdersTabs() {
             <p className="text-sm text-muted-foreground">
               {loading
                 ? 'Loading…'
-                : `${stats.all.count} orders · PKR ${formatMoney(stats.all.totalAmount)} total`}
+                : `${stats.all.count} orders · €${formatMoney(stats.all.totalAmount)} total`}
             </p>
           </div>
           <Button
@@ -429,7 +429,7 @@ export function SalesOrdersTabs() {
                   <div>
                     <p className="text-muted-foreground">Total</p>
                     <p className="font-semibold tabular-nums">
-                      PKR {formatMoney(menuDetail.total)}
+                      €{formatMoney(menuDetail.total)}
                     </p>
                   </div>
                   <div>
@@ -488,7 +488,7 @@ export function SalesOrdersTabs() {
                               {it.quantity}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              PKR {formatMoney(it.price)}
+                              €{formatMoney(it.price)}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -503,7 +503,7 @@ export function SalesOrdersTabs() {
                     <ul className="space-y-1 text-muted-foreground">
                       {menuDetail.payments.map((p) => (
                         <li key={p.id}>
-                          PKR {formatMoney(p.amount)} · {p.method} · {p.status}{' '}
+                          €{formatMoney(p.amount)} · {p.method} · {p.status}{' '}
                           <span className="text-xs">
                             ({new Date(p.createdAt).toLocaleString()})
                           </span>
@@ -527,7 +527,7 @@ export function SalesOrdersTabs() {
                     <div>
                       <p className="text-xs text-muted-foreground">Total</p>
                       <p className="font-semibold tabular-nums">
-                        PKR {formatMoney(activeRow.total)}
+                        €{formatMoney(activeRow.total)}
                       </p>
                     </div>
                     <div>
@@ -572,7 +572,7 @@ export function SalesOrdersTabs() {
                               {line.quantity}
                             </TableCell>
                             <TableCell className="text-right tabular-nums">
-                              PKR {formatMoney(amt)}
+                              €{formatMoney(amt)}
                             </TableCell>
                           </TableRow>
                         );

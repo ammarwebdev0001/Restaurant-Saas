@@ -100,6 +100,7 @@ function parseCartFromStorage(raw: string | null): CartLine[] {
 
 export default function CheckoutPageClient({ orderType, orderId, orderInfo }: CheckoutPageProps) {
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [cartHydrated, setCartHydrated] = useState(false);
   const router = useRouter();
   const [cutlery, setCutlery] = useState(false);
   const [comment, setComment] = useState('');
@@ -107,12 +108,13 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
 
   useEffect(() => {
     setCart(parseCartFromStorage(localStorage.getItem(`cart-${orderId}`)));
+    setCartHydrated(true);
   }, [orderId]);
 
   const total = useMemo(() => cart.reduce((sum, item) => sum + lineTotal(item), 0), [cart]);
   const grandTotal = total + SERVICE_FEE;
 
-  const confirmOrder = async () => {
+  const placeOrder = async () => {
     const slug = orderInfo?.restaurantSlug?.trim();
     if (!slug) {
       toast.error('Missing store link. Open the menu from your restaurant page, then checkout again.');
@@ -154,7 +156,13 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
         placedId ? `Order placed. Reference: ${placedId}` : 'Order placed successfully.'
       );
       localStorage.removeItem(`cart-${orderId}`);
-      router.push(`/web-app/${encodeURIComponent(slug)}`);
+      router.push(
+        `/web-app/order/${orderType}/${encodeURIComponent(
+          orderId
+        )}/success?slug=${encodeURIComponent(slug)}${
+          placedId ? `&orderRef=${encodeURIComponent(placedId)}` : ''
+        }`
+      );
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: unknown } } };
       const msg = err.response?.data?.error;
@@ -169,6 +177,94 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
       setSubmitting(false);
     }
   };
+
+  const startStripePayment = async () => {
+    const slug = orderInfo?.restaurantSlug?.trim();
+    if (!slug) {
+      toast.error('Missing store link. Open the menu from your restaurant page, then checkout again.');
+      return;
+    }
+    if (cart.length === 0) {
+      toast.error('Cart is empty.');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const orderPayload = {
+        restaurantSlug: slug,
+        orderType,
+        orderInfo: {
+          mode: orderType,
+          restaurantName: orderInfo?.restaurantName,
+          storeId: orderInfo?.storeId,
+          storeName: orderInfo?.storeName,
+          storeAddress: orderInfo?.storeAddress,
+          address: orderInfo?.address,
+          apartment: orderInfo?.apartment,
+          gateCode: orderInfo?.gateCode,
+          addressName: orderInfo?.addressName,
+          restaurantSlug: slug,
+        },
+        lines: cart.map((line) => ({
+          menuItemId: line.menuItemId,
+          quantity: line.quantity,
+          unitPrice: lineUnitTotal(line),
+          productName: line.productName,
+          modifiers: line.modifiers,
+        })),
+        subtotal: total,
+        total: grandTotal,
+        cutlery,
+        comment: comment.trim() || undefined,
+      };
+      const successPath = `/web-app/order/${orderType}/${orderId}/success?slug=${encodeURIComponent(
+        slug
+      )}&session_id={CHECKOUT_SESSION_ID}`;
+      const cancelPath = `/web-app/order/${orderType}/${orderId}/checkout`;
+      const res = await axios.post<{ url: string }>('/api/stripe/create-order-checkout-session', {
+        amount: grandTotal,
+        currency: 'eur',
+        source: 'online',
+        endpoint: '/api/customer/orders',
+        payload: orderPayload,
+        successPath,
+        cancelPath,
+        title: `Online order (${orderType === 'delivery' ? 'Delivery' : 'Pick-up'})`,
+        description: `Order ${orderId} · ${slug}`,
+        metadata: {
+          source: 'online',
+          restaurantSlug: slug,
+          orderType,
+          orderId,
+        },
+      });
+      if (!res.data?.url) {
+        toast.error('Could not start payment checkout.');
+        return;
+      }
+      window.location.assign(res.data.url);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: unknown } } };
+      const msg = err.response?.data?.error;
+      toast.error(typeof msg === 'string' ? msg : 'Could not start Stripe payment.');
+      setSubmitting(false);
+    }
+  };
+
+  if (!cartHydrated) {
+    return (
+      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
+        <Card className="w-full max-w-md">
+          <CardHeader>
+            <CardTitle>Preparing checkout…</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground">Loading your cart.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (cart.length === 0) {
     return (
@@ -334,11 +430,11 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
                 <div className="mt-4">
                   <Button
                     className="w-full"
-                    onClick={() => void confirmOrder()}
+                    onClick={() => void startStripePayment()}
                     type="button"
                     disabled={submitting}
                   >
-                    {submitting ? 'Placing order…' : `Pay (€${grandTotal.toFixed(2)})`}
+                    {submitting ? 'Processing…' : `Pay with Stripe (€${grandTotal.toFixed(2)})`}
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">

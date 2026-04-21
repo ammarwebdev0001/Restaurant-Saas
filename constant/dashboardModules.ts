@@ -7,6 +7,7 @@ export const DASHBOARD_MODULES = [
   { moduleKey: 'branched', title: 'Branched', path: '/branched' },
   { moduleKey: 'categories', title: 'Categories', path: '/categories' },
   { moduleKey: 'product', title: 'Products', path: '/product' },
+  { moduleKey: 'tables', title: 'Tables', path: '/tables' },
   { moduleKey: 'recommendations', title: 'Recommendations', path: '/recommendations' },
   { moduleKey: 'records', title: 'Records', path: '/records' },
   { moduleKey: 'settings', title: 'Settings', path: '/settings' },

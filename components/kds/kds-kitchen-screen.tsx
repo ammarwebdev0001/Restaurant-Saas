@@ -54,7 +54,7 @@ function recommendedItemNames(menu: MenuPayload | null | undefined): string[] {
 }
 
 function fmt(v: number) {
-  return v.toLocaleString('en-PK', {
+  return v.toLocaleString('en-IE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -243,7 +243,7 @@ export function KdsKitchenScreen() {
                   </div>
 
                   <p className="text-xs font-semibold">
-                    PKR {fmt(t.orderTotal)}
+                    €{fmt(t.orderTotal)}
                   </p>
 
                   <div className="grid grid-cols-2 gap-2">

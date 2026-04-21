@@ -9,6 +9,7 @@ import {
   Settings,
   FolderTree,
   Sparkles,
+  LayoutGrid,
   type LucideIcon,
 } from 'lucide-react';
 import { DASHBOARD_MODULES } from '@/constant/dashboardModules';
@@ -25,6 +26,7 @@ export const MODULE_ICONS: Record<
   branched: Store,
   categories: FolderTree,
   product: Package,
+  tables: LayoutGrid,
   recommendations: Sparkles,
   records: Archive,
   settings: Settings,

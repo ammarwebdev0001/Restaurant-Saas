@@ -189,8 +189,8 @@ function saveCart(slug: string, lines: CartLine[]) {
   localStorage.setItem(cartStorageKey(slug), JSON.stringify(lines));
 }
 
-function formatPkr(n: number) {
-  return n.toLocaleString('en-PK', {
+function formatMoney(n: number) {
+  return n.toLocaleString('en-IE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -237,6 +237,15 @@ export function KioskApp({ slug }: { slug: string }) {
   useEffect(() => {
     setCart(loadCart(slug));
   }, [slug]);
+
+  useEffect(() => {
+    if (step !== 'checkout') return;
+    if (cart.length > 0) return;
+    const restored = loadCart(slug);
+    if (restored.length > 0) {
+      setCart(restored);
+    }
+  }, [step, cart.length, slug]);
 
   const persistCart = useCallback(
     (next: CartLine[]) => {
@@ -475,13 +484,17 @@ export function KioskApp({ slug }: { slug: string }) {
           customerPhone: customerPhone.trim() || undefined,
         }
       );
-      setLastOrderId(res.data.data.orderId);
+      const placedId = res.data.data.orderId;
+      setLastOrderId(placedId);
       clearCart();
+      localStorage.removeItem(`kiosk-checkout-draft-${slug}`);
       setCookingNote('');
       setCustomerName('');
       setCustomerPhone('');
-      setStep('done');
       toast.success('Order placed');
+      window.location.assign(
+        `/kiosk/${encodeURIComponent(slug)}/success?orderRef=${encodeURIComponent(placedId)}`
+      );
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string | object } } };
       const msg =
@@ -490,6 +503,64 @@ export function KioskApp({ slug }: { slug: string }) {
           : 'Could not place order.';
       toast.error(msg);
     } finally {
+      setPlacing(false);
+    }
+  };
+
+  const startStripePayment = async () => {
+    if (!fulfillment || cart.length === 0) return;
+    setPlacing(true);
+    try {
+      const lines = cart.map((line) => ({
+        menuItemId: line.menuItemId,
+        quantity: line.quantity,
+        unitPrice: lineUnitTotal(line),
+        productName: cartLineDisplayName(line),
+        modifiers: line.modifiers,
+      }));
+      const orderPayload = {
+        restaurantSlug: slug,
+        fulfillment,
+        lines,
+        subtotal: cartSubtotal,
+        total: cartSubtotal,
+        cookingNote: cookingNote.trim() || undefined,
+        customerName: customerName.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+      };
+      const successPath = `/kiosk/${encodeURIComponent(
+        slug
+      )}/success?session_id={CHECKOUT_SESSION_ID}`;
+      const cancelPath = `/kiosk/${encodeURIComponent(slug)}?step=checkout`;
+      const res = await axios.post<{ url: string }>(
+        '/api/stripe/create-order-checkout-session',
+        {
+          amount: cartSubtotal,
+          currency: 'eur',
+          source: 'kiosk',
+          endpoint: '/api/kiosk/orders',
+          payload: orderPayload,
+          successPath,
+          cancelPath,
+          title: 'Kiosk order payment',
+          description: `${slug} · ${fulfillment}`,
+          metadata: {
+            source: 'kiosk',
+            restaurantSlug: slug,
+            fulfillment,
+          },
+        }
+      );
+      if (!res.data?.url) {
+        toast.error('Could not start payment checkout.');
+        setPlacing(false);
+        return;
+      }
+      window.location.assign(res.data.url);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: unknown } } };
+      const msg = err.response?.data?.error;
+      toast.error(typeof msg === 'string' ? msg : 'Could not start Stripe payment.');
       setPlacing(false);
     }
   };
@@ -532,11 +603,11 @@ export function KioskApp({ slug }: { slug: string }) {
           </h3>
           <div className="mt-1 flex items-baseline gap-2">
             <span className="text-sm font-bold text-[#c2410c]">
-              PKR {formatPkr(unit)}
+              €{formatMoney(unit)}
             </span>
             {showStrike ? (
               <span className="text-xs text-[#94a3b8] line-through">
-                {formatPkr(p.price)}
+                {formatMoney(p.price)}
               </span>
             ) : null}
           </div>
@@ -838,7 +909,7 @@ export function KioskApp({ slug }: { slug: string }) {
               <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-lg font-bold tabular-nums">
-                    PKR {formatPkr(cartSubtotal)}
+                    €{formatMoney(cartSubtotal)}
                   </p>
                   <p className="text-xs opacity-90">{cartCount} items</p>
                   {cart.length > 0 ? (
@@ -903,7 +974,7 @@ export function KioskApp({ slug }: { slug: string }) {
                           {cartLineDisplayName(line)}
                         </p>
                         <p className="text-xs text-[#64748b]">
-                          PKR {formatPkr(lineUnitTotal(line))} each
+                          €{formatMoney(lineUnitTotal(line))} each
                         </p>
                         <div className="mt-2 flex items-center gap-2">
                           <Button
@@ -953,13 +1024,13 @@ export function KioskApp({ slug }: { slug: string }) {
                   <div className="flex justify-between">
                     <span>Subtotal</span>
                     <span className="font-medium tabular-nums">
-                      PKR {formatPkr(cartSubtotal)}
+                      €{formatMoney(cartSubtotal)}
                     </span>
                   </div>
                   <div className="flex justify-between font-semibold">
                     <span>Total</span>
                     <span className="tabular-nums">
-                      PKR {formatPkr(cartSubtotal)}
+                      €{formatMoney(cartSubtotal)}
                     </span>
                   </div>
                 </div>
@@ -1027,14 +1098,14 @@ export function KioskApp({ slug }: { slug: string }) {
                       {line.quantity}× {cartLineDisplayName(line)}
                     </span>
                     <span className="shrink-0 tabular-nums text-[#64748b]">
-                      PKR {formatPkr(lineTotal(line))}
+                      €{formatMoney(lineTotal(line))}
                     </span>
                   </li>
                 ))}
               </ul>
               <div className="flex justify-between border-t border-[#e2e8f0] pt-2 font-semibold">
                 <span>Total due</span>
-                <span>PKR {formatPkr(cartSubtotal)}</span>
+                <span>€{formatMoney(cartSubtotal)}</span>
               </div>
             </div>
             <div className="flex gap-2">
@@ -1050,9 +1121,9 @@ export function KioskApp({ slug }: { slug: string }) {
                 type="button"
                 className="flex-1 bg-[#ea580c] font-semibold text-white hover:bg-[#c2410c]"
                 disabled={placing || cart.length === 0}
-                onClick={() => void placeOrder()}
+                onClick={() => void startStripePayment()}
               >
-                {placing ? 'Placing…' : 'Place order'}
+                {placing ? 'Processing…' : 'Pay with Stripe'}
               </Button>
             </div>
           </div>

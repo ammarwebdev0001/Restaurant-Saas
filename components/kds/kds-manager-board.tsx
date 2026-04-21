@@ -26,7 +26,7 @@ type PendingOrder = {
 };
 
 function fmt(v: number) {
-  return v.toLocaleString('en-PK', {
+  return v.toLocaleString('en-IE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -198,7 +198,7 @@ export function KdsManagerBoard() {
                     );
                   })}
                 </div>
-                <p className="text-xs font-semibold">PKR {fmt(o.total)}</p>
+                <p className="text-xs font-semibold">€{fmt(o.total)}</p>
 
                 <div className="space-y-2">
                   <p className="text-xs text-muted-foreground">Select time:</p>

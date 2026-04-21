@@ -152,7 +152,7 @@ export function SubscriptionEditDialog({
     try {
       await axios.post(`/api/admin/subscriptions/${restaurantId}/payments`, {
         amount,
-        currency: 'PKR',
+        currency: 'EUR',
         periodEnd: paymentPeriodEnd ? new Date(paymentPeriodEnd).toISOString() : null,
         notes: paymentNotes.trim() || null,
         setStatusActive: true,
@@ -237,7 +237,7 @@ export function SubscriptionEditDialog({
             <div className="rounded-md border p-3">
               <p className="mb-3 text-sm font-medium">Record payment</p>
               <div className="grid gap-2">
-                <Label>Amount (PKR)</Label>
+                <Label>Amount (EUR)</Label>
                 <Input
                   inputMode="decimal"
                   placeholder="0.00"
@@ -279,7 +279,7 @@ export function SubscriptionEditDialog({
                     {payments.map((p) => (
                       <div key={p.id} className="rounded border px-2 py-1">
                         <div className="font-medium">
-                          {p.currency} {Number(p.amount).toLocaleString('en-PK', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          {p.currency} {Number(p.amount).toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-muted-foreground">
                           Paid: {new Date(p.paidAt).toLocaleString()}

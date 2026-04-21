@@ -281,6 +281,7 @@ function ProductCard({
       {product.imageUrl ? (
         <img
           src={product.imageUrl}
+      
           alt={product.name}
           className="h-40 w-full object-cover rounded-t-lg"
         />

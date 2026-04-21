@@ -109,6 +109,24 @@ export async function POST(req: NextRequest) {
     const customerPhoneTrim =
       typeof body.customerPhone === 'string' ? body.customerPhone.trim() : '';
 
+    const tableIdRaw =
+      typeof (body as { tableId?: unknown }).tableId === 'string'
+        ? (body as { tableId: string }).tableId.trim()
+        : '';
+    let diningTableId: string | null = null;
+    let tableLabel: string | null = null;
+    if (tableIdRaw) {
+      const diningTable = await db.diningTable.findFirst({
+        where: { id: tableIdRaw, restaurantId: restaurant.id },
+        select: { id: true, name: true },
+      });
+      if (!diningTable) {
+        return NextResponse.json({ error: 'Invalid table selection' }, { status: 400 });
+      }
+      diningTableId = diningTable.id;
+      tableLabel = diningTable.name;
+    }
+
     const baseProductIds = items.map((line) =>
       String(line.productId).split('::sw:')[0] ?? String(line.productId)
     );
@@ -196,6 +214,8 @@ export async function POST(req: NextRequest) {
           address,
           taxAmount,
           discountAmount,
+          diningTableId,
+          tableLabel,
         },
       });
 

@@ -21,7 +21,7 @@ import { cn } from '@/lib/utils';
 
 function formatMoney(n: number | null) {
   if (n == null || Number.isNaN(n)) return '—';
-  return n.toLocaleString('en-PK', {
+  return n.toLocaleString('en-IE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });

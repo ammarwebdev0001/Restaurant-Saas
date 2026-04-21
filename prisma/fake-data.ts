@@ -87,6 +87,22 @@ export function fakeRestaurantComplete() {
     updatedAt: faker.date.anytime(),
   };
 }
+export function fakeDiningTable() {
+  return {
+    name: faker.person.fullName(),
+    updatedAt: faker.date.anytime(),
+  };
+}
+export function fakeDiningTableComplete() {
+  return {
+    id: faker.string.uuid(),
+    restaurantId: faker.string.uuid(),
+    name: faker.person.fullName(),
+    sortOrder: 0,
+    createdAt: new Date(),
+    updatedAt: faker.date.anytime(),
+  };
+}
 export function fakeBranch() {
   return {
     name: faker.person.fullName(),
@@ -165,7 +181,7 @@ export function fakeSubscriptionPaymentComplete() {
     restaurantId: faker.string.uuid(),
     restaurantSubscriptionId: undefined,
     amount: faker.number.float(),
-    currency: 'PKR',
+    currency: 'EUR',
     paidAt: new Date(),
     periodStart: undefined,
     periodEnd: undefined,
@@ -370,6 +386,7 @@ export function fakeOrder() {
     status: faker.lorem.words(5),
     total: faker.number.float(),
     address: undefined,
+    tableLabel: undefined,
     updatedAt: faker.date.anytime(),
   };
 }
@@ -384,6 +401,8 @@ export function fakeOrderComplete() {
     address: undefined,
     taxAmount: 0,
     discountAmount: 0,
+    diningTableId: undefined,
+    tableLabel: undefined,
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),
   };

@@ -1,56 +1,46 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
+import { redirect } from 'next/navigation';
+import { SubscriptionPlan } from '@prisma/client';
+
+import { PaymentCheckoutClient } from '@/components/saas/payment-checkout-client';
+import { getAppSession } from '@/lib/auth/app-session';
+import { db } from '@/lib/db';
+import { getStripeConfigError, isStripeConfigured } from '@/lib/stripe-server';
 
 type PaymentPageProps = {
-  searchParams?: Promise<{
-    plan?: string;
-    price?: string;
-  }>;
+  searchParams?: Promise<{ plan?: string }>;
 };
-
-function parsePrice(raw: string | undefined): number {
-  const n = Number(raw);
-  if (!Number.isFinite(n) || n < 0) return 0;
-  return Math.round(n);
-}
 
 export default async function PaymentPage({ searchParams }: PaymentPageProps) {
   const params = searchParams ? await searchParams : undefined;
-  const plan = typeof params?.plan === 'string' ? params.plan : 'STARTER';
-  const price = parsePrice(params?.price);
+  const planRaw =
+    typeof params?.plan === 'string' ? params.plan.toUpperCase().trim() : 'STARTER';
+
+  const planValues = Object.values(SubscriptionPlan) as string[];
+  const plan = planValues.includes(planRaw) ? (planRaw as SubscriptionPlan) : null;
+  if (!plan) redirect('/pricing');
+
+  const catalog = await db.subscriptionCatalog.findUnique({
+    where: { plan },
+  });
+  if (!catalog) redirect('/pricing');
+
+  const session = await getAppSession();
+  const userEmail =
+    typeof session?.user?.email === 'string' && session.user.email.trim() !== ''
+      ? session.user.email.trim()
+      : null;
 
   return (
-    <main className="min-h-screen bg-muted/20 px-6 py-16">
-      <div className="mx-auto max-w-xl rounded-xl border bg-background p-8 shadow-sm">
-        <h1 className="text-2xl font-semibold">Payment</h1>
-        <p className="mt-2 text-sm text-muted-foreground">
-          Complete your subscription payment to continue.
-        </p>
-
-        <div className="mt-6 space-y-3 rounded-lg border p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Selected plan</span>
-            <span className="font-medium">{plan}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-sm text-muted-foreground">Amount</span>
-            <span className="text-lg font-semibold">PKR {price.toLocaleString('en-PK')}</span>
-          </div>
-        </div>
-
-        <p className="mt-6 text-sm text-muted-foreground">
-          Payment gateway integration can be added here (Stripe/JazzCash/Easypaisa/etc.).
-        </p>
-
-        <div className="mt-6 flex gap-2">
-          <Button asChild>
-            <Link href="/pricing">Back to Pricing</Link>
-          </Button>
-          <Button asChild variant="outline">
-            <Link href="/restaurant-signup">Continue Signup</Link>
-          </Button>
-        </div>
-      </div>
-    </main>
+    <PaymentCheckoutClient
+      plan={plan}
+      planName={catalog.name}
+      priceLabel={catalog.priceLabel}
+      description={catalog.description}
+      features={catalog.features ?? []}
+      stripeReady={isStripeConfigured()}
+      stripeConfigError={getStripeConfigError()}
+      signedIn={Boolean(userEmail)}
+      userEmail={userEmail}
+    />
   );
 }

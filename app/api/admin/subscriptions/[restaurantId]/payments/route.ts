@@ -96,7 +96,7 @@ export async function POST(
   }
 
   try {
-    const currency = (parsed.data.currency ?? 'PKR').toUpperCase();
+    const currency = (parsed.data.currency ?? 'EUR').toUpperCase();
     const paidAt = parsed.data.paidAt ? new Date(parsed.data.paidAt) : new Date();
     const periodStart = toDateOrNull(parsed.data.periodStart);
     const periodEnd = toDateOrNull(parsed.data.periodEnd);

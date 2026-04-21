@@ -26,6 +26,9 @@ export default function MenuManager() {
           <Link href="/product/swatches">Swatches</Link>
         </Button>
         <Button asChild variant="outline">
+          <Link href="/tables">Tables</Link>
+        </Button>
+        <Button asChild variant="outline">
           <Link href="/recommendations">Recommendations</Link>
         </Button>
       </div>

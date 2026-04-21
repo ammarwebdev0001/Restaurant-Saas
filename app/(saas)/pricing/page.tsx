@@ -2,8 +2,12 @@ import Link from 'next/link';
 import { Prisma } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/db';
+import { getAppSession } from '@/lib/auth/app-session';
 
 export default async function PricingPage() {
+  const session = await getAppSession();
+  const isLoggedIn = Boolean(session?.user?.email);
+
   let plans: Array<{
     plan: string;
     name: string;
@@ -52,8 +56,14 @@ export default async function PricingPage() {
         <div className="mb-10 text-center">
           <h1 className="text-4xl font-bold">Simple pricing for every stage</h1>
           <p className="mt-3 text-muted-foreground">
-            Start lean, then scale your restaurant operations without switching tools.
+            Start lean, then scale your restaurant operations without switching
+            tools.
           </p>
+          <div className="mt-5">
+            <Button variant="outline" asChild>
+              <Link href="/demo-request">Request demo (get trial period)</Link>
+            </Button>
+          </div>
         </div>
 
         {plans.length === 0 ? (
@@ -63,19 +73,35 @@ export default async function PricingPage() {
         ) : (
           <div className="grid gap-5 md:grid-cols-3">
             {plans.map((plan) => (
-              <article key={plan.plan} className="rounded-xl border bg-background p-6 shadow-sm">
+              <article
+                key={plan.plan}
+                className="rounded-xl border bg-background p-6 shadow-sm"
+              >
                 <h2 className="text-xl font-semibold">{plan.name}</h2>
                 <p className="mt-2 text-3xl font-bold">{plan.priceLabel}</p>
-                <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                <p className="mt-2 text-sm text-muted-foreground">
+                  {plan.description}
+                </p>
                 <ul className="mt-5 space-y-2 text-sm">
                   {plan.features.map((f) => (
                     <li key={f}>- {f}</li>
                   ))}
                 </ul>
                 <Button className="mt-6 w-full" asChild>
-                  <Link href={`/payment?plan=${encodeURIComponent(plan.plan)}&price=${plan.price}`}>
+                  <Link
+                    href={
+                      isLoggedIn
+                        ? `/payment?plan=${encodeURIComponent(plan.plan)}`
+                        : `/login?callbackUrl=${encodeURIComponent(
+                            `/payment?plan=${encodeURIComponent(plan.plan)}`
+                          )}`
+                    }
+                  >
                     Choose {plan.name}
                   </Link>
+                </Button>
+                <Button className="mt-2 w-full" variant="outline" asChild>
+                  <Link href="/demo-request">Request demo for trial</Link>
                 </Button>
               </article>
             ))}
@@ -85,4 +111,3 @@ export default async function PricingPage() {
     </main>
   );
 }
-

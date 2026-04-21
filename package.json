@@ -58,6 +58,7 @@
     "react-toastify": "^10.0.5",
     "recharts": "^2.15.0",
     "resend": "^6.10.0",
+    "stripe": "^17.7.0",
     "tailwind-merge": "^2.3.0",
     "tailwindcss-animate": "^1.0.7",
     "use-debounce": "^10.0.0",

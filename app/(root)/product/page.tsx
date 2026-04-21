@@ -18,7 +18,7 @@ export default function ProductPage() {
           description="Add menu items with photos, pricing, optional sale price, and descriptions. Manage swatches in a dedicated module."
           loading={loading}
         >
-          <div className="mb-3">
+          <div className="mb-3 flex flex-wrap gap-2">
             <Button type="button" variant="outline" asChild>
               <Link href="/product/swatches">Open Swatches Module</Link>
             </Button>

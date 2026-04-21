@@ -99,10 +99,14 @@ type RestaurantMenuApi = {
   };
 };
 
-const DEMO_TABLES = ['T1', 'T2', 'T3', 'T4', 'T5', 'Patio 1'];
+type DiningTableOption = {
+  id: string;
+  name: string;
+  sortOrder: number;
+};
 
 function formatMoney(n: number) {
-  return n.toLocaleString('en-PK', {
+  return n.toLocaleString('en-IE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
@@ -120,6 +124,8 @@ export function PosScreen() {
   const [search, setSearch] = useState('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [tableId, setTableId] = useState<string>('');
+  const [diningTables, setDiningTables] = useState<DiningTableOption[]>([]);
+  const [tablesLoading, setTablesLoading] = useState(false);
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [orderAddress, setOrderAddress] = useState('');
@@ -132,7 +138,7 @@ export function PosScreen() {
   const [paymentMode, setPaymentMode] = useState('cash');
   const [payment, setPayment] = useState('');
   const [kotNote, setKotNote] = useState('');
-  const [kdsPrint, setKdsPrint] = useState(true);
+  const [kdsPrint, setKdsPrint] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [swatchDialogOpen, setSwatchDialogOpen] = useState(false);
@@ -203,6 +209,31 @@ export function PosScreen() {
     void loadMenu();
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function loadTables() {
+      setTablesLoading(true);
+      try {
+        const res = await fetch('/api/restaurant/tables', { method: 'GET', cache: 'no-store' });
+        if (!res.ok) throw new Error('tables');
+        const json = (await res.json()) as { data?: DiningTableOption[] };
+        const list = Array.isArray(json?.data) ? json.data : [];
+        if (!cancelled) setDiningTables(list);
+      } catch {
+        if (!cancelled) {
+          setDiningTables([]);
+          toast.error('Could not load dining tables for POS.');
+        }
+      } finally {
+        if (!cancelled) setTablesLoading(false);
+      }
+    }
+    void loadTables();
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -302,7 +333,11 @@ export function PosScreen() {
     <h2>${branch}</h2>
     <div class="muted">Order: ${orderRef}</div>
     <div class="muted">Mode: ${orderMode}</div>
-    ${tableId ? `<div class="muted">Table: ${tableId}</div>` : ''}
+    ${
+      tableId
+        ? `<div class="muted">Table: ${diningTables.find((t) => t.id === tableId)?.name ?? tableId}</div>`
+        : ''
+    }
     ${customerName ? `<div class="muted">Customer: ${customerName}</div>` : ''}
     ${customerPhone ? `<div class="muted">Phone: ${customerPhone}</div>` : ''}
     ${orderAddress ? `<div class="muted">Address: ${orderAddress}</div>` : ''}
@@ -443,7 +478,7 @@ export function PosScreen() {
       );
       const orderRef = res.data?.id || `POS-${Date.now()}`;
       toast.success(
-        `Order saved — ${itemsCount} items · PKR ${formatMoney(grandTotal)} · ${paymentMode}`
+        `Order saved — ${itemsCount} items · €${formatMoney(grandTotal)} · ${paymentMode}`
       );
       if (kdsPrint) {
         printOrderReceipt(orderRef);
@@ -597,16 +632,29 @@ export function PosScreen() {
                 </label>
                 <Select value={tableId} onValueChange={setTableId}>
                   <SelectTrigger className="h-9 bg-background">
-                    <SelectValue placeholder="Select table" />
+                    <SelectValue
+                      placeholder={
+                        tablesLoading
+                          ? 'Loading tables…'
+                          : diningTables.length === 0
+                            ? 'No tables — add under Tables in the sidebar'
+                            : 'Select table'
+                      }
+                    />
                   </SelectTrigger>
                   <SelectContent>
-                    {DEMO_TABLES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {t}
+                    {diningTables.map((t) => (
+                      <SelectItem key={t.id} value={t.id}>
+                        {t.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {!tablesLoading && diningTables.length === 0 ? (
+                  <p className="text-[10px] text-muted-foreground">
+                    Add tables under the Tables page in the sidebar so staff can pick one here.
+                  </p>
+                ) : null}
               </div>
             ) : (
               <div className="space-y-1">
@@ -845,7 +893,7 @@ export function PosScreen() {
           <div className="flex items-center justify-between rounded-lg bg-primary px-4 py-3 text-primary-foreground shadow-md">
             <span className="font-semibold">Grand Total</span>
             <span className="text-lg font-bold tabular-nums">
-              PKR {formatMoney(grandTotal)}
+              €{formatMoney(grandTotal)}
             </span>
           </div>
 
@@ -900,7 +948,7 @@ export function PosScreen() {
             <div className="text-sm">
               <span className="text-muted-foreground">Cash Back: </span>
               <span className="font-medium tabular-nums">
-                PKR {formatMoney(cashBack)}
+                €{formatMoney(cashBack)}
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-4">

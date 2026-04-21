@@ -141,6 +141,23 @@ model Restaurant {
   subscriptionPayments SubscriptionPayment[]
   saleTransactions     Transaction[]
   kitchenTickets       KitchenTicket[]
+  diningTables         DiningTable[]
+}
+
+/// Seating labels for POS table service (managed per restaurant).
+model DiningTable {
+  id             String   @id @default(uuid())
+  restaurantId String
+  name           String
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  restaurant Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  orders     Order[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
 }
 
 model Branch {
@@ -190,7 +207,7 @@ model SubscriptionPayment {
   restaurantId             String
   restaurantSubscriptionId String?
   amount                   Float
-  currency                 String    @default("PKR")
+  currency                 String    @default("EUR")
   paidAt                   DateTime  @default(now())
   periodStart              DateTime?
   periodEnd                DateTime?
@@ -380,6 +397,10 @@ model Order {
   taxAmount      Float           @default(0)
   /// Order-level discount amount (not line-item discounts).
   discountAmount Float           @default(0)
+  /// POS dine-in: linked `DiningTable` while it exists.
+  diningTableId  String?
+  /// Snapshot of table name at checkout (kept if the table row is removed).
+  tableLabel     String?
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
 
@@ -388,9 +409,11 @@ model Order {
   kitchenTickets KitchenTicket[]
   restaurant     Restaurant      @relation(fields: [restaurantId], references: [id])
   customer       Customer?       @relation(fields: [customerId], references: [id])
+  diningTable    DiningTable?    @relation(fields: [diningTableId], references: [id], onDelete: SetNull)
 
   @@index([restaurantId])
   @@index([sourceType])
+  @@index([diningTableId])
 }
 
 model OrderItem {

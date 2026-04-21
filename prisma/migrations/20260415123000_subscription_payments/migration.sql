@@ -4,7 +4,7 @@ CREATE TABLE "SubscriptionPayment" (
     "restaurantId" TEXT NOT NULL,
     "restaurantSubscriptionId" TEXT,
     "amount" DOUBLE PRECISION NOT NULL,
-    "currency" TEXT NOT NULL DEFAULT 'PKR',
+    "currency" TEXT NOT NULL DEFAULT 'EUR',
     "paidAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "periodStart" TIMESTAMP(3),
     "periodEnd" TIMESTAMP(3),
