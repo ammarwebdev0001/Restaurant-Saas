@@ -25,6 +25,7 @@ export function orderInfoFromSearchParams(
     apartment: pick(sp, 'apartment'),
     gateCode: pick(sp, 'gateCode'),
     addressName: pick(sp, 'addressName'),
+    customerPhone: pick(sp, 'customerPhone'),
     ...(slug ? { restaurantSlug: slug } : {}),
   };
 }
@@ -43,6 +44,7 @@ function orderInfoToQueryString(info: OrderInfo | undefined): string {
   add('apartment', info.apartment);
   add('gateCode', info.gateCode);
   add('addressName', info.addressName);
+  add('customerPhone', info.customerPhone);
   add('restaurantSlug', info.restaurantSlug);
   return p.toString();
 }

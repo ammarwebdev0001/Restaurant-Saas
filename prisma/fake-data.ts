@@ -383,6 +383,8 @@ export function fakeCustomerComplete() {
 }
 export function fakeOrder() {
   return {
+    ticketNumber: undefined,
+    ticketDate: undefined,
     status: faker.lorem.words(5),
     total: faker.number.float(),
     address: undefined,
@@ -395,6 +397,8 @@ export function fakeOrderComplete() {
     id: faker.string.uuid(),
     restaurantId: faker.string.uuid(),
     customerId: undefined,
+    ticketNumber: undefined,
+    ticketDate: undefined,
     status: faker.lorem.words(5),
     total: faker.number.float(),
     sourceType: OrderSourceType.OTHER,

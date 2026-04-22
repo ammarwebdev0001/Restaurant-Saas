@@ -8,6 +8,7 @@ export type OrderInfo = {
   apartment?: string;
   gateCode?: string;
   addressName?: string;
+  customerPhone?: string;
   /** Path-based storefront (`/web-app/{slug}`); loads menu via `/api/customer/menu?slug=` */
   restaurantSlug?: string;
 };

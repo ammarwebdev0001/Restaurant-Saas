@@ -36,6 +36,8 @@ const postSchema = z.object({
   cookingNote: z.string().max(2000).optional(),
   customerName: z.string().max(120).optional(),
   customerPhone: z.string().max(40).optional(),
+  paymentStatus: z.enum(['pending', 'completed']).optional(),
+  paymentMethod: z.string().min(1).max(100).optional(),
 });
 
 function buildKioskAddressSnapshot(
@@ -98,6 +100,8 @@ export async function POST(req: NextRequest) {
     cookingNote,
     customerName,
     customerPhone,
+    paymentStatus,
+    paymentMethod,
   } = parsed.data;
 
   const slug = restaurantSlug.trim();
@@ -152,10 +156,29 @@ export async function POST(req: NextRequest) {
 
   try {
     const result = await db.$transaction(async (tx) => {
+      const ticketDate = new Date(
+        Date.UTC(
+          new Date().getUTCFullYear(),
+          new Date().getUTCMonth(),
+          new Date().getUTCDate()
+        )
+      );
+      const previousOrder = await tx.order.findFirst({
+        where: {
+          restaurantId: restaurant.id,
+          ticketDate,
+        },
+        orderBy: { ticketNumber: 'desc' },
+        select: { ticketNumber: true },
+      });
+      const nextTicketNumber = (previousOrder?.ticketNumber ?? -1) + 1;
+
       const order = await tx.order.create({
         data: {
           restaurantId: restaurant.id,
           customerId: null,
+          ticketDate,
+          ticketNumber: nextTicketNumber,
           status: 'pending',
           total: computedSubtotal,
           sourceType: OrderSourceType.KIOSK,
@@ -165,29 +188,31 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      for (const line of lines) {
-        const orderItem = await tx.orderItem.create({
-          data: {
-            orderId: order.id,
-            menuItemId: line.menuItemId,
-            quantity: line.quantity,
-            price: line.unitPrice,
-          },
-        });
-
-        const flatMods = line.modifiers.flatMap((g) => g.selections);
-        if (flatMods.length > 0) {
-          await tx.orderItemModifier.createMany({
-            data: flatMods.map((s) => ({
-              orderItemId: orderItem.id,
-              menuItemId: s.menuItemId,
-              name: s.name,
-              unitPrice: s.unitPrice,
-              quantity: 1,
-            })),
+      await Promise.all(
+        lines.map(async (line) => {
+          const orderItem = await tx.orderItem.create({
+            data: {
+              orderId: order.id,
+              menuItemId: line.menuItemId,
+              quantity: line.quantity,
+              price: line.unitPrice,
+            },
           });
-        }
-      }
+
+          const flatMods = line.modifiers.flatMap((g) => g.selections);
+          if (flatMods.length > 0) {
+            await tx.orderItemModifier.createMany({
+              data: flatMods.map((s) => ({
+                orderItemId: orderItem.id,
+                menuItemId: s.menuItemId,
+                name: s.name,
+                unitPrice: s.unitPrice,
+                quantity: 1,
+              })),
+            });
+          }
+        })
+      );
 
       const ticket = await tx.kitchenTicket.create({
         data: {
@@ -210,17 +235,23 @@ export async function POST(req: NextRequest) {
         data: {
           orderId: order.id,
           amount: computedSubtotal,
-          status: 'completed',
-          method: 'Kiosk',
+          status: paymentStatus ?? 'completed',
+          method: paymentMethod?.trim() || 'Kiosk',
           restaurantId: restaurant.id,
         },
       });
 
-      return order;
-    });
+      return { order, ticketNumber: nextTicketNumber };
+    }, { timeout: 20000, maxWait: 10000 });
 
     return NextResponse.json(
-      { data: { orderId: result.id, restaurantId: restaurant.id } },
+      {
+        data: {
+          orderId: result.order.id,
+          restaurantId: restaurant.id,
+          ticketNumber: result.ticketNumber,
+        },
+      },
       { status: 201 }
     );
   } catch (e) {

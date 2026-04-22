@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { notFound } from 'next/navigation';
 import OrderPageClient from '@/components/order/order-page';
 import { orderInfoFromSearchParams } from '@/lib/order-search-params';
@@ -31,5 +32,9 @@ export default async function OrderSummaryPage({ params, searchParams }: OrderSu
 
   const orderInfo = orderInfoFromSearchParams(searchParamsResolved, orderType);
 
-  return <OrderPageClient orderType={orderType} orderId={orderId} orderInfo={orderInfo} />;
+  return (
+    <Suspense fallback={null}>
+      <OrderPageClient orderType={orderType} orderId={orderId} orderInfo={orderInfo} />
+    </Suspense>
+  );
 }

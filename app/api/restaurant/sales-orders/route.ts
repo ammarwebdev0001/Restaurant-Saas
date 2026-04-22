@@ -50,14 +50,22 @@ export async function GET(_req: NextRequest) {
           id: string;
           total: number;
           status: string;
+          paymentStatus: string | null;
           sourceType: string;
           createdAt: Date;
         }>
       >(Prisma.sql`
-        SELECT id, total, status, "sourceType"::text AS "sourceType", "createdAt"
-        FROM "Order"
+        SELECT o.id, o.total, o.status, o."sourceType"::text AS "sourceType", o."createdAt",
+          (
+            SELECT p.status
+            FROM "Payment" p
+            WHERE p."orderId" = o.id
+            ORDER BY p."createdAt" DESC
+            LIMIT 1
+          ) AS "paymentStatus"
+        FROM "Order" o
         WHERE "restaurantId" = ${restaurant.id}::uuid
-        ORDER BY "createdAt" DESC
+        ORDER BY o."createdAt" DESC
       `);
       fromMenu = rows.map((o) => ({
         id: o.id,
@@ -65,6 +73,7 @@ export async function GET(_req: NextRequest) {
         sourceType: o.sourceType,
         total: o.total,
         status: o.status,
+        paymentStatus: o.paymentStatus,
         createdAt: o.createdAt.toISOString(),
       }));
     } catch {
@@ -77,6 +86,11 @@ export async function GET(_req: NextRequest) {
             status: true,
             createdAt: true,
             sourceType: true,
+            payments: {
+              select: { status: true, createdAt: true },
+              orderBy: { createdAt: 'desc' },
+              take: 1,
+            },
           },
           orderBy: { createdAt: 'desc' },
         });
@@ -86,6 +100,7 @@ export async function GET(_req: NextRequest) {
           sourceType: o.sourceType,
           total: o.total,
           status: o.status,
+          paymentStatus: o.payments[0]?.status ?? null,
           createdAt: o.createdAt.toISOString(),
         }));
       } catch {

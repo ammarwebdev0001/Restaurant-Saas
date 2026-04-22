@@ -293,13 +293,8 @@ export function PosScreen() {
   const isTableMode = orderMode === 'tables';
   const isDeliveryMode = orderMode === 'delivery';
 
-  function printOrderReceipt(orderRef: string) {
+  function printOrderReceipt(orderRef: string, ticketNumber?: number | null) {
     if (typeof window === 'undefined') return;
-    const receipt = window.open('', '_blank', 'width=420,height=720');
-    if (!receipt) {
-      toast.warn('Popup blocked. Allow popups to print receipt.');
-      return;
-    }
 
     const rows = cart
       .map((line) => {
@@ -332,6 +327,7 @@ export function PosScreen() {
   <body>
     <h2>${branch}</h2>
     <div class="muted">Order: ${orderRef}</div>
+    ${ticketNumber != null ? `<div class="muted">Ticket: #${ticketNumber}</div>` : ''}
     <div class="muted">Mode: ${orderMode}</div>
     ${
       tableId
@@ -356,11 +352,40 @@ export function PosScreen() {
     </div>
   </body>
 </html>`;
-    receipt.document.open();
-    receipt.document.write(html);
-    receipt.document.close();
-    receipt.focus();
-    receipt.print();
+    const frame = document.createElement('iframe');
+    frame.style.position = 'fixed';
+    frame.style.right = '0';
+    frame.style.bottom = '0';
+    frame.style.width = '0';
+    frame.style.height = '0';
+    frame.style.border = '0';
+    frame.setAttribute('aria-hidden', 'true');
+    document.body.appendChild(frame);
+
+    const cleanup = () => {
+      window.setTimeout(() => {
+        if (frame.parentNode) frame.parentNode.removeChild(frame);
+      }, 300);
+    };
+
+    const doc = frame.contentWindow?.document;
+    if (!doc || !frame.contentWindow) {
+      cleanup();
+      toast.error('Could not open print preview.');
+      return;
+    }
+
+    doc.open();
+    doc.write(html);
+    doc.close();
+    frame.onload = () => {
+      try {
+        frame.contentWindow?.focus();
+        frame.contentWindow?.print();
+      } finally {
+        cleanup();
+      }
+    };
   }
 
   function addProduct(p: Product, swatch?: { id: string; name: string; price: number } | null) {
@@ -454,7 +479,7 @@ export function PosScreen() {
     }
     setSavingOrder(true);
     try {
-      const res = await axios.post<{ id?: string }>(
+      const res = await axios.post<{ id?: string; ticketNumber?: number | null }>(
         '/api/restaurant/pos-order',
         {
           grandTotal,
@@ -481,7 +506,7 @@ export function PosScreen() {
         `Order saved — ${itemsCount} items · €${formatMoney(grandTotal)} · ${paymentMode}`
       );
       if (kdsPrint) {
-        printOrderReceipt(orderRef);
+        printOrderReceipt(orderRef, res.data?.ticketNumber ?? null);
       }
       eventBus.emit('refreshSalesOrders');
       clearCart();

@@ -1,0 +1,158 @@
+import Stripe from 'stripe';
+
+import { db } from '@/lib/db';
+import { fromStripeUnitAmount } from '@/lib/stripe-server';
+
+export function resolveBaseUrlFromHeaders(headers: Headers): string {
+  const envRaw = process.env.APP_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim();
+  if (envRaw) {
+    try {
+      const parsed = new URL(envRaw);
+      const isLocal =
+        parsed.hostname === 'localhost' || parsed.hostname === '127.0.0.1' || parsed.hostname === '::1';
+      if (!(process.env.NODE_ENV === 'production' && isLocal)) {
+        return `${parsed.protocol}//${parsed.host}`.replace(/\/$/, '');
+      }
+    } catch {
+      // Ignore invalid env and fall back to request headers.
+    }
+  }
+
+  const host = headers.get('x-forwarded-host') ?? headers.get('host') ?? 'localhost:3000';
+  const proto = headers.get('x-forwarded-proto') ?? (host.startsWith('localhost') ? 'http' : 'https');
+  return `${proto}://${host}`;
+}
+
+type OrderIntentPayload = {
+  endpoint?: '/api/customer/orders' | '/api/kiosk/orders';
+  payload?: unknown;
+  status?: string;
+};
+
+export async function processOrderIntentFromSession(
+  session: Stripe.Checkout.Session,
+  baseUrl: string
+): Promise<{ status: 'skipped' | 'completed' | 'already_completed'; orderId?: string }> {
+  if (session.payment_status !== 'paid') return { status: 'skipped' };
+  const intentId =
+    typeof session.metadata?.intentId === 'string' ? session.metadata.intentId.trim() : '';
+  if (!intentId) return { status: 'skipped' };
+
+  const key = `stripe_order_intent:${intentId}`;
+  const row = await db.platformSetting.findUnique({
+    where: { key },
+    select: { value: true },
+  });
+  if (!row) return { status: 'skipped' };
+
+  let parsed: OrderIntentPayload | undefined;
+  try {
+    parsed = JSON.parse(row.value) as OrderIntentPayload;
+  } catch {
+    throw new Error(`Invalid order intent payload for ${key}`);
+  }
+
+  if (!parsed?.endpoint || !parsed.payload) return { status: 'skipped' };
+  if (parsed.status === 'completed') {
+    const parsedCompleted = JSON.parse(row.value) as { orderId?: string };
+    return {
+      status: 'already_completed',
+      orderId: typeof parsedCompleted.orderId === 'string' ? parsedCompleted.orderId : undefined,
+    };
+  }
+
+  const res = await fetch(`${baseUrl}${parsed.endpoint}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(parsed.payload),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    await db.platformSetting.update({
+      where: { key },
+      data: {
+        value: JSON.stringify({
+          ...parsed,
+          status: 'failed',
+          stripeSessionId: session.id,
+          lastError: body.slice(0, 500),
+          lastStatusCode: res.status,
+          lastAttemptedAt: new Date().toISOString(),
+        }),
+      },
+    });
+    throw new Error(
+      `Order creation failed for ${parsed.endpoint} (${res.status}): ${body.slice(0, 500)}`
+    );
+  }
+
+  const body = (await res.json().catch(() => ({}))) as { data?: { orderId?: string } };
+  const orderId =
+    typeof body?.data?.orderId === 'string' ? body.data.orderId : undefined;
+
+  await db.platformSetting.update({
+    where: { key },
+    data: {
+      value: JSON.stringify({
+        ...parsed,
+        status: 'completed',
+        stripeSessionId: session.id,
+        orderId,
+        completedAt: new Date().toISOString(),
+      }),
+    },
+  });
+
+  return { status: 'completed', orderId };
+}
+
+export async function markExistingOrderPaidFromSession(
+  session: Stripe.Checkout.Session
+): Promise<'skipped' | 'updated' | 'already_completed'> {
+  if (session.payment_status !== 'paid') return 'skipped';
+
+  const orderId =
+    typeof session.metadata?.orderId === 'string' ? session.metadata.orderId.trim() : '';
+  if (!orderId) return 'skipped';
+
+  const order = await db.order.findUnique({
+    where: { id: orderId },
+    select: { id: true, restaurantId: true, total: true },
+  });
+  if (!order) return 'skipped';
+
+  const existingPayment = await db.payment.findFirst({
+    where: { orderId },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true, status: true },
+  });
+
+  if (existingPayment?.status === 'completed') {
+    return 'already_completed';
+  }
+
+  const amountFromStripe = fromStripeUnitAmount(session.amount_total, session.currency ?? 'eur');
+
+  if (existingPayment) {
+    await db.payment.update({
+      where: { id: existingPayment.id },
+      data: {
+        status: 'completed',
+        method: 'Stripe',
+        amount: amountFromStripe > 0 ? amountFromStripe : order.total,
+      },
+    });
+  } else {
+    await db.payment.create({
+      data: {
+        orderId: order.id,
+        amount: amountFromStripe > 0 ? amountFromStripe : order.total,
+        status: 'completed',
+        method: 'Stripe',
+        restaurantId: order.restaurantId,
+      },
+    });
+  }
+
+  return 'updated';
+}

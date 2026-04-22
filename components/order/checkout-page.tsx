@@ -136,6 +136,7 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
           apartment: orderInfo?.apartment,
           gateCode: orderInfo?.gateCode,
           addressName: orderInfo?.addressName,
+          customerPhone: orderInfo?.customerPhone,
           restaurantSlug: slug,
         },
         lines: cart.map((line) => ({
@@ -156,13 +157,7 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
         placedId ? `Order placed. Reference: ${placedId}` : 'Order placed successfully.'
       );
       localStorage.removeItem(`cart-${orderId}`);
-      router.push(
-        `/web-app/order/${orderType}/${encodeURIComponent(
-          orderId
-        )}/success?slug=${encodeURIComponent(slug)}${
-          placedId ? `&orderRef=${encodeURIComponent(placedId)}` : ''
-        }`
-      );
+      router.push(orderPathWithQuery(`/order/${orderType}/${encodeURIComponent(orderId)}`, orderInfo));
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: unknown } } };
       const msg = err.response?.data?.error;
@@ -203,6 +198,7 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
           apartment: orderInfo?.apartment,
           gateCode: orderInfo?.gateCode,
           addressName: orderInfo?.addressName,
+          customerPhone: orderInfo?.customerPhone,
           restaurantSlug: slug,
         },
         lines: cart.map((line) => ({
@@ -216,26 +212,36 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
         total: grandTotal,
         cutlery,
         comment: comment.trim() || undefined,
+        paymentStatus: 'pending' as const,
+        paymentMethod: 'Stripe (pending)',
       };
-      const successPath = `/web-app/order/${orderType}/${orderId}/success?slug=${encodeURIComponent(
-        slug
-      )}&session_id={CHECKOUT_SESSION_ID}`;
-      const cancelPath = `/web-app/order/${orderType}/${orderId}/checkout`;
+      const preOrder = await axios.post<{ data?: { orderId?: string } }>(
+        '/api/customer/orders',
+        orderPayload
+      );
+      const createdOrderId = preOrder.data?.data?.orderId;
+      if (!createdOrderId) {
+        toast.error('Could not create order before payment.');
+        setSubmitting(false);
+        return;
+      }
+      const successPath = `/web-app/order/${orderType}/${orderId}/success?orderId=${encodeURIComponent(
+        createdOrderId
+      )}&restaurantSlug=${encodeURIComponent(slug)}&session_id={CHECKOUT_SESSION_ID}`;
+      const cancelPath = orderPathWithQuery(`/order/${orderType}/${orderId}/checkout`, orderInfo);
       const res = await axios.post<{ url: string }>('/api/stripe/create-order-checkout-session', {
         amount: grandTotal,
         currency: 'eur',
         source: 'online',
-        endpoint: '/api/customer/orders',
-        payload: orderPayload,
         successPath,
         cancelPath,
         title: `Online order (${orderType === 'delivery' ? 'Delivery' : 'Pick-up'})`,
-        description: `Order ${orderId} · ${slug}`,
+        description: `Order ${createdOrderId} · ${slug}`,
         metadata: {
           source: 'online',
           restaurantSlug: slug,
           orderType,
-          orderId,
+          orderId: createdOrderId,
         },
       });
       if (!res.data?.url) {
@@ -318,6 +324,9 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
                         <strong>Name:</strong> {orderInfo.addressName || 'N/A'}
                       </div>
                       <div>
+                        <strong>Phone:</strong> {orderInfo.customerPhone || 'N/A'}
+                      </div>
+                      <div>
                         <strong>Apartment/Door:</strong> {orderInfo.apartment || 'N/A'}
                       </div>
                       <div>
@@ -331,6 +340,12 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
                       </div>
                       <div>
                         <strong>Store address:</strong> {orderInfo?.storeAddress || 'N/A'}
+                      </div>
+                      <div>
+                        <strong>Name:</strong> {orderInfo?.addressName || 'N/A'}
+                      </div>
+                      <div>
+                        <strong>Phone:</strong> {orderInfo?.customerPhone || 'N/A'}
                       </div>
                     </>
                   )}

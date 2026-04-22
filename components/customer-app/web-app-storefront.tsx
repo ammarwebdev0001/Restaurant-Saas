@@ -52,6 +52,7 @@ export function WebAppStorefront({ slug }: { slug: string }) {
   const [apartmentDoorNumber, setApartmentDoorNumber] = useState('');
   const [gateCode, setGateCode] = useState('');
   const [addressName, setAddressName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
 
   const bannerSrc = mainBannerUrl?.trim() ?? '';
@@ -99,6 +100,8 @@ export function WebAppStorefront({ slug }: { slug: string }) {
           setGateCode={setGateCode}
           addressName={addressName}
           setAddressName={setAddressName}
+          customerPhone={customerPhone}
+          setCustomerPhone={setCustomerPhone}
           selectedStoreId={selectedStoreId}
           setSelectedStoreId={setSelectedStoreId}
           restaurantSlug={slug}

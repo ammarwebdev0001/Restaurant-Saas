@@ -19,8 +19,8 @@ const bodySchema = z.object({
   amount: z.number().finite().positive(),
   currency: z.string().min(3).max(3).optional(),
   source: z.enum(['online', 'kiosk']),
-  endpoint: z.enum(['/api/customer/orders', '/api/kiosk/orders']),
-  payload: z.unknown(),
+  endpoint: z.enum(['/api/customer/orders', '/api/kiosk/orders']).optional(),
+  payload: z.unknown().optional(),
   successPath: z.string().min(1).max(500),
   cancelPath: z.string().min(1).max(500),
   title: z.string().min(1).max(200).optional(),
@@ -70,33 +70,36 @@ export async function POST(req: NextRequest) {
   const cancelUrl = new URL(parsed.data.cancelPath, origin).toString();
 
   try {
+    const shouldStoreIntent = !!parsed.data.endpoint && parsed.data.payload != null;
     const intentId =
       typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
         : `intent-${Date.now()}`;
-    const intentKey = `stripe_order_intent:${intentId}`;
-    await db.platformSetting.upsert({
-      where: { key: intentKey },
-      create: {
-        key: intentKey,
-        value: JSON.stringify({
-          source: parsed.data.source,
-          endpoint: parsed.data.endpoint,
-          payload: parsed.data.payload,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        }),
-      },
-      update: {
-        value: JSON.stringify({
-          source: parsed.data.source,
-          endpoint: parsed.data.endpoint,
-          payload: parsed.data.payload,
-          status: 'pending',
-          createdAt: new Date().toISOString(),
-        }),
-      },
-    });
+    if (shouldStoreIntent) {
+      const intentKey = `stripe_order_intent:${intentId}`;
+      await db.platformSetting.upsert({
+        where: { key: intentKey },
+        create: {
+          key: intentKey,
+          value: JSON.stringify({
+            source: parsed.data.source,
+            endpoint: parsed.data.endpoint,
+            payload: parsed.data.payload,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+          }),
+        },
+        update: {
+          value: JSON.stringify({
+            source: parsed.data.source,
+            endpoint: parsed.data.endpoint,
+            payload: parsed.data.payload,
+            status: 'pending',
+            createdAt: new Date().toISOString(),
+          }),
+        },
+      });
+    }
 
     const stripe = getStripe();
     let paymentMethodTypes = checkoutPaymentMethodTypes();
@@ -123,13 +126,13 @@ export async function POST(req: NextRequest) {
         metadata: {
           ...(parsed.data.metadata ?? {}),
           source: parsed.data.source,
-          intentId,
+          ...(shouldStoreIntent ? { intentId } : {}),
         },
         payment_intent_data: {
           metadata: {
             ...(parsed.data.metadata ?? {}),
             source: parsed.data.source,
-            intentId,
+            ...(shouldStoreIntent ? { intentId } : {}),
           },
         },
       });
@@ -159,13 +162,13 @@ export async function POST(req: NextRequest) {
           metadata: {
             ...(parsed.data.metadata ?? {}),
             source: parsed.data.source,
-            intentId,
+            ...(shouldStoreIntent ? { intentId } : {}),
           },
           payment_intent_data: {
             metadata: {
               ...(parsed.data.metadata ?? {}),
               source: parsed.data.source,
-              intentId,
+              ...(shouldStoreIntent ? { intentId } : {}),
             },
           },
         });

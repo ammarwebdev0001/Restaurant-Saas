@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { Suspense } from 'react';
 
 import { KioskApp } from '@/components/kiosk/kiosk-app';
 
@@ -20,7 +21,9 @@ export default async function KioskPage({ params }: Props) {
   const { slug } = await params;
   return (
     <div className="kiosk-light-root min-h-screen bg-[#f8fafc]">
-      <KioskApp slug={decodeURIComponent(slug)} />
+      <Suspense fallback={null}>
+        <KioskApp slug={decodeURIComponent(slug)} />
+      </Suspense>
     </div>
   );
 }

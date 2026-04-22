@@ -203,11 +203,29 @@ export async function POST(req: NextRequest) {
     }
 
     const result = await db.$transaction(async (tx) => {
+      const ticketDate = new Date(
+        Date.UTC(
+          new Date().getUTCFullYear(),
+          new Date().getUTCMonth(),
+          new Date().getUTCDate()
+        )
+      );
+      const previousOrder = await tx.order.findFirst({
+        where: {
+          restaurantId: restaurant.id,
+          ticketDate,
+        },
+        orderBy: { ticketNumber: 'desc' },
+        select: { ticketNumber: true },
+      });
+      const nextTicketNumber = (previousOrder?.ticketNumber ?? -1) + 1;
 
       const order = await tx.order.create({
         data: {
           restaurantId: restaurant.id,
           customerId,
+          ticketDate,
+          ticketNumber: nextTicketNumber,
           status: 'pending',
           total: grandTotal,
           sourceType: OrderSourceType.POS,
@@ -255,11 +273,11 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      return order;
+      return { order, ticketNumber: nextTicketNumber };
     });
 
     return NextResponse.json(
-      { id: result.id, message: 'POS order saved' },
+      { id: result.order.id, ticketNumber: result.ticketNumber, message: 'POS order saved' },
       { status: 201 }
     );
   } catch (e) {

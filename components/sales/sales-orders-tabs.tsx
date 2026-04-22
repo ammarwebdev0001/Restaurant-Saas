@@ -51,6 +51,9 @@ type MenuOrderDetail = {
   total: number;
   status: string;
   sourceType: string;
+  address: string | null;
+  taxAmount: number;
+  discountAmount: number;
   createdAt: string;
   updatedAt: string;
   customer: {
@@ -99,6 +102,7 @@ function OrdersTable({
             <TableHead className="hidden sm:table-cell">Source</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="hidden md:table-cell">Status</TableHead>
+            <TableHead className="hidden md:table-cell">Payment</TableHead>
             <TableHead className="hidden lg:table-cell">When</TableHead>
             <TableHead className="w-[72px] text-right"> </TableHead>
           </TableRow>
@@ -107,7 +111,7 @@ function OrdersTable({
           {rows.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={8}
+                colSpan={9}
                 className="text-center text-muted-foreground"
               >
                 No orders in this tab.
@@ -137,6 +141,9 @@ function OrdersTable({
                 </TableCell>
                 <TableCell className="hidden text-muted-foreground md:table-cell">
                   {row.status}
+                </TableCell>
+                <TableCell className="hidden text-muted-foreground md:table-cell">
+                  {'paymentStatus' in row ? row.paymentStatus ?? '—' : '—'}
                 </TableCell>
                 <TableCell className="hidden text-muted-foreground lg:table-cell">
                   {new Date(row.createdAt).toLocaleString()}
@@ -444,6 +451,16 @@ export function SalesOrdersTabs() {
                     <p className="text-muted-foreground">Placed</p>
                     <p>{new Date(menuDetail.createdAt).toLocaleString()}</p>
                   </div>
+                  <div>
+                    <p className="text-muted-foreground">Payment status</p>
+                    <p className="font-medium">{menuDetail.payments[0]?.status ?? '—'}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-lg border p-3">
+                  <p className="text-xs font-medium text-muted-foreground">Financial summary</p>
+                  <p>Tax: €{formatMoney(menuDetail.taxAmount)}</p>
+                  <p>Discount: €{formatMoney(menuDetail.discountAmount)}</p>
                 </div>
 
                 {menuDetail.customer && (
@@ -462,6 +479,17 @@ export function SalesOrdersTabs() {
                     )}
                   </div>
                 )}
+
+                {menuDetail.address ? (
+                  <div className="rounded-lg border p-3">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Address snapshot
+                    </p>
+                    <pre className="whitespace-pre-wrap text-xs text-muted-foreground">
+                      {menuDetail.address}
+                    </pre>
+                  </div>
+                ) : null}
 
                 <div>
                   <p className="mb-2 font-medium">Line items</p>

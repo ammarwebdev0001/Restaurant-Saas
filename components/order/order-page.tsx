@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { toast } from 'react-toastify';
 import {
   IconChevronLeft,
   IconChevronRight,
   IconShoppingBag,
+  IconShoppingCart,
 } from '@tabler/icons-react';
 
 import { Button } from '@/components/ui/button';
@@ -320,6 +322,11 @@ export default function OrderPageClient({
   orderId,
   orderInfo,
 }: OrderPageProps) {
+  const restaurantSlug = orderInfo?.restaurantSlug?.trim() || orderInfo?.storeId?.trim() || '';
+  const storefrontPath = restaurantSlug
+    ? `/web-app/${encodeURIComponent(restaurantSlug)}`
+    : '/web-app';
+
   const [categories, setCategories] = useState<CustomerMenuCategory[]>([]);
   const [products, setProducts] = useState<CustomerMenuProduct[]>([]);
 
@@ -338,6 +345,9 @@ export default function OrderPageClient({
 
   const { theme, resolvedTheme } = useTheme();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const orderInfoRef = useRef(orderInfo);
+  orderInfoRef.current = orderInfo;
 
   const openCustomizeForProduct = (p: CustomerMenuProduct) => {
     setCustomizeProduct(p);
@@ -350,8 +360,45 @@ export default function OrderPageClient({
 
   useEffect(() => {
     if (!mounted) return;
+    const sessionId = searchParams.get('session_id')?.trim();
+    if (sessionId) {
+      (async () => {
+        let paid = false;
+        for (let i = 0; i < 6; i += 1) {
+          try {
+            const res = await fetch(
+              `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
+            );
+            const body = (await res.json().catch(() => ({}))) as { paid?: boolean };
+            if (res.ok && body.paid === true) {
+              paid = true;
+              break;
+            }
+          } catch {
+            // retry
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+        }
+
+        if (paid) {
+          try {
+            localStorage.removeItem(`cart-${orderId}`);
+          } catch {
+            // ignore storage errors
+          }
+          setCart([]);
+          toast.success('Payment received. Your order was sent to the kitchen.');
+        } else {
+          toast.info('Payment is processing. Your order will sync shortly.');
+        }
+        router.replace(
+          orderPathWithQuery(`/order/${orderType}/${orderId}`, orderInfoRef.current)
+        );
+      })();
+      return;
+    }
     setCart(parseCartFromStorage(localStorage.getItem(`cart-${orderId}`)));
-  }, [mounted, orderId]);
+  }, [mounted, orderId, orderType, router, searchParams]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -622,9 +669,20 @@ export default function OrderPageClient({
           <h1 className="text-3xl font-bold">
             {orderInfo?.restaurantName ?? 'Enjoy Tacos'}
           </h1>
-          <div className="text-sm text-muted-foreground">
-            {orderType === 'delivery' ? 'Delivery' : 'Pick-Up'} order -{' '}
-            {orderId}
+          <div className="flex items-center gap-2">
+            <div className="text-sm text-muted-foreground">
+              {orderType === 'delivery' ? 'Delivery' : 'Pick-Up'} order -{' '}
+              {orderId}
+            </div>
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => router.push(storefrontPath)}
+            >
+              <IconShoppingCart className="w-4 h-4 mr-2" />
+              Switch Order Type / New Order
+            </Button>
           </div>
           <div className="text-xs text-muted-foreground">
             Theme: {resolvedTheme || theme}
@@ -661,6 +719,10 @@ export default function OrderPageClient({
                     {orderInfo.addressName || 'N/A'}
                   </div>
                   <div>
+                    <strong className="text-foreground">Phone:</strong>{' '}
+                    {orderInfo.customerPhone || 'N/A'}
+                  </div>
+                  <div>
                     <strong className="text-foreground">Apartment:</strong>{' '}
                     {orderInfo.apartment || 'N/A'}
                   </div>
@@ -682,6 +744,14 @@ export default function OrderPageClient({
                   <div>
                     <strong className="text-foreground">Store id:</strong>{' '}
                     {orderInfo.storeId || 'N/A'}
+                  </div>
+                  <div>
+                    <strong className="text-foreground">Name:</strong>{' '}
+                    {orderInfo.addressName || 'N/A'}
+                  </div>
+                  <div>
+                    <strong className="text-foreground">Phone:</strong>{' '}
+                    {orderInfo.customerPhone || 'N/A'}
                   </div>
                 </>
               )}

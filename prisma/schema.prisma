@@ -388,6 +388,10 @@ model Order {
   id             String          @id @default(uuid())
   restaurantId   String
   customerId     String?
+  /// Daily ticket number (resets from 0 each day per restaurant).
+  ticketNumber   Int?
+  /// Date bucket for daily ticket sequence.
+  ticketDate     DateTime?       @db.Date
   status         String
   total          Float
   sourceType     OrderSourceType @default(OTHER)
@@ -414,6 +418,8 @@ model Order {
   @@index([restaurantId])
   @@index([sourceType])
   @@index([diningTableId])
+  @@index([restaurantId, ticketDate])
+  @@unique([restaurantId, ticketDate, ticketNumber])
 }
 
 model OrderItem {

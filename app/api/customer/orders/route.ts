@@ -39,6 +39,7 @@ const orderInfoSchema = z.object({
   apartment: z.string().optional(),
   gateCode: z.string().optional(),
   addressName: z.string().optional(),
+  customerPhone: z.string().optional(),
   restaurantSlug: z.string().optional(),
 });
 
@@ -51,6 +52,33 @@ const postSchema = z.object({
   total: z.number().finite().nonnegative(),
   cutlery: z.boolean(),
   comment: z.string().max(2000).optional(),
+  paymentStatus: z.enum(['pending', 'completed']).optional(),
+  paymentMethod: z.string().min(1).max(100).optional(),
+}).superRefine((data, ctx) => {
+  const name = data.orderInfo.addressName?.trim() ?? '';
+  const phone = data.orderInfo.customerPhone?.trim() ?? '';
+  const address = data.orderInfo.address?.trim() ?? '';
+  if (!name) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['orderInfo', 'addressName'],
+      message: 'Customer name is required',
+    });
+  }
+  if (data.orderType === 'delivery' && !address) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['orderInfo', 'address'],
+      message: 'Delivery address is required',
+    });
+  }
+  if (!phone) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['orderInfo', 'customerPhone'],
+      message: 'Customer phone is required',
+    });
+  }
 });
 
 function buildAddressSnapshot(
@@ -67,10 +95,13 @@ function buildAddressSnapshot(
 
   if (orderType === 'delivery') {
     if (info.addressName?.trim()) lines.push(`Name: ${info.addressName.trim()}`);
+    if (info.customerPhone?.trim()) lines.push(`Phone: ${info.customerPhone.trim()}`);
     if (info.address?.trim()) lines.push(`Address: ${info.address.trim()}`);
     if (info.apartment?.trim()) lines.push(`Apartment / door: ${info.apartment.trim()}`);
     if (info.gateCode?.trim()) lines.push(`Gate code: ${info.gateCode.trim()}`);
   } else {
+    if (info.addressName?.trim()) lines.push(`Name: ${info.addressName.trim()}`);
+    if (info.customerPhone?.trim()) lines.push(`Phone: ${info.customerPhone.trim()}`);
     if (info.storeName?.trim()) lines.push(`Pickup location: ${info.storeName.trim()}`);
     if (info.storeAddress?.trim()) lines.push(`Store address: ${info.storeAddress.trim()}`);
   }
@@ -108,7 +139,18 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const { restaurantSlug, orderType, orderInfo, lines, subtotal, total, cutlery, comment } =
+  const {
+    restaurantSlug,
+    orderType,
+    orderInfo,
+    lines,
+    subtotal,
+    total,
+    cutlery,
+    comment,
+    paymentStatus,
+    paymentMethod,
+  } =
     parsed.data;
 
   const slug = restaurantSlug.trim();
@@ -150,13 +192,42 @@ export async function POST(req: NextRequest) {
   }
 
   const addressSnapshot = buildAddressSnapshot(orderType, orderInfo, cutlery, comment);
+  const customerName = orderInfo.addressName?.trim() ?? '';
+  const customerPhone = orderInfo.customerPhone?.trim() ?? '';
 
   try {
     const result = await db.$transaction(async (tx) => {
+      const ticketDate = new Date(
+        Date.UTC(
+          new Date().getUTCFullYear(),
+          new Date().getUTCMonth(),
+          new Date().getUTCDate()
+        )
+      );
+      const previousOrder = await tx.order.findFirst({
+        where: {
+          restaurantId: restaurant.id,
+          ticketDate,
+        },
+        orderBy: { ticketNumber: 'desc' },
+        select: { ticketNumber: true },
+      });
+      const nextTicketNumber = (previousOrder?.ticketNumber ?? -1) + 1;
+
+      const customer = await tx.customer.create({
+        data: {
+          restaurantId: restaurant.id,
+          name: customerName,
+          phone: customerPhone,
+        },
+        select: { id: true },
+      });
       const order = await tx.order.create({
         data: {
           restaurantId: restaurant.id,
-          customerId: null,
+          customerId: customer.id,
+          ticketDate,
+          ticketNumber: nextTicketNumber,
           status: 'pending',
           total: computedTotal,
           sourceType: OrderSourceType.ONLINE,
@@ -211,17 +282,23 @@ export async function POST(req: NextRequest) {
         data: {
           orderId: order.id,
           amount: computedTotal,
-          status: 'completed',
-          method: 'Online checkout',
+          status: paymentStatus ?? 'completed',
+          method: paymentMethod?.trim() || 'Online checkout',
           restaurantId: restaurant.id,
         },
       });
 
-      return order;
+      return { order, ticketNumber: nextTicketNumber };
     });
 
     return NextResponse.json(
-      { data: { orderId: result.id, restaurantId: restaurant.id } },
+      {
+        data: {
+          orderId: result.order.id,
+          restaurantId: restaurant.id,
+          ticketNumber: result.ticketNumber,
+        },
+      },
       { status: 201 }
     );
   } catch (e) {

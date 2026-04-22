@@ -5,6 +5,7 @@ export type SalesOrderRow =
       sourceType: string;
       total: number;
       status: string;
+      paymentStatus?: string | null;
       createdAt: string;
     }
   | {

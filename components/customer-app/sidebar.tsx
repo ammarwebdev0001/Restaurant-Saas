@@ -15,6 +15,7 @@ import {
   IconMapPin,
   IconMenu2,
   IconShoppingBag,
+  IconShoppingCart,
   IconTruck,
 } from '@tabler/icons-react';
 import { User2Icon, UserIcon } from 'lucide-react';
@@ -39,6 +40,8 @@ type SidebarProps = {
   setGateCode: (value: string) => void;
   addressName: string;
   setAddressName: (value: string) => void;
+  customerPhone: string;
+  setCustomerPhone: (value: string) => void;
   selectedStoreId: string | null;
   setSelectedStoreId: (id: string | null) => void;
   /** When set (e.g. `/web-app/{slug}`), order flow loads menu via `restaurantSlug` query. */
@@ -56,6 +59,8 @@ export function Sidebar({
   setGateCode,
   addressName,
   setAddressName,
+  customerPhone,
+  setCustomerPhone,
   selectedStoreId,
   setSelectedStoreId,
   restaurantSlug,
@@ -155,6 +160,7 @@ export function Sidebar({
       apartment: apartmentDoorNumber,
       gateCode,
       addressName,
+      customerPhone,
     };
     if (restaurantSlug?.trim()) {
       paramsObj.restaurantSlug = restaurantSlug.trim();
@@ -272,16 +278,25 @@ export function Sidebar({
               <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
                 Delivery address
               </p>
-              <Input
-                placeholder="Your Address"
-                value={deliveryAddress}
-                onChange={(event) => setDeliveryAddress(event.target.value)}
-                className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
-              />
+             
               <Input
                 placeholder="Your Name"
                 value={addressName}
                 onChange={(event) => setAddressName(event.target.value)}
+                className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
+              />
+              <Input
+                placeholder="Phone number"
+                value={customerPhone}
+                onChange={(event) => setCustomerPhone(event.target.value)}
+                className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
+              />
+               <Input
+                placeholder="Your Address *"
+                value={deliveryAddress}
+                onChange={(event) => setDeliveryAddress(event.target.value)}
+                required
+                autoComplete="street-address"
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
@@ -304,8 +319,13 @@ export function Sidebar({
               <Button
                 className="w-full"
                 onClick={createOrder}
-                disabled={!deliveryAddress}
+                disabled={
+                  !deliveryAddress.trim() ||
+                  !addressName.trim() ||
+                  !customerPhone.trim()
+                }
               >
+                <IconShoppingCart className="w-4 h-4 mr-2" />
                 Proceed Order
               </Button>
             </div>
@@ -313,6 +333,18 @@ export function Sidebar({
 
           {mode === 'takeaway' && (
             <div className="space-y-3">
+              <Input
+                placeholder="Your Name"
+                value={addressName}
+                onChange={(event) => setAddressName(event.target.value)}
+                className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
+              />
+              <Input
+                placeholder="Phone number"
+                value={customerPhone}
+                onChange={(event) => setCustomerPhone(event.target.value)}
+                className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
+              />
               <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
                 Select a branch (scroll if needed)
               </p>
@@ -373,8 +405,11 @@ export function Sidebar({
               <Button
                 className="w-full"
                 onClick={createOrder}
-                disabled={!selectedStoreId}
+                disabled={
+                  !selectedStoreId || !addressName.trim() || !customerPhone.trim()
+                }
               >
+                <IconShoppingCart className="w-4 h-4 mr-2" />
                 Proceed Order
               </Button>
             </div>

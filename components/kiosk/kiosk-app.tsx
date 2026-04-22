@@ -16,6 +16,7 @@ import {
   useState,
   type ChangeEvent,
 } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'react-toastify';
 
 import {
@@ -216,6 +217,8 @@ function cartSummaryLines(cart: CartLine[], maxLines: number): string[] {
 type Step = 'mode' | 'menu' | 'cart' | 'checkout' | 'done';
 
 export function KioskApp({ slug }: { slug: string }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [step, setStep] = useState<Step>('mode');
   const [fulfillment, setFulfillment] = useState<
     'dine_in' | 'take_away' | null
@@ -233,10 +236,48 @@ export function KioskApp({ slug }: { slug: string }) {
   const [customerPhone, setCustomerPhone] = useState('');
   const [placing, setPlacing] = useState(false);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
+  const [lastTicketNumber, setLastTicketNumber] = useState<number | null>(null);
 
   useEffect(() => {
+    const sessionId = searchParams.get('session_id')?.trim();
+    if (sessionId) {
+      (async () => {
+        let paid = false;
+        for (let i = 0; i < 6; i += 1) {
+          try {
+            const res = await fetch(
+              `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
+            );
+            const body = (await res.json().catch(() => ({}))) as { paid?: boolean };
+            if (res.ok && body.paid === true) {
+              paid = true;
+              break;
+            }
+          } catch {
+            // retry
+          }
+          await new Promise((resolve) => setTimeout(resolve, 1200));
+        }
+
+        if (paid) {
+          try {
+            localStorage.removeItem(`kiosk-cart-${slug}`);
+            localStorage.removeItem(`kiosk-checkout-draft-${slug}`);
+          } catch {
+            // ignore storage errors
+          }
+          setCart([]);
+          setStep('menu');
+          toast.success('Payment received. Your order was sent to the kitchen.');
+        } else {
+          toast.info('Payment is processing. Your order will sync shortly.');
+        }
+        router.replace(`/kiosk/${encodeURIComponent(slug)}`);
+      })();
+      return;
+    }
     setCart(loadCart(slug));
-  }, [slug]);
+  }, [slug, searchParams, router]);
 
   useEffect(() => {
     if (step !== 'checkout') return;
@@ -471,7 +512,7 @@ export function KioskApp({ slug }: { slug: string }) {
         productName: cartLineDisplayName(line),
         modifiers: line.modifiers,
       }));
-      const res = await axios.post<{ data: { orderId: string } }>(
+      const res = await axios.post<{ data: { orderId: string; ticketNumber?: number | null } }>(
         '/api/kiosk/orders',
         {
           restaurantSlug: slug,
@@ -485,7 +526,9 @@ export function KioskApp({ slug }: { slug: string }) {
         }
       );
       const placedId = res.data.data.orderId;
+      const ticketNumber = res.data.data.ticketNumber ?? null;
       setLastOrderId(placedId);
+      setLastTicketNumber(ticketNumber);
       clearCart();
       localStorage.removeItem(`kiosk-checkout-draft-${slug}`);
       setCookingNote('');
@@ -493,7 +536,9 @@ export function KioskApp({ slug }: { slug: string }) {
       setCustomerPhone('');
       toast.success('Order placed');
       window.location.assign(
-        `/kiosk/${encodeURIComponent(slug)}/success?orderRef=${encodeURIComponent(placedId)}`
+        `/kiosk/${encodeURIComponent(slug)}/success?orderId=${encodeURIComponent(placedId)}${
+          ticketNumber != null ? `&ticket=${encodeURIComponent(String(ticketNumber))}` : ''
+        }`
       );
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string | object } } };
@@ -527,10 +572,25 @@ export function KioskApp({ slug }: { slug: string }) {
         cookingNote: cookingNote.trim() || undefined,
         customerName: customerName.trim() || undefined,
         customerPhone: customerPhone.trim() || undefined,
+        paymentStatus: 'pending' as const,
+        paymentMethod: 'Stripe (pending)',
       };
-      const successPath = `/kiosk/${encodeURIComponent(
-        slug
-      )}/success?session_id={CHECKOUT_SESSION_ID}`;
+      const preOrder = await axios.post<{
+        data?: { orderId?: string; ticketNumber?: number | null };
+      }>(
+        '/api/kiosk/orders',
+        orderPayload
+      );
+      const createdOrderId = preOrder.data?.data?.orderId;
+      const createdTicketNumber = preOrder.data?.data?.ticketNumber ?? null;
+      if (!createdOrderId) {
+        toast.error('Could not create order before payment.');
+        setPlacing(false);
+        return;
+      }
+      const successPath = `/kiosk/${encodeURIComponent(slug)}/success?orderId=${encodeURIComponent(
+        createdOrderId
+      )}${createdTicketNumber != null ? `&ticket=${encodeURIComponent(String(createdTicketNumber))}` : ''}&session_id={CHECKOUT_SESSION_ID}`;
       const cancelPath = `/kiosk/${encodeURIComponent(slug)}?step=checkout`;
       const res = await axios.post<{ url: string }>(
         '/api/stripe/create-order-checkout-session',
@@ -538,16 +598,15 @@ export function KioskApp({ slug }: { slug: string }) {
           amount: cartSubtotal,
           currency: 'eur',
           source: 'kiosk',
-          endpoint: '/api/kiosk/orders',
-          payload: orderPayload,
           successPath,
           cancelPath,
           title: 'Kiosk order payment',
-          description: `${slug} · ${fulfillment}`,
+          description: `${createdOrderId} · ${slug} · ${fulfillment}`,
           metadata: {
             source: 'kiosk',
             restaurantSlug: slug,
             fulfillment,
+            orderId: createdOrderId,
           },
         }
       );
@@ -567,6 +626,7 @@ export function KioskApp({ slug }: { slug: string }) {
 
   const startOver = () => {
     setLastOrderId(null);
+    setLastTicketNumber(null);
     setStep('mode');
   };
 
@@ -1143,6 +1203,13 @@ export function KioskApp({ slug }: { slug: string }) {
                     {' '}
                     Reference:{' '}
                     <span className="font-mono text-xs">{lastOrderId}</span>
+                    {lastTicketNumber != null ? (
+                      <>
+                        {' '}
+                        · Ticket:{' '}
+                        <span className="font-mono text-xs">#{lastTicketNumber}</span>
+                      </>
+                    ) : null}
                   </>
                 ) : null}
               </p>
