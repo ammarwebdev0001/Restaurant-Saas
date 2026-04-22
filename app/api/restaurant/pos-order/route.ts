@@ -77,6 +77,15 @@ export async function POST(req: NextRequest) {
 
     const paymentMode =
       typeof body.paymentMode === 'string' ? body.paymentMode : 'cash';
+    const paymentStatusRaw =
+      typeof body.paymentStatus === 'string' ? body.paymentStatus.trim().toLowerCase() : '';
+    const initialPaymentStatus =
+      paymentStatusRaw === 'pending' ||
+      paymentStatusRaw === 'completed' ||
+      paymentStatusRaw === 'failed' ||
+      paymentStatusRaw === 'cancelled'
+        ? paymentStatusRaw
+        : 'completed';
     const rawMin = Number(body?.selectedMinutes);
     const roundedMin = Math.round(rawMin);
     const selectedMinutes =
@@ -86,6 +95,8 @@ export async function POST(req: NextRequest) {
     const methodLabel =
       paymentMode === 'card'
         ? 'Card'
+        : paymentMode === 'card_terminal'
+          ? 'Card Terminal'
         : paymentMode === 'split'
           ? 'Split'
           : 'Cash';
@@ -267,7 +278,7 @@ export async function POST(req: NextRequest) {
         data: {
           orderId: order.id,
           amount: paymentAmount,
-          status: 'completed',
+          status: initialPaymentStatus,
           method: methodLabel,
           restaurantId: restaurant.id,
         },

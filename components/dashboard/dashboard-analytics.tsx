@@ -11,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import {
   DASHBOARD_MODULES,
   type DashboardModuleKey,
@@ -256,6 +257,7 @@ export default function DashboardAnalytics() {
   const [permissions, setPermissions] = useState<string[] | null>(null);
   const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [slug, setSlug] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setError(null);
@@ -277,6 +279,22 @@ export default function DashboardAnalytics() {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get<{ data: { slug?: string } | null }>('/api/restaurant');
+        const s = res.data?.data?.slug?.trim();
+        if (!cancelled) setSlug(s && s.length > 0 ? s : null);
+      } catch {
+        if (!cancelled) setSlug(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const modules = useMemo(
     () => DASHBOARD_MODULES.filter((m) => m.moduleKey !== 'dashboard'),
     []
@@ -296,6 +314,28 @@ export default function DashboardAnalytics() {
           Live counts for each area of your restaurant. Open a module to work
           there.
         </p>
+        {slug ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button asChild size="sm">
+              <a
+                href={`/web-app/${encodeURIComponent(slug)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open website
+              </a>
+            </Button>
+            <Button asChild size="sm" variant="secondary">
+              <a
+                href={`/kiosk/${encodeURIComponent(slug)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open kiosk UI
+              </a>
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {error ? (

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, FolderOpen, Plus, Search, Minus, Trash2 } from 'lucide-react';
+import { Check, Plus, Search, Minus, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -50,6 +50,7 @@ type Product = {
   name: string;
   price: number;
   categoryId: string;
+  imageUrl?: string | null;
   variations?: {
     id: string;
     name?: string;
@@ -84,6 +85,7 @@ type RestaurantMenuApi = {
       items?: Array<{
         id: string;
         name: string;
+        imageUrl?: string | null;
         price: number | string | null;
         salePrice: number | string | null;
         variations?: Array<{
@@ -140,6 +142,7 @@ export function PosScreen() {
   const [kotNote, setKotNote] = useState('');
   const [kdsPrint, setKdsPrint] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
+  const [terminalProcessing, setTerminalProcessing] = useState(false);
   const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [swatchDialogOpen, setSwatchDialogOpen] = useState(false);
   const [swatchProduct, setSwatchProduct] = useState<Product | null>(null);
@@ -181,6 +184,7 @@ export function PosScreen() {
               name: item.name,
               price,
               categoryId: menu.id,
+              imageUrl: item.imageUrl ?? null,
               variations: (item.variations ?? []).map((v) => ({
                 id: v.id,
                 name: v.name,
@@ -288,7 +292,8 @@ export function PosScreen() {
       ? paymentNum - grandTotal
       : 0;
 
-  const paymentEntered = payment.trim() !== '';
+  const paymentEntered =
+    paymentMode === 'card_terminal' ? grandTotal > 0 : payment.trim() !== '';
   const canSaveOrder = cart.length > 0 && paymentEntered && !savingOrder;
   const isTableMode = orderMode === 'tables';
   const isDeliveryMode = orderMode === 'delivery';
@@ -479,12 +484,15 @@ export function PosScreen() {
     }
     setSavingOrder(true);
     try {
+      const isTerminal = paymentMode === 'card_terminal';
+      const paymentAmount = isTerminal ? grandTotal.toFixed(2) : payment.trim();
       const res = await axios.post<{ id?: string; ticketNumber?: number | null }>(
         '/api/restaurant/pos-order',
         {
           grandTotal,
-          payment: payment.trim(),
+          payment: paymentAmount,
           paymentMode,
+          paymentStatus: isTerminal ? 'pending' : 'completed',
           address: addressTrim || undefined,
           taxAmount,
           discountAmount: disAmount,
@@ -502,6 +510,65 @@ export function PosScreen() {
         }
       );
       const orderRef = res.data?.id || `POS-${Date.now()}`;
+      if (isTerminal) {
+        const terminalBase =
+          process.env.NEXT_PUBLIC_POS_TERMINAL_API?.trim().replace(/\/$/, '') || '';
+        if (!terminalBase) {
+          toast.error(
+            'POS terminal API is not configured. Set NEXT_PUBLIC_POS_TERMINAL_API.'
+          );
+          return;
+        }
+
+        setTerminalProcessing(true);
+        let finalStatus: 'completed' | 'failed' | 'cancelled' = 'failed';
+        let terminalTransactionId: string | undefined;
+        let terminalMessage = '';
+
+        try {
+          const terminalRes = await axios.post<{
+            status?: string;
+            transactionId?: string;
+            message?: string;
+          }>(
+            `${terminalBase}/charge`,
+            {
+              orderId: orderRef,
+              amount: grandTotal,
+              currency: 'EUR',
+            },
+            { timeout: 120000 }
+          );
+          const status = String(terminalRes.data?.status ?? '').toLowerCase();
+          terminalTransactionId = terminalRes.data?.transactionId;
+          terminalMessage = String(terminalRes.data?.message ?? '');
+
+          if (status === 'approved' || status === 'success' || status === 'completed') {
+            finalStatus = 'completed';
+          } else if (status === 'cancelled' || status === 'canceled') {
+            finalStatus = 'cancelled';
+          } else {
+            finalStatus = 'failed';
+          }
+        } catch {
+          finalStatus = 'failed';
+        } finally {
+          await axios.post(`/api/restaurant/pos-order/${encodeURIComponent(orderRef)}/terminal-payment`, {
+            status: finalStatus,
+            amount: grandTotal,
+            terminalTransactionId,
+          });
+          setTerminalProcessing(false);
+        }
+
+        if (finalStatus !== 'completed') {
+          toast.error(
+            terminalMessage || 'Card terminal payment was not approved. Order remains pending.'
+          );
+          setShowSaveConfirm(false);
+          return;
+        }
+      }
       toast.success(
         `Order saved — ${itemsCount} items · €${formatMoney(grandTotal)} · ${paymentMode}`
       );
@@ -611,11 +678,19 @@ export function PosScreen() {
                 onClick={() => requestAddProduct(p)}
                 className="group flex flex-col items-center gap-2 rounded-xl border bg-background p-3 text-center transition hover:border-primary/40 hover:bg-muted/40"
               >
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/90 text-primary-foreground shadow-inner ring-2 ring-primary/20 transition group-hover:scale-[1.02]">
-                  <FolderOpen
-                    className="h-7 w-7 opacity-95"
-                    strokeWidth={1.5}
-                  />
+                <div className="h-14 w-14 overflow-hidden rounded-full bg-muted ring-2 ring-primary/20 transition group-hover:scale-[1.02]">
+                  {p.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- POS accepts external image URLs
+                    <img
+                      src={p.imageUrl}
+                      alt={p.name}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-full w-full items-center justify-center bg-primary/90 text-primary-foreground text-xs font-bold">
+                      {p.name.charAt(0).toUpperCase()}
+                    </div>
+                  )}
                 </div>
                 <span className="line-clamp-2 text-[11px] font-semibold leading-tight">
                   {p.name}
@@ -934,6 +1009,7 @@ export function PosScreen() {
                 <SelectContent>
                   <SelectItem value="cash">Cash</SelectItem>
                   <SelectItem value="card">Card</SelectItem>
+                  <SelectItem value="card_terminal">Card Terminal (USB)</SelectItem>
                   <SelectItem value="split">Split</SelectItem>
                 </SelectContent>
               </Select>
@@ -945,6 +1021,7 @@ export function PosScreen() {
                 inputMode="decimal"
                 placeholder="0.00"
                 value={payment}
+                readOnly={paymentMode === 'card_terminal'}
                 onChange={(e) => setPayment(e.target.value)}
               />
               <Button
@@ -952,6 +1029,7 @@ export function PosScreen() {
                 variant="outline"
                 size="sm"
                 className="h-8 w-full text-xs"
+                disabled={paymentMode === 'card_terminal'}
                 onClick={() => setPayment(grandTotal.toFixed(2))}
               >
                 Full payment
@@ -1026,16 +1104,23 @@ export function PosScreen() {
             <AlertDialogDescription>
               This will save the current cart as an order.
               {kdsPrint ? ' Receipt print preview will open after save.' : ''}
+                {paymentMode === 'card_terminal'
+                  ? ' Payment will be requested on the attached card terminal.'
+                  : ''}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
             <AlertDialogAction
               type="button"
-              disabled={savingOrder}
+              disabled={savingOrder || terminalProcessing}
               onClick={() => void saveOrder()}
             >
-              {savingOrder ? 'Saving…' : 'Confirm Save'}
+              {savingOrder
+                ? 'Saving…'
+                : terminalProcessing
+                  ? 'Waiting for terminal…'
+                  : 'Confirm Save'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
