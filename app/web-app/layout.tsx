@@ -21,7 +21,7 @@ export default function CustomerLayout({ children }: { children: ReactNode }) {
       <div className="flex min-h-screen flex-col">
         <Suspense
           fallback={
-            <header className="h-[72px] border-b border-[#c2410c] bg-[#ea580c] px-6 py-4" />
+            <header className="h-[72px] border-b border-primary bg-primary px-6 py-4" />
           }
         >
           <Header />

@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
       logoUrl: true,
       mainBannerUrl: true,
       menuBannerUrls: true,
+      themePrimaryColor: true,
       subdomain: true,
       slug: true,
     } as const;

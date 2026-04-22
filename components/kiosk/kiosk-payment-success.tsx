@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { IconHome, IconPrinter } from '@tabler/icons-react';
 
 type Props = {
   slug: string;
@@ -111,16 +112,18 @@ export function KioskPaymentSuccess({
             <div className="flex gap-2">
               <Button
                 type="button"
-                className="bg-[#ea580c] text-white hover:bg-[#c2410c]"
+                className="bg-primary text-white hover:bg-primary/90"
                 onClick={printTicket}
               >
+                <IconPrinter className="w-4 h-4 mr-2" />
                 Print Ticket
               </Button>
               <Button
                 type="button"
-                className="border border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
+                className="border border-primary bg-white text-primary hover:bg-primary/10 hover:text-primary"
                 onClick={() => router.push(`/kiosk/${encodeURIComponent(slug)}`)}
               >
+                <IconHome className="w-4 h-4 mr-2" />
                 Back to Home
               </Button>
             </div>

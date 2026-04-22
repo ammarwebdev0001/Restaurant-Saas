@@ -69,6 +69,7 @@ export function fakeRestaurant() {
     logoUrl: undefined,
     logoKey: undefined,
     mainBannerUrl: undefined,
+    themePrimaryColor: undefined,
     updatedAt: faker.date.anytime(),
   };
 }
@@ -81,6 +82,7 @@ export function fakeRestaurantComplete() {
     logoUrl: undefined,
     logoKey: undefined,
     mainBannerUrl: undefined,
+    themePrimaryColor: undefined,
     menuBannerUrls: [],
     ownerId: faker.string.uuid(),
     createdAt: new Date(),

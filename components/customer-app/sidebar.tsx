@@ -179,11 +179,11 @@ export function Sidebar({
     <section className="md:sticky max-w-2xl md:top-20 md:z-50 flex flex-col gap-6 self-start rounded-3xl border border-[#e2e8f0] bg-white p-6 text-[#0f172a] shadow-[0_10px_40px_-10px_rgba(15,23,42,0.12)]">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-[#ea580c] text-xl font-bold text-white">
+          <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">
             <User2Icon className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-[#c2410c]">Hi User</p>
+            <p className="text-sm font-semibold text-primary">Hi User</p>
             <p className="text-xs text-[#64748b]">Welcome to the app</p>
           </div>
         </div>
@@ -233,7 +233,7 @@ export function Sidebar({
                   type="button"
                   className={`h-2 rounded-full transition-all ${
                     idx === bannerIndex
-                      ? 'w-5 bg-[#ea580c]'
+                      ? 'w-5 bg-primary'
                       : 'w-2 bg-[#94a3b8]/50'
                   }`}
                   onClick={() => setBannerIndex(idx)}
@@ -362,7 +362,7 @@ export function Sidebar({
                     key={store.id}
                     className={`flex items-start justify-between rounded-3xl border bg-[#f8fafc] p-4 transition ${
                       selectedStoreId === store.id
-                        ? 'border-[#ea580c] bg-[#fff7ed]'
+                        ? 'border-primary bg-primary/10'
                         : 'border-[#e2e8f0]'
                     }`}
                   >
@@ -386,7 +386,7 @@ export function Sidebar({
                         size="sm"
                         className={
                           selectedStoreId === store.id
-                            ? 'bg-[#ea580c] text-white hover:bg-[#c2410c]'
+                            ? 'bg-primary text-primary-foreground hover:brightness-95'
                             : 'border-[#e2e8f0] text-[#334155] hover:bg-[#f1f5f9]'
                         }
                         onClick={() => setSelectedStoreId(store.id)}
@@ -395,7 +395,7 @@ export function Sidebar({
                         <IconChevronRight className="ml-2 h-4 w-4" />
                       </Button>
                       <span className="flex items-center gap-1 text-xs text-[#64748b]">
-                        <IconHeart className="h-3.5 w-3.5 text-[#ea580c]" />
+                        <IconHeart className="h-3.5 w-3.5 text-primary" />
                         {store.isFavorite ? 'Favorite' : 'Add to favorites'}
                       </span>
                     </div>

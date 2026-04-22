@@ -27,7 +27,7 @@ export function HeroSection({
           <div className="flex items-start justify-between">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#fff7ed] text-xl font-bold text-[#c2410c] ring-1 ring-[#fed7aa]">
+                <span className="inline-flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-primary/10 text-xl font-bold text-primary ring-1 ring-primary/20">
                   {logoUrl ? (
                     <img
                       src={logoUrl}
@@ -77,8 +77,8 @@ export function HeroSection({
           ) : null}
 
           <div className="flex flex-col gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full bg-[#fff7ed] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#9a3412]">
-              <span className="h-2 w-2 rounded-full bg-[#ea580c]" />
+            <span className="inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-primary">
+              <span className="h-2 w-2 rounded-full bg-primary" />
               Small treats
             </span>
             <p className="text-sm leading-relaxed text-[#475569]">

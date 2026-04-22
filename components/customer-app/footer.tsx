@@ -2,7 +2,7 @@ import { Button } from '@/components/ui/button';
 
 export function Footer() {
   return (
-    <footer className="border-t border-[#c2410c] bg-[#ea580c] px-6 py-10 text-white">
+    <footer className="border-t border-primary bg-primary px-6 py-10 text-primary-foreground">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 md:grid-cols-3">
         <div className="space-y-3">
           <p className="text-sm font-semibold text-white">Legal</p>

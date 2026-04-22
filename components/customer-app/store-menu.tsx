@@ -113,7 +113,7 @@ export function StoreMenu({ slug }: { slug: string }) {
                         <span className="text-sm text-[#94a3b8] line-through">
                           €{item.price.toFixed(2)}
                         </span>
-                        <p className="font-semibold text-[#c2410c]">
+                        <p className="font-semibold text-primary">
                           €{item.salePrice.toFixed(2)}
                         </p>
                       </>

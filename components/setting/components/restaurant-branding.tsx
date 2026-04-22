@@ -16,12 +16,14 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import { normalizeThemePrimaryColor } from '@/lib/restaurant-theme';
 
 type RestaurantBrandingDto = {
   id: string;
   logoUrl: string | null;
   mainBannerUrl: string | null;
   menuBannerUrls: string[];
+  themePrimaryColor?: string | null;
 };
 
 export function RestaurantBrandingCard() {
@@ -31,6 +33,7 @@ export function RestaurantBrandingCard() {
   const [logoUrl, setLogoUrl] = useState('');
   const [mainBannerUrl, setMainBannerUrl] = useState('');
   const [menuBannerLines, setMenuBannerLines] = useState('');
+  const [themePrimaryColor, setThemePrimaryColor] = useState('#ea580c');
 
   useEffect(() => {
     let cancelled = false;
@@ -52,6 +55,7 @@ export function RestaurantBrandingCard() {
         setLogoUrl(d.logoUrl ?? '');
         setMainBannerUrl(d.mainBannerUrl ?? '');
         setMenuBannerLines((d.menuBannerUrls ?? []).join('\n'));
+        setThemePrimaryColor(d.themePrimaryColor ?? '#ea580c');
       } catch {
         if (!cancelled) toast.error('Could not load restaurant branding.');
       } finally {
@@ -76,12 +80,14 @@ export function RestaurantBrandingCard() {
 
     setSaving(true);
     try {
+      const normalizedThemePrimaryColor = normalizeThemePrimaryColor(themePrimaryColor);
       const res = await axios.patch<{ data: RestaurantBrandingDto }>(
         '/api/restaurant',
         {
           logoUrl,
           mainBannerUrl,
           menuBannerUrls,
+          themePrimaryColor: normalizedThemePrimaryColor ?? '',
         }
       );
       const d = res.data?.data;
@@ -89,6 +95,7 @@ export function RestaurantBrandingCard() {
         setLogoUrl(d.logoUrl ?? '');
         setMainBannerUrl(d.mainBannerUrl ?? '');
         setMenuBannerLines((d.menuBannerUrls ?? []).join('\n'));
+        setThemePrimaryColor(d.themePrimaryColor ?? '#ea580c');
       }
       toast.success('Branding saved.');
     } catch (e: unknown) {
@@ -157,6 +164,29 @@ export function RestaurantBrandingCard() {
             onChange={(e) => setLogoUrl(e.target.value)}
             autoComplete="off"
           />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="restaurant-theme-primary-color">Theme primary color</Label>
+          <div className="flex flex-wrap items-center gap-3">
+            <Input
+              id="restaurant-theme-primary-color"
+              type="color"
+              value={themePrimaryColor}
+              onChange={(e) => setThemePrimaryColor(e.target.value)}
+              className="h-11 w-16 cursor-pointer p-1"
+            />
+            <Input
+              type="text"
+              value={themePrimaryColor}
+              onChange={(e) => setThemePrimaryColor(e.target.value)}
+              placeholder="#ea580c"
+              className="w-40"
+              autoComplete="off"
+            />
+          </div>
+          <p className="text-xs text-muted-foreground">
+            This color is used as the primary brand color on website and kiosk.
+          </p>
         </div>
         <div className="space-y-2">
           <Label htmlFor="restaurant-main-banner-url">Main banner URL</Label>

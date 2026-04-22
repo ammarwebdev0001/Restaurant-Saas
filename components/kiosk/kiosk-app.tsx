@@ -14,6 +14,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  type CSSProperties,
   type ChangeEvent,
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -30,6 +31,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { buildThemeCssVars } from '@/lib/restaurant-theme';
 
 type CartModifierSelection = {
   attributeGroupId: string;
@@ -120,6 +122,7 @@ type MenuRestaurant = {
   name: string;
   logoUrl: string | null;
   mainBannerUrl: string | null;
+  themePrimaryColor?: string | null;
   slug: string;
   menus: CustomerMenuCategory[];
 };
@@ -211,7 +214,9 @@ function cartLineDisplayName(line: CartLine): string {
 }
 
 function cartSummaryLines(cart: CartLine[], maxLines: number): string[] {
-  return cart.slice(0, maxLines).map((l) => `${l.quantity}× ${cartLineDisplayName(l)}`);
+  return cart
+    .slice(0, maxLines)
+    .map((l) => `${l.quantity}× ${cartLineDisplayName(l)}`);
 }
 
 type Step = 'mode' | 'menu' | 'cart' | 'checkout' | 'done';
@@ -248,7 +253,9 @@ export function KioskApp({ slug }: { slug: string }) {
             const res = await fetch(
               `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
             );
-            const body = (await res.json().catch(() => ({}))) as { paid?: boolean };
+            const body = (await res.json().catch(() => ({}))) as {
+              paid?: boolean;
+            };
             if (res.ok && body.paid === true) {
               paid = true;
               break;
@@ -268,7 +275,9 @@ export function KioskApp({ slug }: { slug: string }) {
           }
           setCart([]);
           setStep('menu');
-          toast.success('Payment received. Your order was sent to the kitchen.');
+          toast.success(
+            'Payment received. Your order was sent to the kitchen.'
+          );
         } else {
           toast.info('Payment is processing. Your order will sync shortly.');
         }
@@ -349,19 +358,17 @@ export function KioskApp({ slug }: { slug: string }) {
         const it = o.offeredItem;
         if (!it?.id) continue;
         const full = allProducts.find((x) => x.id === it.id);
-        const candidate: CustomerMenuProduct =
-          full ??
-          {
-            id: it.id,
-            name: it.name,
-            description: it.description ?? null,
-            imageUrl: it.imageUrl ?? null,
-            price: it.price,
-            salePrice: it.salePrice ?? null,
-            categoryId: p.categoryId,
-            attributeGroups: [],
-            offersFromThis: undefined,
-          };
+        const candidate: CustomerMenuProduct = full ?? {
+          id: it.id,
+          name: it.name,
+          description: it.description ?? null,
+          imageUrl: it.imageUrl ?? null,
+          price: it.price,
+          salePrice: it.salePrice ?? null,
+          categoryId: p.categoryId,
+          attributeGroups: [],
+          offersFromThis: undefined,
+        };
         if (!byId.has(candidate.id)) byId.set(candidate.id, candidate);
       }
     }
@@ -512,19 +519,18 @@ export function KioskApp({ slug }: { slug: string }) {
         productName: cartLineDisplayName(line),
         modifiers: line.modifiers,
       }));
-      const res = await axios.post<{ data: { orderId: string; ticketNumber?: number | null } }>(
-        '/api/kiosk/orders',
-        {
-          restaurantSlug: slug,
-          fulfillment,
-          lines,
-          subtotal: cartSubtotal,
-          total: cartSubtotal,
-          cookingNote: cookingNote.trim() || undefined,
-          customerName: customerName.trim() || undefined,
-          customerPhone: customerPhone.trim() || undefined,
-        }
-      );
+      const res = await axios.post<{
+        data: { orderId: string; ticketNumber?: number | null };
+      }>('/api/kiosk/orders', {
+        restaurantSlug: slug,
+        fulfillment,
+        lines,
+        subtotal: cartSubtotal,
+        total: cartSubtotal,
+        cookingNote: cookingNote.trim() || undefined,
+        customerName: customerName.trim() || undefined,
+        customerPhone: customerPhone.trim() || undefined,
+      });
       const placedId = res.data.data.orderId;
       const ticketNumber = res.data.data.ticketNumber ?? null;
       setLastOrderId(placedId);
@@ -537,7 +543,9 @@ export function KioskApp({ slug }: { slug: string }) {
       toast.success('Order placed');
       window.location.assign(
         `/kiosk/${encodeURIComponent(slug)}/success?orderId=${encodeURIComponent(placedId)}${
-          ticketNumber != null ? `&ticket=${encodeURIComponent(String(ticketNumber))}` : ''
+          ticketNumber != null
+            ? `&ticket=${encodeURIComponent(String(ticketNumber))}`
+            : ''
         }`
       );
     } catch (e: unknown) {
@@ -577,10 +585,7 @@ export function KioskApp({ slug }: { slug: string }) {
       };
       const preOrder = await axios.post<{
         data?: { orderId?: string; ticketNumber?: number | null };
-      }>(
-        '/api/kiosk/orders',
-        orderPayload
-      );
+      }>('/api/kiosk/orders', orderPayload);
       const createdOrderId = preOrder.data?.data?.orderId;
       const createdTicketNumber = preOrder.data?.data?.ticketNumber ?? null;
       if (!createdOrderId) {
@@ -619,7 +624,9 @@ export function KioskApp({ slug }: { slug: string }) {
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: unknown } } };
       const msg = err.response?.data?.error;
-      toast.error(typeof msg === 'string' ? msg : 'Could not start Stripe payment.');
+      toast.error(
+        typeof msg === 'string' ? msg : 'Could not start Stripe payment.'
+      );
       setPlacing(false);
     }
   };
@@ -662,7 +669,7 @@ export function KioskApp({ slug }: { slug: string }) {
             {p.name}
           </h3>
           <div className="mt-1 flex items-baseline gap-2">
-            <span className="text-sm font-bold text-[#c2410c]">
+            <span className="text-sm font-bold text-primary">
               €{formatMoney(unit)}
             </span>
             {showStrike ? (
@@ -699,7 +706,7 @@ export function KioskApp({ slug }: { slug: string }) {
             ) : (
               <Button
                 type="button"
-                className="w-full bg-[#ea580c] font-semibold text-white hover:bg-[#c2410c]"
+                className="w-full bg-primary font-semibold text-primary-foreground hover:brightness-95"
                 onClick={() => onProductTap(p)}
               >
                 ADD
@@ -756,9 +763,15 @@ export function KioskApp({ slug }: { slug: string }) {
 
   const bannerSrc = menu.mainBannerUrl?.trim() ?? '';
   const hasBanner = Boolean(bannerSrc);
+  const kioskThemeVars = buildThemeCssVars(
+    menu.themePrimaryColor
+  ) as CSSProperties;
 
   return (
-    <div className="relative flex min-h-screen flex-1 flex-col text-[#0f172a]">
+    <div
+      className="relative flex min-h-screen flex-1 flex-col text-[#0f172a]"
+      style={kioskThemeVars}
+    >
       <div
         className={cn(
           'relative z-10 flex min-h-screen flex-1 flex-col',
@@ -784,7 +797,7 @@ export function KioskApp({ slug }: { slug: string }) {
                     {' · '}
                     <button
                       type="button"
-                      className="text-[#c2410c] underline-offset-2 hover:underline"
+                      className="text-primary underline-offset-2 hover:underline"
                       onClick={() => {
                         setFulfillment(null);
                         setStep('mode');
@@ -843,7 +856,7 @@ export function KioskApp({ slug }: { slug: string }) {
                   setFulfillment('dine_in');
                   setStep('menu');
                 }}
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-orange-400/40 bg-gradient-to-b from-orange-500 to-amber-600 p-8 text-white shadow-lg transition hover:opacity-95"
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-primary bg-gradient-to-b from-primary to-primary/90 p-8 text-white shadow-lg transition hover:opacity-95"
               >
                 <UtensilsCrossed className="h-10 w-10" />
                 <span className="font-semibold">Dine in</span>
@@ -854,7 +867,7 @@ export function KioskApp({ slug }: { slug: string }) {
                   setFulfillment('take_away');
                   setStep('menu');
                 }}
-                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-orange-400/40 bg-gradient-to-b from-orange-500 to-amber-600 p-8 text-white shadow-lg transition hover:opacity-95"
+                className="flex flex-col items-center gap-3 rounded-2xl border-2 border-primary bg-gradient-to-b from-primary to-primary/90 p-8 text-white shadow-lg transition hover:opacity-95"
               >
                 <ShoppingBag className="h-10 w-10" />
                 <span className="font-semibold">Take away</span>
@@ -875,7 +888,7 @@ export function KioskApp({ slug }: { slug: string }) {
                       className={cn(
                         'rounded-lg px-2 py-2 text-left text-xs font-medium transition',
                         categoryId === 'all'
-                          ? 'bg-[#ea580c] text-white'
+                          ? 'bg-primary text-primary-foreground'
                           : 'hover:bg-[#f1f5f9]'
                       )}
                     >
@@ -892,7 +905,7 @@ export function KioskApp({ slug }: { slug: string }) {
                           className={cn(
                             'rounded-lg px-2 py-2 text-left text-xs transition',
                             categoryId === c.id
-                              ? 'bg-[#ea580c] text-white'
+                              ? 'bg-primary text-primary-foreground'
                               : 'hover:bg-[#f1f5f9]'
                           )}
                         >
@@ -965,7 +978,7 @@ export function KioskApp({ slug }: { slug: string }) {
               </main>
             </div>
 
-            <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-[#c2410c] bg-[#ea580c] px-4 py-3 text-white shadow-[0_-4px_20px_rgba(0,0,0,0.12)]">
+            <div className="fixed bottom-0 left-0 right-0 z-30 border-t border-primary bg-primary px-4 py-3 text-primary-foreground shadow-[0_-4px_20px_rgba(0,0,0,0.12)]">
               <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
                 <div className="min-w-0 flex-1">
                   <p className="text-lg font-bold tabular-nums">
@@ -975,7 +988,9 @@ export function KioskApp({ slug }: { slug: string }) {
                   {cart.length > 0 ? (
                     <p
                       className="mt-1 line-clamp-2 text-[11px] leading-snug opacity-95"
-                      title={cart.map((l) => `${l.quantity}× ${cartLineDisplayName(l)}`).join(' · ')}
+                      title={cart
+                        .map((l) => `${l.quantity}× ${cartLineDisplayName(l)}`)
+                        .join(' · ')}
                     >
                       {cartSummaryLines(cart, 4).join(' · ')}
                       {cart.length > 4 ? ` · +${cart.length - 4} more` : ''}
@@ -985,7 +1000,7 @@ export function KioskApp({ slug }: { slug: string }) {
                 <Button
                   type="button"
                   variant="secondary"
-                  className="border-0 bg-white font-semibold text-[#c2410c] hover:bg-[#fff7ed]"
+                  className="border-0 bg-white font-semibold text-primary hover:bg-[#fff7ed]"
                   disabled={cartCount === 0}
                   onClick={() => setStep('cart')}
                 >
@@ -1109,7 +1124,7 @@ export function KioskApp({ slug }: { slug: string }) {
                 />
                 <Button
                   type="button"
-                  className="w-full bg-[#ea580c] py-6 text-base font-semibold text-white hover:bg-[#c2410c]"
+                  className="w-full bg-primary py-6 text-base font-semibold text-primary-foreground hover:brightness-95"
                   onClick={() => setStep('checkout')}
                 >
                   Checkout
@@ -1179,7 +1194,7 @@ export function KioskApp({ slug }: { slug: string }) {
               </Button>
               <Button
                 type="button"
-                className="flex-1 bg-[#ea580c] font-semibold text-white hover:bg-[#c2410c]"
+                className="flex-1 bg-primary font-semibold text-primary-foreground hover:brightness-95"
                 disabled={placing || cart.length === 0}
                 onClick={() => void startStripePayment()}
               >
@@ -1191,7 +1206,7 @@ export function KioskApp({ slug }: { slug: string }) {
 
         {step === 'done' && (
           <div className="mx-auto flex max-w-lg flex-1 flex-col items-center justify-center gap-6 px-6 py-16 text-center">
-            <div className="rounded-full bg-[#fff7ed] p-6 text-[#c2410c]">
+            <div className="rounded-full bg-[#fff7ed] p-6 text-primary">
               <ShoppingBag className="h-12 w-12" />
             </div>
             <div>
@@ -1207,7 +1222,9 @@ export function KioskApp({ slug }: { slug: string }) {
                       <>
                         {' '}
                         · Ticket:{' '}
-                        <span className="font-mono text-xs">#{lastTicketNumber}</span>
+                        <span className="font-mono text-xs">
+                          #{lastTicketNumber}
+                        </span>
                       </>
                     ) : null}
                   </>
@@ -1216,7 +1233,7 @@ export function KioskApp({ slug }: { slug: string }) {
             </div>
             <Button
               type="button"
-              className="bg-[#ea580c] px-8 text-white hover:bg-[#c2410c]"
+              className="bg-primary px-8 text-primary-foreground hover:brightness-95"
               onClick={startOver}
             >
               New order
@@ -1228,18 +1245,18 @@ export function KioskApp({ slug }: { slug: string }) {
           productName={customizeProduct?.name ?? ''}
           productImageUrl={customizeProduct?.imageUrl ?? null}
           attributeGroups={attributeGroupsForDialog}
-        variations={(customizeProduct?.variations ?? []).map((v) => ({
-          id: v.id,
-          name: v.name ?? v.title ?? 'Variation',
-          swatchHex: v.swatchHex,
-          priceDelta: v.priceDelta,
-        }))}
+          variations={(customizeProduct?.variations ?? []).map((v) => ({
+            id: v.id,
+            name: v.name ?? v.title ?? 'Variation',
+            swatchHex: v.swatchHex,
+            priceDelta: v.priceDelta,
+          }))}
           open={dialogOpen}
           onOpenChange={(open) => {
             setDialogOpen(open);
             if (!open) setCustomizeProduct(null);
           }}
-        onConfirm={(mods, variation) => {
+          onConfirm={(mods, variation) => {
             if (!customizeProduct) return;
             const mapped: CartModifierSelection[] = mods.map((m) => ({
               attributeGroupId: m.attributeGroupId,
@@ -1250,7 +1267,7 @@ export function KioskApp({ slug }: { slug: string }) {
                 unitPrice: s.unitPrice,
               })),
             }));
-          addToCart(customizeProduct, mapped, variation ?? null);
+            addToCart(customizeProduct, mapped, variation ?? null);
             setDialogOpen(false);
             setCustomizeProduct(null);
           }}

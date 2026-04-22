@@ -1,15 +1,18 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import type { CSSProperties } from 'react';
 
 import { HeroSection } from '@/components/customer-app/hero-section';
 import { Sidebar } from '@/components/customer-app/sidebar';
 import { StoreMenu } from '@/components/customer-app/store-menu';
+import { buildThemeCssVars } from '@/lib/restaurant-theme';
 
 export function WebAppStorefront({ slug }: { slug: string }) {
   const [restaurantName, setRestaurantName] = useState<string | null>(null);
   const [mainBannerUrl, setMainBannerUrl] = useState<string | null>(null);
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [themePrimaryColor, setThemePrimaryColor] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -24,6 +27,7 @@ export function WebAppStorefront({ slug }: { slug: string }) {
               name?: string;
               mainBannerUrl?: string | null;
               logoUrl?: string | null;
+              themePrimaryColor?: string | null;
             }
           | null
           | undefined;
@@ -31,12 +35,18 @@ export function WebAppStorefront({ slug }: { slug: string }) {
         const name = data?.name;
         const banner = data?.mainBannerUrl;
         const logo = data?.logoUrl;
+        const themePrimary = data?.themePrimaryColor;
         if (name) setRestaurantName(name);
         setMainBannerUrl(
           typeof banner === 'string' && banner.trim() ? banner.trim() : null
         );
         setLogoUrl(
           typeof logo === 'string' && logo.trim() ? logo.trim() : null
+        );
+        setThemePrimaryColor(
+          typeof themePrimary === 'string' && themePrimary.trim()
+            ? themePrimary.trim()
+            : null
         );
       } catch {
         /* hero falls back to slug */
@@ -57,9 +67,13 @@ export function WebAppStorefront({ slug }: { slug: string }) {
 
   const bannerSrc = mainBannerUrl?.trim() ?? '';
   const hasBanner = Boolean(bannerSrc);
+  const themeVars = buildThemeCssVars(themePrimaryColor) as CSSProperties;
 
   return (
-    <div className="relative isolate flex min-h-[100dvh] w-full flex-1 flex-col">
+    <div
+      className="relative isolate flex min-h-[100dvh] w-full flex-1 flex-col"
+      style={themeVars}
+    >
       {hasBanner ? (
         <>
           {/* `<img>` is more reliable than CSS `background-image` for arbitrary CDN URLs + flex height. */}

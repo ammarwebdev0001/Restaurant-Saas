@@ -6,6 +6,7 @@ import { getAppSession } from "@/lib/auth/app-session";
 import { db } from "@/lib/db";
 import { ensurePresetRolesAndOwnerEmployee } from "@/lib/restaurant-roles";
 import { getRestaurantForUser } from "@/lib/restaurant-owner";
+import { normalizeThemePrimaryColor } from "@/lib/restaurant-theme";
 
 function assertHttpUrl(label: string, raw: string, ctx: z.RefinementCtx, path: (string | number)[]) {
   const t = raw.trim();
@@ -33,6 +34,7 @@ const brandingPatchSchema = z
     logoUrl: z.string().max(4096).optional(),
     mainBannerUrl: z.string().max(4096).optional(),
     menuBannerUrls: z.array(z.string().max(4096)).max(20).optional(),
+    themePrimaryColor: z.string().max(32).optional(),
   })
   .strict()
   .superRefine((val, ctx) => {
@@ -46,6 +48,16 @@ const brandingPatchSchema = z
       val.menuBannerUrls.forEach((line, i) => {
         assertHttpUrl("Menu banner URL", line, ctx, ["menuBannerUrls", i]);
       });
+    }
+    if (val.themePrimaryColor !== undefined) {
+      const normalized = normalizeThemePrimaryColor(val.themePrimaryColor);
+      if (val.themePrimaryColor.trim() !== "" && !normalized) {
+        ctx.addIssue({
+          code: "custom",
+          message: "Theme primary color must be a hex color like #ea580c",
+          path: ["themePrimaryColor"],
+        });
+      }
     }
   });
 
@@ -78,6 +90,7 @@ export async function GET(_req: NextRequest) {
         logoUrl: true,
         mainBannerUrl: true,
         menuBannerUrls: true,
+        themePrimaryColor: true,
         subdomain: true,
         slug: true,
         ownerId: true,
@@ -128,11 +141,12 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
-    const { logoUrl, mainBannerUrl, menuBannerUrls } = parsed.data;
+    const { logoUrl, mainBannerUrl, menuBannerUrls, themePrimaryColor } = parsed.data;
     if (
       logoUrl === undefined &&
       mainBannerUrl === undefined &&
-      menuBannerUrls === undefined
+      menuBannerUrls === undefined &&
+      themePrimaryColor === undefined
     ) {
       return NextResponse.json(
         { error: "No fields to update." },
@@ -144,6 +158,7 @@ export async function PATCH(req: NextRequest) {
       logoUrl?: string | null;
       mainBannerUrl?: string | null;
       menuBannerUrls?: string[];
+      themePrimaryColor?: string | null;
     } = {};
 
     if (logoUrl !== undefined) {
@@ -158,6 +173,10 @@ export async function PATCH(req: NextRequest) {
         .map((s) => s.trim())
         .filter((s) => s.length > 0);
     }
+    if (themePrimaryColor !== undefined) {
+      const normalized = normalizeThemePrimaryColor(themePrimaryColor);
+      data.themePrimaryColor = normalized ?? null;
+    }
 
     const updated = await db.restaurant.update({
       where: { id: restaurant.id },
@@ -168,6 +187,7 @@ export async function PATCH(req: NextRequest) {
         logoUrl: true,
         mainBannerUrl: true,
         menuBannerUrls: true,
+        themePrimaryColor: true,
         subdomain: true,
         slug: true,
         ownerId: true,
