@@ -6,11 +6,13 @@ import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import type { MenuCategoryRow } from './types';
+import { Base64ImageUploadField } from '@/components/ui/base64-image-upload';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { isAcceptedImageValue } from '@/lib/image-data-url';
 
 type SwatchRow = {
   id?: string;
@@ -95,8 +97,8 @@ export function SwatchesModule({ categories, onRefresh }: Props) {
       toast.error('Every swatch price must be a valid number.');
       return;
     }
-    if (variations.some((v) => v.imageUrl && !/^https?:\/\//i.test(v.imageUrl))) {
-      toast.error('Swatch image must be a valid http/https URL.');
+    if (variations.some((v) => v.imageUrl && !isAcceptedImageValue(v.imageUrl))) {
+      toast.error('Swatch image must be a valid URL or base64 image.');
       return;
     }
 
@@ -176,14 +178,11 @@ export function SwatchesModule({ categories, onRefresh }: Props) {
                         placeholder="0"
                       />
                     </div>
-                    <div className="grid gap-1">
-                      <Label>Image URL</Label>
-                      <Input
-                        value={row.imageUrl}
-                        onChange={(e) => updateRow(index, { imageUrl: e.target.value })}
-                        placeholder="https://..."
-                      />
-                    </div>
+                    <Base64ImageUploadField
+                      label="Image"
+                      value={row.imageUrl}
+                      onChange={(v) => updateRow(index, { imageUrl: v })}
+                    />
                     <div className="flex items-end">
                       <Button
                         type="button"

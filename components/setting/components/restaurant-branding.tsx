@@ -5,6 +5,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
+import { Base64ImageUploadField } from '@/components/ui/base64-image-upload';
 import {
   Card,
   CardContent,
@@ -15,7 +16,6 @@ import {
 } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
 import { normalizeThemePrimaryColor } from '@/lib/restaurant-theme';
 
 type RestaurantBrandingDto = {
@@ -154,17 +154,12 @@ export function RestaurantBrandingCard() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="restaurant-logo-url">Logo URL</Label>
-          <Input
-            id="restaurant-logo-url"
-            type="url"
-            placeholder="https://…"
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            autoComplete="off"
-          />
-        </div>
+        <Base64ImageUploadField
+          label="Logo"
+          value={logoUrl}
+          onChange={setLogoUrl}
+          helperText="Upload button stores base64 image directly in database."
+        />
         <div className="space-y-2">
           <Label htmlFor="restaurant-theme-primary-color">Theme primary color</Label>
           <div className="flex flex-wrap items-center gap-3">
@@ -189,14 +184,10 @@ export function RestaurantBrandingCard() {
           </p>
         </div>
         <div className="space-y-2">
-          <Label htmlFor="restaurant-main-banner-url">Main banner URL</Label>
-          <Input
-            id="restaurant-main-banner-url"
-            type="url"
-            placeholder="https://…"
+          <Base64ImageUploadField
+            label="Main banner"
             value={mainBannerUrl}
-            onChange={(e) => setMainBannerUrl(e.target.value)}
-            autoComplete="off"
+            onChange={setMainBannerUrl}
           />
           <p className="text-xs text-muted-foreground">
             Shown as the large background on the web ordering page.

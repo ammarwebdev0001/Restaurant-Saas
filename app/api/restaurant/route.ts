@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { getAppSession } from "@/lib/auth/app-session";
 import { db } from "@/lib/db";
+import { estimateDataUrlBytes, isAcceptedImageValue } from "@/lib/image-data-url";
 import { ensurePresetRolesAndOwnerEmployee } from "@/lib/restaurant-roles";
 import { getRestaurantForUser } from "@/lib/restaurant-owner";
 import { normalizeThemePrimaryColor } from "@/lib/restaurant-theme";
@@ -11,29 +12,31 @@ import { normalizeThemePrimaryColor } from "@/lib/restaurant-theme";
 function assertHttpUrl(label: string, raw: string, ctx: z.RefinementCtx, path: (string | number)[]) {
   const t = raw.trim();
   if (!t) return;
-  try {
-    const u = new URL(t);
-    if (u.protocol !== "http:" && u.protocol !== "https:") {
+  if (!isAcceptedImageValue(t)) {
+    ctx.addIssue({
+      code: "custom",
+      message: `${label} must be an http/https URL or base64 image`,
+      path,
+    });
+    return;
+  }
+  if (t.startsWith("data:image/")) {
+    const bytes = estimateDataUrlBytes(t);
+    if (bytes > 2 * 1024 * 1024) {
       ctx.addIssue({
         code: "custom",
-        message: `${label} must use http or https`,
+        message: `${label} base64 image must be <= 2MB`,
         path,
       });
     }
-  } catch {
-    ctx.addIssue({
-      code: "custom",
-      message: `${label} is not a valid URL`,
-      path,
-    });
   }
 }
 
 const brandingPatchSchema = z
   .object({
-    logoUrl: z.string().max(4096).optional(),
-    mainBannerUrl: z.string().max(4096).optional(),
-    menuBannerUrls: z.array(z.string().max(4096)).max(20).optional(),
+    logoUrl: z.string().max(2_800_000).optional(),
+    mainBannerUrl: z.string().max(2_800_000).optional(),
+    menuBannerUrls: z.array(z.string().max(2_800_000)).max(20).optional(),
     themePrimaryColor: z.string().max(32).optional(),
   })
   .strict()

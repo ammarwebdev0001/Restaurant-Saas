@@ -18,8 +18,14 @@ export function Header() {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const queryRestaurantSlug =
-    searchParams.get('restaurantSlug') ?? searchParams.get('slug') ?? undefined;
-  const pathSlug = pathname?.match(/^\/web-app\/([^/]+)/)?.[1] ?? undefined;
+    searchParams.get('restaurantSlug')?.trim() ||
+    searchParams.get('slug')?.trim() ||
+    undefined;
+  const pathSlugRaw = pathname?.match(/^\/web-app\/([^/]+)/)?.[1] ?? undefined;
+  const pathSlug =
+    pathSlugRaw && pathSlugRaw !== 'order' && pathSlugRaw !== 'track-order'
+      ? decodeURIComponent(pathSlugRaw)
+      : undefined;
   const slugForApi = queryRestaurantSlug ?? pathSlug;
 
   const [brand, setBrand] = useState<RestaurantBrand>({
@@ -66,7 +72,10 @@ export function Header() {
         if (!r) return;
         setBrand({
           name: r?.name ?? 'Restaurant',
-          logoUrl: r?.logoUrl ?? null,
+          logoUrl:
+            typeof r?.logoUrl === 'string' && r.logoUrl.trim().length > 0
+              ? r.logoUrl.trim()
+              : null,
           themePrimaryColor: r?.themePrimaryColor ?? null,
         });
         setLogoLoadFailed(false);
@@ -86,14 +95,20 @@ export function Header() {
     Object.entries(vars).forEach(([key, value]) => host.style.setProperty(key, value));
   }, [brand.themePrimaryColor]);
 
+  const normalizedLogoUrl =
+    typeof brand.logoUrl === 'string' && brand.logoUrl.trim().length > 0
+      ? brand.logoUrl.trim()
+      : null;
+
   return (
     <header className="border-b border-primary bg-primary px-6 py-4 text-primary-foreground backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/40">
-            {brand.logoUrl && !logoLoadFailed ? (
+            {normalizedLogoUrl && !logoLoadFailed ? (
               <img
-                src={brand.logoUrl}
+                key={normalizedLogoUrl}
+                src={normalizedLogoUrl}
                 alt={brand.name ?? 'Restaurant'}
                 className="h-full w-full object-cover"
                 onError={() => setLogoLoadFailed(true)}

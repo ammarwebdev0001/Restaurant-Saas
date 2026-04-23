@@ -7,6 +7,7 @@ import { toast } from 'react-toastify';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { Base64ImageUploadField } from '@/components/ui/base64-image-upload';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeleteConfirmation, SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 import { Input } from '@/components/ui/input';
@@ -261,14 +262,12 @@ export function ProductsTab({ categories, onRefresh }: Props) {
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
               />
             </div>
-            <div className="grid gap-2">
-              <Label>Photo URL</Label>
-              <Input
-                placeholder="https://..."
-                value={form.imageUrl}
-                onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))}
-              />
-            </div>
+            <Base64ImageUploadField
+              label="Photo"
+              value={form.imageUrl}
+              onChange={(v) => setForm((f) => ({ ...f, imageUrl: v }))}
+              helperText="Upload image stores base64 directly in database."
+            />
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <Label>Price (€)</Label>

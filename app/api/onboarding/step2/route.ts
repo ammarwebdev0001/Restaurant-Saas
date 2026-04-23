@@ -4,14 +4,39 @@ import { z } from "zod";
 
 import { legacyRoleFromAccountRole } from "@/lib/auth/account-role";
 import { db } from "@/lib/db";
+import { estimateDataUrlBytes, isAcceptedImageValue } from "@/lib/image-data-url";
 import { getSessionEmail } from "@/lib/onboarding/auth";
 
-const bodySchema = z.object({
-  restaurantId: z.string().min(1),
-  logoUrl: z.string().url().optional().or(z.literal("")),
-  mainBannerUrl: z.string().url().optional().or(z.literal("")),
-  menuBannerUrls: z.array(z.string().url()).max(20).optional(),
-});
+const bodySchema = z
+  .object({
+    restaurantId: z.string().min(1),
+    logoUrl: z.string().max(2_800_000).optional().or(z.literal("")),
+    mainBannerUrl: z.string().max(2_800_000).optional().or(z.literal("")),
+    menuBannerUrls: z.array(z.string().max(2_800_000)).max(20).optional(),
+  })
+  .superRefine((val, ctx) => {
+    const check = (label: string, v: string | undefined, path: (string | number)[]) => {
+      if (!v || !v.trim()) return;
+      if (!isAcceptedImageValue(v)) {
+        ctx.addIssue({
+          code: "custom",
+          message: `${label} must be an http/https URL or base64 image`,
+          path,
+        });
+        return;
+      }
+      if (v.startsWith("data:image/") && estimateDataUrlBytes(v) > 2 * 1024 * 1024) {
+        ctx.addIssue({
+          code: "custom",
+          message: `${label} base64 image must be <= 2MB`,
+          path,
+        });
+      }
+    };
+    check("Logo", val.logoUrl, ["logoUrl"]);
+    check("Main banner", val.mainBannerUrl, ["mainBannerUrl"]);
+    (val.menuBannerUrls ?? []).forEach((u, i) => check("Menu banner", u, ["menuBannerUrls", i]));
+  });
 
 export async function PATCH(req: NextRequest) {
   const email = await getSessionEmail(req);

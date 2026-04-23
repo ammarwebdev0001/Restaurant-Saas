@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
+import { Base64ImageUploadField } from "@/components/ui/base64-image-upload";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getOnboardingRestaurantId } from "@/lib/onboarding/storage";
@@ -109,26 +110,17 @@ export default function OnboardingStep2Page() {
       </p>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="logoUrl">Logo URL</Label>
-          <Input
-            id="logoUrl"
-            type="url"
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-            placeholder="https://…"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="mainBannerUrl">Main banner URL (optional)</Label>
-          <Input
-            id="mainBannerUrl"
-            type="url"
-            value={mainBannerUrl}
-            onChange={(e) => setMainBannerUrl(e.target.value)}
-            placeholder="https://…"
-          />
-        </div>
+        <Base64ImageUploadField
+          label="Logo"
+          value={logoUrl}
+          onChange={setLogoUrl}
+          helperText="You can upload an image file (saved as base64) or paste URL."
+        />
+        <Base64ImageUploadField
+          label="Main banner (optional)"
+          value={mainBannerUrl}
+          onChange={setMainBannerUrl}
+        />
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <Label>Menu banners</Label>
@@ -143,11 +135,10 @@ export default function OnboardingStep2Page() {
           </div>
           {menuBanners.map((url, i) => (
             <div key={i} className="flex gap-2">
-              <Input
-                type="url"
+              <Base64ImageUploadField
+                label={`Menu banner ${i + 1}`}
                 value={url}
-                onChange={(e) => setMenuBanner(i, e.target.value)}
-                placeholder={`Menu banner ${i + 1} URL`}
+                onChange={(v) => setMenuBanner(i, v)}
               />
               {menuBanners.length > 1 && (
                 <Button
