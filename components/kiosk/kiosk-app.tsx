@@ -1244,6 +1244,16 @@ export function KioskApp({ slug }: { slug: string }) {
         <ProductCustomizeDialog
           productName={customizeProduct?.name ?? ''}
           productImageUrl={customizeProduct?.imageUrl ?? null}
+          productDescription={customizeProduct?.description ?? null}
+          themePrimaryColor={menu?.themePrimaryColor ?? null}
+          productBaseUnitPrice={
+            customizeProduct
+              ? effectiveUnitPrice(
+                  customizeProduct.price,
+                  customizeProduct.salePrice
+                )
+              : 0
+          }
           attributeGroups={attributeGroupsForDialog}
           variations={(customizeProduct?.variations ?? []).map((v) => ({
             id: v.id,
@@ -1256,7 +1266,7 @@ export function KioskApp({ slug }: { slug: string }) {
             setDialogOpen(open);
             if (!open) setCustomizeProduct(null);
           }}
-          onConfirm={(mods, variation) => {
+          onConfirm={(mods, variation, quantity = 1) => {
             if (!customizeProduct) return;
             const mapped: CartModifierSelection[] = mods.map((m) => ({
               attributeGroupId: m.attributeGroupId,
@@ -1267,7 +1277,10 @@ export function KioskApp({ slug }: { slug: string }) {
                 unitPrice: s.unitPrice,
               })),
             }));
-            addToCart(customizeProduct, mapped, variation ?? null);
+            const times = Math.max(1, Math.floor(quantity));
+            for (let i = 0; i < times; i += 1) {
+              addToCart(customizeProduct, mapped, variation ?? null);
+            }
             setDialogOpen(false);
             setCustomizeProduct(null);
           }}

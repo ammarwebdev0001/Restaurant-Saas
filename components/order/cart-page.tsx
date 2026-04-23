@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconMinus, IconPlus, IconTrash } from '@tabler/icons-react';
 
@@ -20,6 +20,7 @@ import {
   inferHostSubdomainForMenu,
 } from '@/lib/customer-menu-client';
 import { orderPathWithQuery } from '@/lib/order-search-params';
+import { buildThemeCssVars } from '@/lib/restaurant-theme';
 
 type CartModifierSelection = {
   attributeGroupId: string;
@@ -158,6 +159,7 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
   const [cart, setCart] = useState<CartLine[]>([]);
   const [menuRestaurant, setMenuRestaurant] = useState<CustomerMenuRestaurant | null>(null);
   const [offersOpen, setOffersOpen] = useState(false);
+  const [themePrimaryColor, setThemePrimaryColor] = useState<string | null>(null);
   const router = useRouter();
 
   useEffect(() => {
@@ -225,6 +227,55 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
       setOffersOpen(true);
     }
   }, [offeredProducts.length]);
+
+  useEffect(() => {
+    const loadTheme = async () => {
+      try {
+        const slug = orderInfo?.restaurantSlug?.trim();
+        const store = orderInfo?.storeId?.trim();
+        const subdomain = inferHostSubdomainForMenu();
+        const lookup = slug
+          ? `/api/customer/restaurant?slug=${encodeURIComponent(slug)}`
+          : store || subdomain
+            ? `/api/customer/restaurant?subdomain=${encodeURIComponent(
+                store || subdomain || ''
+              )}`
+            : null;
+        if (!lookup) return;
+        const res = await fetch(lookup);
+        if (!res.ok) return;
+        const json = await res.json().catch(() => ({}));
+        const c =
+          typeof json?.data?.themePrimaryColor === 'string'
+            ? json.data.themePrimaryColor.trim()
+            : '';
+        setThemePrimaryColor(c || null);
+      } catch {
+        // noop
+      }
+    };
+    void loadTheme();
+  }, [orderInfo?.restaurantSlug, orderInfo?.storeId]);
+
+  const offersDialogVars = useMemo(() => {
+    const primaryVars = buildThemeCssVars(themePrimaryColor);
+    return {
+      ...primaryVars,
+      '--background': 'oklch(0.9383 0.0042 236.4993)',
+      '--foreground': 'oklch(0.3211 0 0)',
+      '--card': 'oklch(1 0 0)',
+      '--card-foreground': 'oklch(0.3211 0 0)',
+      '--popover': 'oklch(1 0 0)',
+      '--popover-foreground': 'oklch(0.3211 0 0)',
+      '--secondary': 'oklch(0.967 0.0029 264.5419)',
+      '--secondary-foreground': 'oklch(0.4461 0.0263 256.8018)',
+      '--muted': 'oklch(0.9846 0.0017 247.8389)',
+      '--muted-foreground': 'oklch(0.551 0.0234 264.3637)',
+      '--border': 'oklch(0.9022 0.0052 247.8822)',
+      '--input': 'oklch(0.97 0.0029 264.542)',
+      colorScheme: 'light',
+    } as CSSProperties;
+  }, [themePrimaryColor]);
 
   useEffect(() => {
     const loadMenu = async () => {
@@ -455,7 +506,10 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
       </div>
 
       <Dialog open={offersOpen} onOpenChange={setOffersOpen}>
-        <DialogContent>
+        <DialogContent
+          className="border-border bg-background text-foreground"
+          style={offersDialogVars}
+        >
           <DialogHeader>
             <DialogTitle>Recommended add-ons</DialogTitle>
           </DialogHeader>

@@ -338,6 +338,7 @@ export default function OrderPageClient({
   const [mounted, setMounted] = useState(false);
 
   const [menuLoading, setMenuLoading] = useState(false);
+  const [themePrimaryColor, setThemePrimaryColor] = useState<string | null>(null);
 
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [customizeProduct, setCustomizeProduct] =
@@ -427,6 +428,11 @@ export default function OrderPageClient({
         const res = await fetch(restaurantUrl);
         if (!res.ok) return;
         const json = await res.json().catch(() => ({}));
+        const themeColor =
+          typeof json?.data?.themePrimaryColor === 'string'
+            ? json.data.themePrimaryColor.trim()
+            : '';
+        setThemePrimaryColor(themeColor || null);
         const urls = Array.isArray(json?.data?.menuBannerUrls)
           ? (json.data.menuBannerUrls as string[]).filter(
               (u) => typeof u === 'string' && u.trim() !== ''
@@ -984,6 +990,16 @@ export default function OrderPageClient({
         onOpenChange={setCustomizeOpen}
         productName={customizeProduct?.name ?? 'Product'}
         productImageUrl={customizeProduct?.imageUrl ?? null}
+        productDescription={customizeProduct?.description ?? null}
+        themePrimaryColor={themePrimaryColor}
+        productBaseUnitPrice={
+          customizeProduct
+            ? effectiveUnitPrice(
+                customizeProduct.price,
+                customizeProduct.salePrice
+              )
+            : 0
+        }
         attributeGroups={attributeGroupsForDialog}
         variations={(customizeProduct?.variations ?? []).map((v) => ({
           id: v.id,
@@ -991,7 +1007,7 @@ export default function OrderPageClient({
           swatchHex: v.swatchHex ?? null,
           priceDelta: v.priceDelta,
         }))}
-        onConfirm={(mods, variation) => {
+        onConfirm={(mods, variation, quantity = 1) => {
           if (!customizeProduct) return;
 
           const cartMods: CartModifierSelection[] = mods.map((m) => ({
@@ -1004,7 +1020,10 @@ export default function OrderPageClient({
             })),
           }));
 
-          addToCart(customizeProduct, cartMods, variation ?? null);
+          const times = Math.max(1, Math.floor(quantity));
+          for (let i = 0; i < times; i += 1) {
+            addToCart(customizeProduct, cartMods, variation ?? null);
+          }
           setCustomizeOpen(false);
           setCustomizeProduct(null);
         }}

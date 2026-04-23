@@ -49,6 +49,10 @@ export function KdsManagerBoard() {
     string | null
   >(null);
   const [activeSubmitCount, setActiveSubmitCount] = useState(0);
+  const [activeCancelOrderId, setActiveCancelOrderId] = useState<string | null>(
+    null
+  );
+  const [activeCancelCount, setActiveCancelCount] = useState(0);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -118,6 +122,36 @@ export function KdsManagerBoard() {
         const next = Math.max(0, prev - 1);
         if (next === 0) {
           setActiveSubmittingOrderId(null);
+        }
+        return next;
+      });
+    }
+  }
+
+  async function cancelOrder(orderId: string) {
+    setActiveCancelCount((prev) => prev + 1);
+    setActiveCancelOrderId(orderId);
+    try {
+      const res = await fetch(
+        `/api/restaurant/kds/manager-orders/${encodeURIComponent(orderId)}`,
+        {
+          method: 'PATCH',
+        }
+      );
+      if (!res.ok) {
+        const body = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(body.error || 'Failed to cancel');
+      }
+      toast.success('Order canceled');
+      await load();
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : 'Could not cancel order';
+      toast.error(msg);
+    } finally {
+      setActiveCancelCount((prev) => {
+        const next = Math.max(0, prev - 1);
+        if (next === 0) {
+          setActiveCancelOrderId(null);
         }
         return next;
       });
@@ -259,21 +293,41 @@ export function KdsManagerBoard() {
                   </div>
                 </div>
 
-                <Button
-                  className="w-full"
-                  type="button"
-                  disabled={
-                    (activeSubmitCount > 0 &&
-                      activeSubmittingOrderId !== o.id) ||
-                    (activeSubmittingOrderId !== null &&
-                      activeSubmittingOrderId === o.id)
-                  }
-                  onClick={() => void proceed(o.id)}
-                >
-                  {activeSubmitCount > 0 && activeSubmittingOrderId === o.id
-                    ? 'Proceeding...'
-                    : 'Proceed'}
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button
+                    className="w-full"
+                    type="button"
+                    disabled={
+                      (activeSubmitCount > 0 &&
+                        activeSubmittingOrderId !== o.id) ||
+                      (activeSubmittingOrderId !== null &&
+                        activeSubmittingOrderId === o.id) ||
+                      (activeCancelCount > 0 && activeCancelOrderId === o.id)
+                    }
+                    onClick={() => void proceed(o.id)}
+                  >
+                    {activeSubmitCount > 0 && activeSubmittingOrderId === o.id
+                      ? 'Proceeding...'
+                      : 'Proceed'}
+                  </Button>
+                  <Button
+                    className="w-full"
+                    variant="destructive"
+                    type="button"
+                    disabled={
+                      (activeCancelCount > 0 &&
+                        activeCancelOrderId !== o.id) ||
+                      (activeCancelOrderId !== null &&
+                        activeCancelOrderId === o.id) ||
+                      (activeSubmitCount > 0 && activeSubmittingOrderId === o.id)
+                    }
+                    onClick={() => void cancelOrder(o.id)}
+                  >
+                    {activeCancelCount > 0 && activeCancelOrderId === o.id
+                      ? 'Canceling...'
+                      : 'Cancel Order'}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}

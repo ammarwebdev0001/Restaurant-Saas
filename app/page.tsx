@@ -35,13 +35,13 @@ export default function Home() {
             >
               <Link href="/login">Sign In</Link>
             </Button>
-            <Button
+            {/* <Button
               className="h-11 rounded-xl px-6 text-sm"
               variant="outline"
               asChild
             >
               <Link href="/web-app/restaurant">View Demo Store</Link>
-            </Button>
+            </Button> */}
           </div>
 
           <div className="mt-12 grid gap-4 sm:grid-cols-3">
