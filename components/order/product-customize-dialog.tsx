@@ -356,19 +356,20 @@ export function ProductCustomizeDialog({
     const addons = attributeGroups.reduce((sum, g) => {
       const ids = selectedByGroup[g.id] ?? [];
       if (ids.length === 0) return sum;
-      const perGroup = g.items
-        .filter((it) => ids.includes(it.menuItemId))
-        .reduce((s, it) => {
-          const key = `${g.id}:${it.menuItemId}`;
-          const nestedVariationId = selectedNestedVariationByOption[key];
-          const nested = (it.variations ?? []).find(
-            (v) => v.id === nestedVariationId
-          );
-          const price = nested
-            ? nested.priceDelta
-            : effectiveUnitPrice(it.price, it.salePrice);
-          return s + price;
-        }, 0);
+
+      // Count every selected instance so multi-quantity add-ons always increase popup total.
+      const perGroup = ids.reduce((groupSum, selectedId) => {
+        const it = g.items.find((x) => x.menuItemId === selectedId);
+        if (!it) return groupSum;
+        const key = `${g.id}:${it.menuItemId}`;
+        const nestedVariationId = selectedNestedVariationByOption[key];
+        const nested = (it.variations ?? []).find((v) => v.id === nestedVariationId);
+        const price = nested
+          ? nested.priceDelta
+          : effectiveUnitPrice(it.price, it.salePrice);
+        return groupSum + price;
+      }, 0);
+
       return sum + perGroup;
     }, 0);
     return base + addons;
