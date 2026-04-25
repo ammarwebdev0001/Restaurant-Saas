@@ -363,7 +363,9 @@ export function ProductCustomizeDialog({
         if (!it) return groupSum;
         const key = `${g.id}:${it.menuItemId}`;
         const nestedVariationId = selectedNestedVariationByOption[key];
-        const nested = (it.variations ?? []).find((v) => v.id === nestedVariationId);
+        const nested = (it.variations ?? []).find(
+          (v) => v.id === nestedVariationId
+        );
         const price = nested
           ? nested.priceDelta
           : effectiveUnitPrice(it.price, it.salePrice);

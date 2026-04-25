@@ -343,6 +343,7 @@ export default function OrderPageClient({
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [customizeProduct, setCustomizeProduct] =
     useState<CustomerMenuProduct | null>(null);
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
 
   const { theme, resolvedTheme } = useTheme();
   const router = useRouter();
@@ -352,6 +353,17 @@ export default function OrderPageClient({
 
   const openCustomizeForProduct = (p: CustomerMenuProduct) => {
     setCustomizeProduct(p);
+    setCustomizeOpen(true);
+  };
+
+  const openModifyForLine = (line: CartLine) => {
+    const product = products.find((p) => p.id === line.menuItemId) ?? null;
+    if (!product) {
+      toast.error('Could not find this product to modify.');
+      return;
+    }
+    setEditingLineId(line.lineId);
+    setCustomizeProduct(product);
     setCustomizeOpen(true);
   };
 
@@ -906,6 +918,11 @@ export default function OrderPageClient({
                         className="flex items-center justify-between text-sm"
                       >
                         <div className="min-w-0">
+                          {(() => {
+                            const isCustomized =
+                              Boolean(line.variationId) || line.modifiers.length > 0;
+                            return (
+                              <>
                           <p className="font-medium truncate">
                             {line.productName}
                             {line.variationName
@@ -952,7 +969,20 @@ export default function OrderPageClient({
                             >
                               Remove
                             </Button>
+                            {isCustomized ? (
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                onClick={() => openModifyForLine(line)}
+                                type="button"
+                              >
+                                Modify
+                              </Button>
+                            ) : null}
                           </div>
+                              </>
+                            );
+                          })()}
                         </div>
                         <span>€{lineTotal(line).toFixed(2)}</span>
                       </div>
@@ -987,7 +1017,13 @@ export default function OrderPageClient({
 
       <ProductCustomizeDialog
         open={customizeOpen}
-        onOpenChange={setCustomizeOpen}
+        onOpenChange={(open) => {
+          setCustomizeOpen(open);
+          if (!open) {
+            setCustomizeProduct(null);
+            setEditingLineId(null);
+          }
+        }}
         productName={customizeProduct?.name ?? 'Product'}
         productImageUrl={customizeProduct?.imageUrl ?? null}
         productDescription={customizeProduct?.description ?? null}
@@ -1020,12 +1056,18 @@ export default function OrderPageClient({
             })),
           }));
 
+          if (editingLineId) {
+            setCart((current) =>
+              current.filter((line) => line.lineId !== editingLineId)
+            );
+          }
           const times = Math.max(1, Math.floor(quantity));
           for (let i = 0; i < times; i += 1) {
             addToCart(customizeProduct, cartMods, variation ?? null);
           }
           setCustomizeOpen(false);
           setCustomizeProduct(null);
+          setEditingLineId(null);
         }}
       />
     </div>

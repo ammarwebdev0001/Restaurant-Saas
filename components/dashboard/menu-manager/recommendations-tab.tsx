@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Link2, Trash2 } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -14,15 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import {
   Select,
   SelectContent,
@@ -32,20 +24,26 @@ import {
 } from '@/components/ui/select';
 import { DeleteConfirmation, SaveConfirmation } from '@/components/ui/confirmation-dialogs';
 
-import type { MenuCategoryRow } from './types';
+import type { AttrGroupRow, MenuCategoryRow, MenuItemRow } from './types';
 
 type Props = {
   categories: MenuCategoryRow[];
   onRefresh: () => Promise<void>;
 };
 
-export function RecommendationsTab({ categories, onRefresh }: Props) {
+export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props) {
+  const [localCategories, setLocalCategories] = useState<MenuCategoryRow[]>(categories);
+
+  useEffect(() => {
+    setLocalCategories(categories);
+  }, [categories]);
+
   const allProducts = useMemo(
     () =>
-      categories.flatMap((c) =>
+      localCategories.flatMap((c) =>
         c.items.map((i) => ({ ...i, categoryName: c.name }))
       ),
-    [categories]
+    [localCategories]
   );
 
   const [selectedId, setSelectedId] = useState<string>('');
@@ -54,58 +52,151 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
     [allProducts, selectedId]
   );
 
-  const [attrOpen, setAttrOpen] = useState(false);
-  const [saveRuleConfirmOpen, setSaveRuleConfirmOpen] = useState(false);
-  const [savingRule, setSavingRule] = useState(false);
+  const [savingRules, setSavingRules] = useState(false);
+  const [saveRulesConfirmOpen, setSaveRulesConfirmOpen] = useState(false);
+  const [ruleSelectionType, setRuleSelectionType] = useState<'SINGLE' | 'MULTIPLE'>(
+    'SINGLE'
+  );
+  const [ruleRequired, setRuleRequired] = useState(true);
+  const [ruleCategoryIds, setRuleCategoryIds] = useState<string[]>([]);
+
+  const [offerCategoryIds, setOfferCategoryIds] = useState<string[]>([]);
+  const [selectedOfferProductIds, setSelectedOfferProductIds] = useState<string[]>([]);
+  const [savingOffers, setSavingOffers] = useState(false);
+  const [saveOffersConfirmOpen, setSaveOffersConfirmOpen] = useState(false);
+
   const [deletingRuleId, setDeletingRuleId] = useState<string | null>(null);
   const [deleteRuleConfirmOpen, setDeleteRuleConfirmOpen] = useState(false);
   const [deletingRule, setDeletingRule] = useState(false);
   const [deletingOfferId, setDeletingOfferId] = useState<string | null>(null);
   const [deleteOfferConfirmOpen, setDeleteOfferConfirmOpen] = useState(false);
   const [deletingOffer, setDeletingOffer] = useState(false);
-  const [attrForm, setAttrForm] = useState({
-    name: '',
-    selectionType: 'SINGLE' as 'SINGLE' | 'MULTIPLE',
-    required: false,
-    linkedCategoryId: '',
-  });
+  const linkedOptions = useMemo(
+    () => localCategories.filter((c) => c.id !== selected?.categoryId),
+    [localCategories, selected?.categoryId]
+  );
 
-  const openAddRule = () => {
+  const currentOffers = selected?.offersFromThis ?? [];
+  const offeredProductsFromSelectedCategories = useMemo(() => {
+    if (!selected || offerCategoryIds.length === 0) return [];
+    const blockedIds = new Set<string>([
+      selected.id,
+      ...currentOffers.map((o) => o.offeredItem.id),
+    ]);
+    const byId = new Map<string, (typeof allProducts)[number]>();
+    for (const p of allProducts) {
+      if (blockedIds.has(p.id)) continue;
+      if (!offerCategoryIds.includes(p.categoryId)) continue;
+      byId.set(p.id, p);
+    }
+    return Array.from(byId.values());
+  }, [allProducts, currentOffers, offerCategoryIds, selected]);
+
+  const toggleInArray = (arr: string[], id: string) =>
+    arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
+
+  const updateSelectedItem = (updater: (item: MenuItemRow) => MenuItemRow) => {
+    if (!selectedId) return;
+    setLocalCategories((prev) =>
+      prev.map((cat) => ({
+        ...cat,
+        items: cat.items.map((item) =>
+          item.id === selectedId ? updater(item) : item
+        ),
+      }))
+    );
+  };
+
+  const saveRules = async () => {
     if (!selected) {
       toast.error('Select a product first.');
       return;
     }
-    setAttrForm({
-      name: '',
-      selectionType: 'SINGLE',
-      required: false,
-      linkedCategoryId: '',
-    });
-    setAttrOpen(true);
-  };
-
-  const saveRule = async () => {
-    if (!selected || !attrForm.name.trim() || !attrForm.linkedCategoryId) {
-      toast.error('Label and linked category are required.');
+    if (ruleCategoryIds.length === 0) {
+      toast.error('Choose at least one recommendation category.');
       return;
     }
-    setSavingRule(true);
+    setSavingRules(true);
     try {
-      await axios.post(`/api/restaurant/menu/items/${selected.id}/attributes`, {
-        name: attrForm.name.trim(),
-        selectionType: attrForm.selectionType,
-        required: attrForm.required,
-        linkedCategoryId: attrForm.linkedCategoryId,
-      });
-      toast.success('Recommendation rule added');
-      setAttrOpen(false);
-      setSaveRuleConfirmOpen(false);
-      await onRefresh();
+      const selectedCategories = linkedOptions.filter((c) =>
+        ruleCategoryIds.includes(c.id)
+      );
+      const responses = await Promise.all(
+        selectedCategories.map((cat, index) =>
+          axios.post<{ data: AttrGroupRow }>(
+            `/api/restaurant/menu/items/${selected.id}/attributes`,
+            {
+              name: `Choose from ${cat.name}`,
+              selectionType: ruleSelectionType,
+              required: ruleRequired,
+              linkedCategoryId: cat.id,
+              sortOrder: index,
+            }
+          )
+        )
+      );
+      const createdGroups = responses.map((res) => res.data.data);
+      updateSelectedItem((item) => ({
+        ...item,
+        attributeGroups: [
+          ...item.attributeGroups,
+          ...createdGroups.filter(
+            (group) => !item.attributeGroups.some((existing) => existing.id === group.id)
+          ),
+        ],
+      }));
+      toast.success('Recommendation categories saved');
+      setRuleCategoryIds([]);
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
       toast.error(err.response?.data?.error || 'Could not save');
     } finally {
-      setSavingRule(false);
+      setSavingRules(false);
+    }
+  };
+
+  const saveOfferedProducts = async () => {
+    if (!selected) {
+      toast.error('Select a product first.');
+      return;
+    }
+    if (selectedOfferProductIds.length === 0) {
+      toast.error('Select offered products first.');
+      return;
+    }
+    setSavingOffers(true);
+    try {
+      const responses = await Promise.all(
+        selectedOfferProductIds.map((itemId, index) =>
+          axios.post<{ data: NonNullable<MenuItemRow['offersFromThis']>[number] }>(
+            `/api/restaurant/menu/items/${selected.id}/offers`,
+            {
+              offeredItemId: itemId,
+              sortOrder: index,
+            }
+          )
+        )
+      );
+      const createdOffers = responses.map((res) => res.data.data);
+      updateSelectedItem((item) => ({
+        ...item,
+        offersFromThis: [
+          ...(item.offersFromThis ?? []),
+          ...createdOffers.filter(
+            (offer) =>
+              !(item.offersFromThis ?? []).some(
+                (existing) => existing.id === offer.id
+              )
+          ),
+        ],
+      }));
+      toast.success('Offered products added');
+      setSelectedOfferProductIds([]);
+    } catch (e: unknown) {
+      const err = e as { response?: { data?: { error?: string } } };
+      toast.error(err.response?.data?.error || 'Could not add offered products');
+    } finally {
+      setSavingOffers(false);
     }
   };
 
@@ -114,10 +205,13 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
     setDeletingRule(true);
     try {
       await axios.delete(`/api/restaurant/menu/attributes/${deletingRuleId}`);
+      updateSelectedItem((item) => ({
+        ...item,
+        attributeGroups: item.attributeGroups.filter((g) => g.id !== deletingRuleId),
+      }));
       toast.success('Removed');
       setDeleteRuleConfirmOpen(false);
       setDeletingRuleId(null);
-      await onRefresh();
     } catch {
       toast.error('Could not remove');
     } finally {
@@ -130,10 +224,15 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
     setDeletingOffer(true);
     try {
       await axios.delete(`/api/restaurant/menu/offers/${deletingOfferId}`);
+      updateSelectedItem((item) => ({
+        ...item,
+        offersFromThis: (item.offersFromThis ?? []).filter(
+          (o) => o.id !== deletingOfferId
+        ),
+      }));
       toast.success('Removed offered product');
       setDeleteOfferConfirmOpen(false);
       setDeletingOfferId(null);
-      await onRefresh();
     } catch {
       toast.error('Could not remove offered product');
     } finally {
@@ -141,15 +240,7 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
     }
   };
 
-  const linkedOptions = categories.filter((c) => c.id !== selected?.categoryId);
-
-  const allOtherProducts =
-    selected == null
-      ? []
-      : allProducts.filter((p) => p.id !== selected.id);
-
-  const currentOffers = selected?.offersFromThis ?? [];
-  const [offerTargetId, setOfferTargetId] = useState<string>('');
+  const allOtherProductsExist = selected != null && linkedOptions.length > 0;
 
   return (
     <Card>
@@ -191,38 +282,83 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
 
             {selected && (
               <>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    onClick={openAddRule}
-                    disabled={linkedOptions.length === 0}
-                  >
-                    <Link2 className="mr-2 h-4 w-4" />
-                    Add rule
-                  </Button>
-                  {linkedOptions.length === 0 && (
+                <div className="space-y-3 rounded-lg border border-border p-4">
+                  <h4 className="text-sm font-semibold">1) Recommendation source categories</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Select one or more categories. Each selected category is saved as
+                    a required/optional recommendation group for this product.
+                  </p>
+                  {linkedOptions.length === 0 ? (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
                       <p className="text-xs text-muted-foreground">
-                        Create another category (e.g. Sauces) to use as add-on
-                        source.
+                        Create another category (e.g. Sauces) to use as recommendation source.
                       </p>
-                      <Button
-                        type="button"
-                        asChild
-                        size="sm"
-                        variant="secondary"
-                        className="w-fit shrink-0"
-                      >
+                      <Button type="button" asChild size="sm" variant="secondary" className="w-fit shrink-0">
                         <Link href="/categories">Go to Categories</Link>
                       </Button>
                     </div>
+                  ) : (
+                    <>
+                      <div className="flex flex-wrap gap-4">
+                        <div className="grid gap-2">
+                          <Label>Selection type</Label>
+                          <Select
+                            value={ruleSelectionType}
+                            onValueChange={(v: 'SINGLE' | 'MULTIPLE') => setRuleSelectionType(v)}
+                          >
+                            <SelectTrigger className="w-[180px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="SINGLE">One option</SelectItem>
+                              <SelectItem value="MULTIPLE">Multiple options</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <label className="mt-7 flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={ruleRequired}
+                            onChange={(e) => setRuleRequired(e.target.checked)}
+                          />
+                          Required before add to cart
+                        </label>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                        {linkedOptions.map((cat) => {
+                          const checked = ruleCategoryIds.includes(cat.id);
+                          return (
+                            <label
+                              key={cat.id}
+                              className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+                                checked ? 'border-primary bg-primary/10' : 'border-border'
+                              }`}
+                            >
+                              <span>{cat.name}</span>
+                              <input
+                                type="checkbox"
+                                checked={checked}
+                                onChange={() =>
+                                  setRuleCategoryIds((prev) => toggleInArray(prev, cat.id))
+                                }
+                              />
+                            </label>
+                          );
+                        })}
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={() => setSaveRulesConfirmOpen(true)}
+                        disabled={savingRules || ruleCategoryIds.length === 0}
+                      >
+                        {savingRules ? 'Saving...' : 'Save recommendation categories'}
+                      </Button>
+                    </>
                   )}
                 </div>
 
-                <div className="space-y-3">
-                  <h4 className="text-sm font-semibold">
-                    Rules for “{selected.name}”
-                  </h4>
+                <div className="space-y-3 rounded-lg border border-border p-4">
+                  <h4 className="text-sm font-semibold">Saved recommendation groups</h4>
                   {selected.attributeGroups.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       No rules yet.
@@ -262,55 +398,80 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
                   )}
                 </div>
 
-                <div className="mt-6 space-y-3">
-                  <h4 className="text-sm font-semibold">
-                    Offered products for “{selected.name}”
-                  </h4>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <div className="grid gap-2 max-w-xs">
-                      <Label>Product to offer</Label>
-                      <Select
-                        value={offerTargetId}
-                        onValueChange={setOfferTargetId}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Choose a product to offer" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {allOtherProducts.map((p) => (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name} ({p.categoryName})
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button
-                      type="button"
-                      disabled={!offerTargetId}
-                      onClick={async () => {
-                        if (!selected || !offerTargetId) return;
-                        try {
-                          await axios.post(
-                            `/api/restaurant/menu/items/${selected.id}/offers`,
-                            { offeredItemId: offerTargetId }
-                          );
-                          toast.success('Offered product added');
-                          setOfferTargetId('');
-                          await onRefresh();
-                        } catch (e: unknown) {
-                          const err = e as {
-                            response?: { data?: { error?: string } };
-                          };
-                          toast.error(
-                            err.response?.data?.error || 'Could not add offer'
-                          );
-                        }
-                      }}
-                    >
-                      Add offered product
-                    </Button>
+                <div className="mt-6 space-y-3 rounded-lg border border-border p-4">
+                  <h4 className="text-sm font-semibold">2) Offered products</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Choose categories first, then select multiple products from those categories.
+                  </p>
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {linkedOptions.map((cat) => {
+                      const checked = offerCategoryIds.includes(cat.id);
+                      return (
+                        <label
+                          key={`offer-cat-${cat.id}`}
+                          className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+                            checked ? 'border-primary bg-primary/10' : 'border-border'
+                          }`}
+                        >
+                          <span>{cat.name}</span>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => {
+                              setOfferCategoryIds((prev) => toggleInArray(prev, cat.id));
+                              setSelectedOfferProductIds([]);
+                            }}
+                          />
+                        </label>
+                      );
+                    })}
                   </div>
+
+                  {!allOtherProductsExist ? null : offerCategoryIds.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      Select at least one category to load products.
+                    </p>
+                  ) : offeredProductsFromSelectedCategories.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">
+                      No products found in selected categories (or already offered).
+                    </p>
+                  ) : (
+                    <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {offeredProductsFromSelectedCategories.map((p) => {
+                        const checked = selectedOfferProductIds.includes(p.id);
+                        const displayPrice = p.salePrice ?? p.price;
+                        return (
+                          <label
+                            key={`offer-product-${p.id}`}
+                            className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
+                              checked ? 'border-primary bg-primary/10' : 'border-border'
+                            }`}
+                          >
+                            <div className="min-w-0">
+                              <p className="truncate font-medium">{p.name}</p>
+                              <p className="truncate text-xs text-muted-foreground">
+                                {p.categoryName} · €{displayPrice.toFixed(2)}
+                              </p>
+                            </div>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() =>
+                                setSelectedOfferProductIds((prev) => toggleInArray(prev, p.id))
+                              }
+                            />
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <Button
+                    type="button"
+                    onClick={() => setSaveOffersConfirmOpen(true)}
+                    disabled={savingOffers || selectedOfferProductIds.length === 0}
+                  >
+                    {savingOffers ? 'Saving...' : 'Save offered products'}
+                  </Button>
 
                   {currentOffers.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
@@ -356,97 +517,30 @@ export function RecommendationsTab({ categories, onRefresh }: Props) {
         )}
       </CardContent>
 
-      <Dialog open={attrOpen} onOpenChange={setAttrOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>New add-on rule</DialogTitle>
-          </DialogHeader>
-          <p className="text-sm text-muted-foreground">
-            Guests will choose from products in the linked category (must differ
-            from this product&apos;s category).
-          </p>
-          <div className="grid gap-3 py-2">
-            <div className="grid gap-2">
-              <Label>Label shown to guest</Label>
-              <Input
-                placeholder="e.g. Choose a sauce"
-                value={attrForm.name}
-                onChange={(e) =>
-                  setAttrForm((f) => ({ ...f, name: e.target.value }))
-                }
-              />
-            </div>
-            <div className="grid gap-2">
-              <Label>Selection</Label>
-              <Select
-                value={attrForm.selectionType}
-                onValueChange={(v: 'SINGLE' | 'MULTIPLE') =>
-                  setAttrForm((f) => ({ ...f, selectionType: v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SINGLE">One option</SelectItem>
-                  <SelectItem value="MULTIPLE">Multiple options</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <label className="flex items-center gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={attrForm.required}
-                onChange={(e) =>
-                  setAttrForm((f) => ({ ...f, required: e.target.checked }))
-                }
-              />
-              Required before adding to cart
-            </label>
-            <div className="grid gap-2">
-              <Label>Linked category (add-on products)</Label>
-              <Select
-                value={attrForm.linkedCategoryId}
-                onValueChange={(v) =>
-                  setAttrForm((f) => ({ ...f, linkedCategoryId: v }))
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  {linkedOptions.map((c) => (
-                    <SelectItem key={c.id} value={c.id}>
-                      {c.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => setAttrOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="button" onClick={() => setSaveRuleConfirmOpen(true)}>
-              Save rule
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <SaveConfirmation
+        open={saveRulesConfirmOpen}
+        title="Save recommendation categories"
+        description="Create recommendation groups for the selected categories?"
+        itemName={selected?.name || 'Selected product'}
+        loading={savingRules}
+        onConfirm={() => {
+          setSaveRulesConfirmOpen(false);
+          void saveRules();
+        }}
+        onCancel={() => setSaveRulesConfirmOpen(false)}
+      />
 
       <SaveConfirmation
-        open={saveRuleConfirmOpen}
-        title="Save add-on rule"
-        description="Create this recommendation rule now?"
-        itemName={attrForm.name.trim() || selected?.name || 'Rule'}
-        loading={savingRule}
-        onConfirm={() => void saveRule()}
-        onCancel={() => setSaveRuleConfirmOpen(false)}
+        open={saveOffersConfirmOpen}
+        title="Save offered products"
+        description="Add selected products as offers for this product?"
+        itemName={selected?.name || 'Selected product'}
+        loading={savingOffers}
+        onConfirm={() => {
+          setSaveOffersConfirmOpen(false);
+          void saveOfferedProducts();
+        }}
+        onCancel={() => setSaveOffersConfirmOpen(false)}
       />
 
       <DeleteConfirmation
