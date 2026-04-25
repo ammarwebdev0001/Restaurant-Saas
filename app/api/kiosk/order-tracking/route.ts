@@ -35,6 +35,14 @@ export async function GET(req: NextRequest) {
           quantity: true,
           price: true,
           menuItem: { select: { name: true } },
+          modifiers: {
+            select: {
+              id: true,
+              name: true,
+              quantity: true,
+              unitPrice: true,
+            },
+          },
         },
       },
     },
@@ -74,6 +82,12 @@ export async function GET(req: NextRequest) {
         quantity: it.quantity,
         price: it.price,
         name: it.menuItem.name,
+        modifiers: it.modifiers.map((m) => ({
+          id: m.id,
+          name: m.name,
+          quantity: m.quantity,
+          unitPrice: m.unitPrice,
+        })),
       })),
     },
   });

@@ -82,9 +82,170 @@ export function KioskPaymentSuccess({
     };
   }, [orderId, ticket]);
 
-  const printTicket = () => {
+  const printTicket = async () => {
     if (typeof window === 'undefined') return;
-    window.print();
+    if (!orderId) {
+      window.print();
+      return;
+    }
+
+    try {
+      const [orderRes, restaurantRes] = await Promise.all([
+        fetch(`/api/kiosk/order-tracking?orderId=${encodeURIComponent(orderId)}`, {
+          cache: 'no-store',
+        }),
+        fetch(`/api/customer/restaurant?slug=${encodeURIComponent(slug)}`, {
+          cache: 'no-store',
+        }),
+      ]);
+
+      const orderBody = (await orderRes.json().catch(() => ({}))) as {
+        data?: {
+          id: string;
+          ticketNumber?: number | null;
+          total?: number;
+          createdAt?: string;
+          payment?: { method?: string; status?: string; amount?: number } | null;
+          items?: Array<{
+            name: string;
+            quantity: number;
+            price: number;
+            modifiers?: Array<{
+              id: string;
+              name: string;
+              quantity: number;
+              unitPrice: number;
+            }>;
+          }>;
+        };
+      };
+      const restaurantBody = (await restaurantRes.json().catch(() => ({}))) as {
+        data?: { name?: string | null; logoUrl?: string | null } | null;
+      };
+
+      const details = orderBody.data;
+      const restaurantName = restaurantBody.data?.name?.trim() || 'Restaurant';
+      const logoUrl = restaurantBody.data?.logoUrl ?? null;
+      const ticketNo = details?.ticketNumber ?? ticket;
+      const items = details?.items ?? [];
+      const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
+      const total = details?.total ?? subtotal;
+      const tax = Math.max(0, total - subtotal);
+      const paymentMethod = details?.payment?.method ?? 'Stripe';
+      const paymentState = details?.payment?.status ?? paymentStatus ?? 'pending';
+      const paidAmount = details?.payment?.amount ?? total;
+
+      const rows = items
+        .map((it) => {
+          const modifierRows = (it.modifiers ?? [])
+            .map(
+              (m) => `<tr>
+<td style="padding-left:10px;color:#555;">${m.name}</td>
+<td class="qty">${m.quantity}</td>
+<td class="amt">€${(m.unitPrice * m.quantity).toFixed(2)}</td>
+</tr>`
+            )
+            .join('');
+          return `<tr>
+<td>${it.name}</td>
+<td class="qty">${it.quantity}</td>
+<td class="amt">€${(it.price * it.quantity).toFixed(2)}</td>
+</tr>${modifierRows}`;
+        })
+        .join('');
+
+      const html = `<!doctype html>
+<html>
+<head>
+  <title>Kiosk Ticket</title>
+  <style>
+    @page { size: 2in auto; margin: 0.06in; }
+    html, body { width: 2in; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; color: #111; font-size: 10px; line-height: 1.35; }
+    .r { width: 100%; box-sizing: border-box; }
+    .center { text-align: center; }
+    .muted { color: #555; font-size: 9px; }
+    .brand { display:flex; align-items:center; justify-content:center; gap: 6px; margin-bottom: 4px; }
+    .logo { width:42px; height:42px; object-fit:cover; border-radius:999px; border:1px solid #ddd; }
+    .name { font-size: 12px; font-weight: 700; line-height: 1.2; max-width: 1.35in; }
+    .sep { border-top: 1px dashed #555; margin: 6px 0; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 2px 0; font-size: 9px; vertical-align: top; }
+    th { text-align: left; font-weight: 700; }
+    .qty, .amt { white-space: nowrap; text-align: right; }
+    .totals { margin-top: 4px; }
+    .totals div { display:flex; justify-content:space-between; margin-top: 1px; }
+    .grand { font-weight: 700; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <div class="r">
+    <div class="brand">
+      ${logoUrl ? `<img src="${logoUrl}" alt="Logo" class="logo" />` : ''}
+      <div class="name">${restaurantName}</div>
+    </div>
+    <div class="center muted">${details?.createdAt ? new Date(details.createdAt).toLocaleString() : new Date().toLocaleString()}</div>
+    <div class="sep"></div>
+    ${ticketNo != null ? `<div><strong>Ticket:</strong> #${ticketNo}</div>` : ''}
+    <div><strong>Order:</strong> ${details?.id ?? orderId}</div>
+    <div><strong>Payment:</strong> ${paymentMethod}</div>
+    <div><strong>Status:</strong> ${paymentState}</div>
+    <div class="sep"></div>
+    <table>
+      <thead>
+        <tr><th>Item</th><th class="qty">Qty</th><th class="amt">Amt</th></tr>
+      </thead>
+      <tbody>${rows || '<tr><td colspan="3" class="muted">No items</td></tr>'}</tbody>
+    </table>
+    <div class="sep"></div>
+    <div class="totals">
+      <div><span>Subtotal</span><span>€${subtotal.toFixed(2)}</span></div>
+      <div><span>Tax</span><span>€${tax.toFixed(2)}</span></div>
+      <div><span>Paid</span><span>€${paidAmount.toFixed(2)}</span></div>
+      <div class="grand"><span>Total</span><span>€${total.toFixed(2)}</span></div>
+    </div>
+    <div class="sep"></div>
+    <div class="center muted">Thank you!</div>
+  </div>
+</body>
+</html>`;
+
+      const frame = document.createElement('iframe');
+      frame.style.position = 'fixed';
+      frame.style.right = '0';
+      frame.style.bottom = '0';
+      frame.style.width = '0';
+      frame.style.height = '0';
+      frame.style.border = '0';
+      frame.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(frame);
+
+      const cleanup = () => {
+        window.setTimeout(() => {
+          if (frame.parentNode) frame.parentNode.removeChild(frame);
+        }, 300);
+      };
+
+      const doc = frame.contentWindow?.document;
+      if (!doc || !frame.contentWindow) {
+        cleanup();
+        return;
+      }
+
+      doc.open();
+      doc.write(html);
+      doc.close();
+      frame.onload = () => {
+        try {
+          frame.contentWindow?.focus();
+          frame.contentWindow?.print();
+        } finally {
+          cleanup();
+        }
+      };
+    } catch {
+      window.print();
+    }
   };
 
   return (

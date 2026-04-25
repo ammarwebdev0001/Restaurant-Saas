@@ -107,6 +107,11 @@ type DiningTableOption = {
   sortOrder: number;
 };
 
+type RestaurantBranding = {
+  name: string;
+  logoUrl: string | null;
+};
+
 function formatMoney(n: number) {
   return n.toLocaleString('en-IE', {
     minimumFractionDigits: 2,
@@ -132,6 +137,10 @@ export function PosScreen() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [orderAddress, setOrderAddress] = useState('');
   const [branch] = useState('SIX BRANCH');
+  const [branding, setBranding] = useState<RestaurantBranding>({
+    name: 'Restaurant',
+    logoUrl: null,
+  });
 
   const [srChPct, setSrChPct] = useState('0');
   const [taxPct, setTaxPct] = useState('0');
@@ -213,6 +222,33 @@ export function PosScreen() {
     void loadMenu();
     return () => {
       isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/restaurant', {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+        const json = (await res.json()) as {
+          data?: { name?: string | null; logoUrl?: string | null } | null;
+        };
+        const data = json?.data;
+        if (cancelled || !data) return;
+        setBranding({
+          name: (data.name?.trim() || 'Restaurant') as string,
+          logoUrl: data.logoUrl ?? null,
+        });
+      } catch {
+        // ignore branding fetch errors for printing fallback
+      }
+    })();
+    return () => {
+      cancelled = true;
     };
   }, []);
 
@@ -306,54 +342,106 @@ export function PosScreen() {
         const gross = line.unitPrice * line.qty;
         const discAmt = gross * (line.lineDiscPct / 100);
         const lineTotal = gross - discAmt;
+        const nestedMatch = line.name.match(/^(.*)\((.*)\)\s*$/);
+        const baseName = nestedMatch?.[1]?.trim() || line.name;
+        const nestedRaw = nestedMatch?.[2]?.trim() || '';
+        const nestedRows = nestedRaw
+          ? nestedRaw
+              .split(';')
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .map(
+                (part) => `<tr>
+          <td style="padding-left:10px;color:#555;">${part}</td>
+          <td class="qty">1</td>
+          <td class="amt">—</td>
+        </tr>`
+              )
+              .join('')
+          : '';
         return `<tr>
-          <td>${line.name}</td>
-          <td style="text-align:center;">${line.qty}</td>
-          <td style="text-align:right;">${formatMoney(lineTotal)}</td>
-        </tr>`;
+          <td>${baseName}</td>
+          <td class="qty">${line.qty}</td>
+          <td class="amt">€${formatMoney(lineTotal)}</td>
+        </tr>${nestedRows}`;
       })
       .join('');
+
+    const paidAmount =
+      paymentMode === 'card_terminal'
+        ? grandTotal
+        : Math.max(0, Number(payment) || 0);
+    const paymentMethodLabel =
+      paymentMode === 'card_terminal'
+        ? 'Card Terminal'
+        : paymentMode.charAt(0).toUpperCase() + paymentMode.slice(1);
+    const brandName = branding.name || branch || 'Restaurant';
+    const logoHtml = branding.logoUrl
+      ? `<img src="${branding.logoUrl}" alt="Logo" style="width:42px;height:42px;object-fit:cover;border-radius:999px;border:1px solid #ddd;" />`
+      : '';
 
     const html = `<!doctype html>
 <html>
   <head>
     <title>Order Receipt</title>
     <style>
-      body { font-family: Arial, sans-serif; padding: 16px; color: #111; }
-      h2 { margin: 0 0 8px; }
-      .muted { color: #555; font-size: 12px; }
-      table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-      th, td { border-bottom: 1px solid #ddd; padding: 6px 4px; font-size: 12px; }
-      .totals { margin-top: 10px; font-size: 12px; }
-      .totals div { display:flex; justify-content:space-between; margin-top: 2px; }
-      .grand { font-weight: bold; font-size: 14px; margin-top: 6px; }
+      @page { size: 2in auto; margin: 0.06in; }
+      html, body { width: 2in; margin: 0; padding: 0; }
+      body { font-family: Arial, sans-serif; color: #111; font-size: 10px; line-height: 1.35; }
+      .r { width: 100%; box-sizing: border-box; }
+      .center { text-align: center; }
+      .muted { color: #555; font-size: 9px; }
+      .brand { display:flex; align-items:center; justify-content:center; gap: 6px; margin-bottom: 4px; }
+      .name { font-size: 12px; font-weight: 700; line-height: 1.2; max-width: 1.35in; }
+      .sep { border-top: 1px dashed #555; margin: 6px 0; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 2px 0; font-size: 9px; vertical-align: top; }
+      th { text-align: left; font-weight: 700; }
+      .qty, .amt { white-space: nowrap; text-align: right; }
+      .totals { margin-top: 4px; }
+      .totals div { display:flex; justify-content:space-between; margin-top: 1px; }
+      .grand { font-weight: 700; font-size: 11px; }
     </style>
   </head>
   <body>
-    <h2>${branch}</h2>
-    <div class="muted">Order: ${orderRef}</div>
-    ${ticketNumber != null ? `<div class="muted">Ticket: #${ticketNumber}</div>` : ''}
-    <div class="muted">Mode: ${orderMode}</div>
+    <div class="r">
+      <div class="brand">
+        ${logoHtml}
+        <div class="name">${brandName}</div>
+      </div>
+      <div class="center muted">${new Date().toLocaleString()}</div>
+      <div class="sep"></div>
+      ${ticketNumber != null ? `<div><strong>Ticket:</strong> #${ticketNumber}</div>` : ''}
+      <div><strong>Order:</strong> ${orderRef}</div>
+      <div><strong>Mode:</strong> ${orderMode}</div>
+      <div><strong>Payment:</strong> ${paymentMethodLabel}</div>
+      <div><strong>Status:</strong> paid</div>
     ${
       tableId
-        ? `<div class="muted">Table: ${diningTables.find((t) => t.id === tableId)?.name ?? tableId}</div>`
+        ? `<div><strong>Table:</strong> ${diningTables.find((t) => t.id === tableId)?.name ?? tableId}</div>`
         : ''
     }
-    ${customerName ? `<div class="muted">Customer: ${customerName}</div>` : ''}
-    ${customerPhone ? `<div class="muted">Phone: ${customerPhone}</div>` : ''}
-    ${orderAddress ? `<div class="muted">Address: ${orderAddress}</div>` : ''}
-    ${kotNote ? `<div class="muted">Note: ${kotNote}</div>` : ''}
+    ${customerName ? `<div><strong>Customer:</strong> ${customerName}</div>` : ''}
+    ${customerPhone ? `<div><strong>Phone:</strong> ${customerPhone}</div>` : ''}
+    ${orderAddress ? `<div><strong>Address:</strong> ${orderAddress}</div>` : ''}
+    ${kotNote ? `<div><strong>Note:</strong> ${kotNote}</div>` : ''}
+    <div class="sep"></div>
     <table>
       <thead>
-        <tr><th style="text-align:left;">Item</th><th>Qty</th><th style="text-align:right;">Amount</th></tr>
+        <tr><th>Item</th><th class="qty">Qty</th><th class="amt">Amt</th></tr>
       </thead>
       <tbody>${rows}</tbody>
     </table>
+    <div class="sep"></div>
     <div class="totals">
-      <div><span>Subtotal</span><span>${formatMoney(subtotal)}</span></div>
-      <div><span>Tax</span><span>${formatMoney(taxAmount)}</span></div>
-      <div><span>Discount</span><span>${formatMoney(disAmount)}</span></div>
-      <div class="grand"><span>Grand Total</span><span>${formatMoney(grandTotal)}</span></div>
+      <div><span>Subtotal</span><span>€${formatMoney(subtotal)}</span></div>
+      <div><span>Tax</span><span>€${formatMoney(taxAmount)}</span></div>
+      <div><span>Discount</span><span>€${formatMoney(disAmount)}</span></div>
+      <div><span>Paid</span><span>€${formatMoney(paidAmount)}</span></div>
+      <div class="grand"><span>Total</span><span>€${formatMoney(grandTotal)}</span></div>
+    </div>
+    <div class="sep"></div>
+    <div class="center muted">Thank you!</div>
     </div>
   </body>
 </html>`;

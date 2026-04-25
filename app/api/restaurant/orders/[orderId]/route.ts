@@ -55,6 +55,14 @@ export async function GET(
             quantity: true,
             price: true,
             menuItem: { select: { id: true, name: true } },
+            modifiers: {
+              select: {
+                id: true,
+                name: true,
+                quantity: true,
+                unitPrice: true,
+              },
+            },
           },
         },
         payments: {

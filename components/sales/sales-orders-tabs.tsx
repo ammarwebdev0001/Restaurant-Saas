@@ -67,6 +67,12 @@ type MenuOrderDetail = {
     quantity: number;
     price: number;
     menuItem: { id: string; name: string };
+    modifiers?: Array<{
+      id: string;
+      name: string;
+      quantity: number;
+      unitPrice: number;
+    }>;
   }>;
   payments: Array<{
     id: string;
@@ -521,7 +527,19 @@ export function SalesOrdersTabs() {
                             <TableCell className="tabular-nums text-muted-foreground">
                               {i + 1}
                             </TableCell>
-                            <TableCell>{it.menuItem.name}</TableCell>
+                            <TableCell>
+                              <div className="space-y-0.5">
+                                <p>{it.menuItem.name}</p>
+                                {(it.modifiers ?? []).map((m) => (
+                                  <p key={m.id} className="pl-3 text-xs text-muted-foreground">
+                                    <span className="font-semibold tabular-nums">
+                                      {m.quantity}×
+                                    </span>{' '}
+                                    {m.name}
+                                  </p>
+                                ))}
+                              </div>
+                            </TableCell>
                             <TableCell className="text-right">
                               {it.quantity}
                             </TableCell>

@@ -216,19 +216,23 @@ export function KdsManagerBoard() {
                 </p>
                 <div className="space-y-1">
                   {o.items.map((it) => {
-                    const modBits =
-                      it.modifiers?.map((m) => m.name).filter(Boolean) ?? [];
-                    const label =
-                      modBits.length > 0
-                        ? `${it.menuItem.name} (${modBits.join(', ')})`
-                        : it.menuItem.name;
                     return (
-                      <p key={it.id} className="text-xs leading-snug">
-                        <span className="font-semibold tabular-nums">
-                          {it.quantity}×
-                        </span>{' '}
-                        {label}
-                      </p>
+                      <div key={it.id} className="text-xs leading-snug">
+                        <p>
+                          <span className="font-semibold tabular-nums">
+                            {it.quantity}×
+                          </span>{' '}
+                          {it.menuItem.name}
+                        </p>
+                        {it.modifiers?.map((m, idx) => (
+                          <p key={`${it.id}-m-${idx}`} className="pl-4 text-muted-foreground">
+                            <span className="font-semibold tabular-nums">
+                              {m.quantity}×
+                            </span>{' '}
+                            {m.name}
+                          </p>
+                        ))}
+                      </div>
                     );
                   })}
                 </div>

@@ -232,14 +232,20 @@ export function KdsKitchenScreen() {
                   </div>
 
                   <div className="space-y-1">
-                    {t.items.map((it) => (
-                      <p key={it.id} className="text-sm leading-snug">
-                        <span className="font-semibold tabular-nums">
-                          {it.quantity}×
-                        </span>{' '}
-                        {it.productName}
-                      </p>
-                    ))}
+                    {t.items.map((it) => {
+                      const isNested = it.productName.trim().startsWith('+');
+                      return (
+                        <p
+                          key={it.id}
+                          className={`text-sm leading-snug ${isNested ? 'pl-4 text-muted-foreground' : ''}`}
+                        >
+                          <span className="font-semibold tabular-nums">
+                            {it.quantity}×
+                          </span>{' '}
+                          {isNested ? it.productName.trim().replace(/^\+\s*/, '') : it.productName}
+                        </p>
+                      );
+                    })}
                   </div>
 
                   <p className="text-xs font-semibold">
