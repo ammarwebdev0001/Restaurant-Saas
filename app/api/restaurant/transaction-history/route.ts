@@ -1,0 +1,197 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+import { getAppSession } from '@/lib/auth/app-session';
+import { db } from '@/lib/db';
+import { getRestaurantForUser } from '@/lib/restaurant-owner';
+
+type HistoryKind = 'ORDER' | 'SUBSCRIPTION' | 'REGISTER';
+
+type HistoryRow = {
+  key: string;
+  kind: HistoryKind;
+  transactionId: string;
+  referenceId: string | null;
+  amount: number | null;
+  currency: string;
+  status: string;
+  method: string | null;
+  source: string;
+  note: string | null;
+  customerName: string | null;
+  createdAt: string;
+};
+
+function toPositiveInt(raw: string | null, fallback: number) {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return fallback;
+  return Math.floor(n);
+}
+
+export async function GET(req: NextRequest) {
+  try {
+    const session = await getAppSession();
+    const email = session?.user?.email;
+    if (!email || typeof email !== 'string') {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const user = await db.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    }
+
+    const restaurant = await getRestaurantForUser(user.id);
+    if (!restaurant) {
+      return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
+    }
+
+    const q = req.nextUrl.searchParams.get('q')?.trim().toLowerCase() ?? '';
+    const kindFilterRaw = req.nextUrl.searchParams.get('kind');
+    const kindFilter =
+      kindFilterRaw === 'ORDER' ||
+      kindFilterRaw === 'SUBSCRIPTION' ||
+      kindFilterRaw === 'REGISTER'
+        ? kindFilterRaw
+        : 'ALL';
+    const page = toPositiveInt(req.nextUrl.searchParams.get('page'), 1);
+    const take = Math.min(toPositiveInt(req.nextUrl.searchParams.get('take'), 20), 100);
+
+    const [orders, subscriptions, registerTxns] = await Promise.all([
+      db.order.findMany({
+        where: { restaurantId: restaurant.id },
+        select: {
+          id: true,
+          total: true,
+          status: true,
+          sourceType: true,
+          address: true,
+          createdAt: true,
+          customer: { select: { name: true } },
+          payments: {
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { id: true, status: true, method: true, amount: true },
+          },
+        },
+      }),
+      db.subscriptionPayment.findMany({
+        where: { restaurantId: restaurant.id },
+        orderBy: { paidAt: 'desc' },
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          paidAt: true,
+          notes: true,
+          restaurantSubscriptionId: true,
+        },
+      }),
+      db.transaction.findMany({
+        where: { restaurantId: restaurant.id },
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          totalAmount: true,
+          isComplete: true,
+          sourceType: true,
+          createdAt: true,
+        },
+      }),
+    ]);
+
+    const rows: HistoryRow[] = [
+      ...orders.map((o) => {
+        const payment = o.payments[0];
+        return {
+          key: `ORDER:${o.id}`,
+          kind: 'ORDER' as const,
+          transactionId: payment?.id ?? o.id,
+          referenceId: o.id,
+          amount: payment?.amount ?? o.total ?? null,
+          currency: 'EUR',
+          status: payment?.status ?? o.status,
+          method: payment?.method ?? null,
+          source: o.sourceType,
+          note: o.address ?? null,
+          customerName: o.customer?.name ?? null,
+          createdAt: o.createdAt.toISOString(),
+        };
+      }),
+      ...subscriptions.map((p) => ({
+        key: `SUBSCRIPTION:${p.id}`,
+        kind: 'SUBSCRIPTION' as const,
+        transactionId: p.id,
+        referenceId: p.restaurantSubscriptionId ?? null,
+        amount: p.amount,
+        currency: p.currency || 'EUR',
+        status: 'completed',
+        method: 'subscription',
+        source: 'SAAS',
+        note: p.notes ?? null,
+        customerName: null,
+        createdAt: p.paidAt.toISOString(),
+      })),
+      ...registerTxns.map((t) => ({
+        key: `REGISTER:${t.id}`,
+        kind: 'REGISTER' as const,
+        transactionId: t.id,
+        referenceId: null,
+        amount: t.totalAmount != null ? Number(t.totalAmount) : null,
+        currency: 'EUR',
+        status: t.isComplete ? 'completed' : 'open',
+        method: 'register',
+        source: t.sourceType,
+        note: null,
+        customerName: null,
+        createdAt: t.createdAt.toISOString(),
+      })),
+    ];
+
+    const filtered = rows
+      .filter((row) => (kindFilter === 'ALL' ? true : row.kind === kindFilter))
+      .filter((row) => {
+        if (!q) return true;
+        return (
+          row.transactionId.toLowerCase().includes(q) ||
+          (row.referenceId ?? '').toLowerCase().includes(q) ||
+          row.kind.toLowerCase().includes(q) ||
+          row.source.toLowerCase().includes(q) ||
+          row.status.toLowerCase().includes(q) ||
+          (row.method ?? '').toLowerCase().includes(q) ||
+          (row.customerName ?? '').toLowerCase().includes(q)
+        );
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+
+    const total = filtered.length;
+    const totalPages = Math.max(1, Math.ceil(total / take));
+    const safePage = Math.min(page, totalPages);
+    const start = (safePage - 1) * take;
+    const data = filtered.slice(start, start + take);
+
+    return NextResponse.json({
+      data,
+      meta: {
+        page: safePage,
+        take,
+        total,
+        totalPages,
+        hasNextPage: safePage < totalPages,
+        hasPrevPage: safePage > 1,
+      },
+    });
+  } catch (error) {
+    console.error('transaction-history GET failed', error);
+    return NextResponse.json(
+      { error: 'Failed to load transaction history' },
+      { status: 500 }
+    );
+  }
+}
+

@@ -6,6 +6,7 @@ export type SalesOrderRow =
       total: number;
       status: string;
       paymentStatus?: string | null;
+      transactionId?: string | null;
       createdAt: string;
     }
   | {
@@ -14,6 +15,7 @@ export type SalesOrderRow =
       sourceType: string;
       total: number | null;
       status: string;
+      transactionId?: string | null;
       createdAt: string;
     };
 

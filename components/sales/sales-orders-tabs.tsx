@@ -99,6 +99,7 @@ function OrdersTable({
             <TableHead className="w-12 text-center">Sr</TableHead>
             <TableHead className="w-[100px]">Type</TableHead>
             <TableHead>Order ID</TableHead>
+            <TableHead className="hidden md:table-cell">Transaction</TableHead>
             <TableHead className="hidden sm:table-cell">Source</TableHead>
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="hidden md:table-cell">Status</TableHead>
@@ -111,7 +112,7 @@ function OrdersTable({
           {rows.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={9}
+                colSpan={10}
                 className="text-center text-muted-foreground"
               >
                 No orders in this tab.
@@ -130,6 +131,9 @@ function OrdersTable({
                 </TableCell>
                 <TableCell className="max-w-[140px] truncate font-mono text-xs">
                   {row.id}
+                </TableCell>
+                <TableCell className="hidden max-w-[140px] truncate font-mono text-xs md:table-cell">
+                  {row.transactionId ?? '—'}
                 </TableCell>
                 <TableCell className="hidden sm:table-cell">
                   <Badge variant="outline" className="font-normal">
@@ -455,6 +459,12 @@ export function SalesOrdersTabs() {
                     <p className="text-muted-foreground">Payment status</p>
                     <p className="font-medium">{menuDetail.payments[0]?.status ?? '—'}</p>
                   </div>
+                  <div>
+                    <p className="text-muted-foreground">Transaction ID</p>
+                    <p className="font-mono text-xs">
+                      {activeRow.transactionId ?? menuDetail.payments[0]?.id ?? menuDetail.id}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="rounded-lg border p-3">
@@ -569,6 +579,12 @@ export function SalesOrdersTabs() {
                     <div>
                       <p className="text-xs text-muted-foreground">When</p>
                       <p>{new Date(activeRow.createdAt).toLocaleString()}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Transaction ID</p>
+                      <p className="font-mono text-xs">
+                        {activeRow.transactionId ?? activeRow.id}
+                      </p>
                     </div>
                   </div>
                 </div>

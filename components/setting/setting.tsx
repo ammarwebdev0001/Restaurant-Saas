@@ -26,16 +26,13 @@ export function Setting() {
           return;
         }
 
-        const response = await axios.get('/api/shopdata');
-        const shopdata = response.data.data;
+        // const response = await axios.get('/api/shopdata');
+        // const shopdata = response.data.data;
 
-        if (response.status === 200) {
-          setStoreId(shopdata.id);
-          setStoreName(shopdata.name);
-          setTaxRate(shopdata.tax);
-        } else {
-          toast.error('Failed to fetch data: ' + shopdata.error);
-        }
+        // if (response.status === 200) {
+        // } else {
+        //   toast.error('Failed to fetch data: ' + shopdata.error);
+        // }
       } catch (error: any) {
         toast.error(
           'Failed to fetch data: ' +

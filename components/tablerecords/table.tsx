@@ -1,79 +1,336 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
+
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+} from '@/components/ui/sheet';
+import type {
+  TransactionHistoryKind,
+  TransactionHistoryResponse,
+  TransactionHistoryRow,
+} from '@/types/transaction-history';
 
-import { Table } from '@/components/ui/table';
-import TableHeadRecords from './components/TableHead';
-import TableBodyRecords from './components/TableBody';
-import { fetchRecords } from '@/data/records';
-import { PageProps } from '@/types/paginations';
-import { PaginationDemo } from '@/components/paginations/pagination';
-import { SearchInput } from '@/components/search/search';
-import { toast } from 'react-toastify';
-interface Product {
-  id: string;
-  productId: string;
-  quantity: number;
+const PAGE_SIZE = 20;
+
+function money(value: number | null, currency = 'EUR') {
+  if (value == null || Number.isNaN(value)) return '—';
+  return `${currency.toUpperCase()} ${value.toLocaleString('en-IE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
 }
 
-interface Recordsdata {
-  totalQuantity: number;
-  id: string;
-  totalAmount: string | null;
-  createdAt: Date;
-  isComplete: boolean;
-  products: Product[];
+function kindBadge(kind: TransactionHistoryKind) {
+  if (kind === 'ORDER') return 'Order';
+  if (kind === 'SUBSCRIPTION') return 'Subscription';
+  return 'Register';
 }
 
-export async function Records(props: PageProps) {
-  const searchParams = (await props.searchParams) ?? {};
-  const pageNumber = Number(searchParams.page || 1); // Get the page number. Default to 1 if not provided.
-  const take = 5;
-  const skip = (pageNumber - 1) * take;
-  const search =
-    typeof searchParams.search === 'string' ? searchParams.search : undefined;
-  const result = await fetchRecords({ take, skip, query: search });
-  if (!result) {
-    // Handle the case where fetchProduct returns undefined, e.g., show an error message
-    toast.error('Failed to fetch product data');
-    return;
-  }
-  const { data, metadata } = result;
-  const convertedData: Recordsdata[] = data.map((item) => ({
-    totalQuantity: item.totalQuantity,
-    id: item.id,
-    totalAmount: item.totalAmount ? item.totalAmount.toString() : null,
-    createdAt: item.createdAt,
-    isComplete: item.isComplete,
-    products: item.products,
-  }));
+export function Records() {
+  const [rows, setRows] = useState<TransactionHistoryRow[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [q, setQ] = useState('');
+  const [kind, setKind] = useState<'ALL' | TransactionHistoryKind>('ALL');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  const [detailOpen, setDetailOpen] = useState(false);
+  const [active, setActive] = useState<TransactionHistoryRow | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await axios.get<TransactionHistoryResponse>(
+        '/api/restaurant/transaction-history',
+        {
+          params: {
+            q: q || undefined,
+            kind: kind === 'ALL' ? undefined : kind,
+            page,
+            take: PAGE_SIZE,
+          },
+        }
+      );
+      setRows(res.data.data ?? []);
+      setTotalPages(res.data.meta?.totalPages ?? 1);
+      setTotal(res.data.meta?.total ?? 0);
+    } catch {
+      setRows([]);
+      setError('Could not load transaction history.');
+    } finally {
+      setLoading(false);
+    }
+  }, [q, kind, page]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [q, kind]);
+
+  const stats = useMemo(() => {
+    const orderCount = rows.filter((r) => r.kind === 'ORDER').length;
+    const subCount = rows.filter((r) => r.kind === 'SUBSCRIPTION').length;
+    const regCount = rows.filter((r) => r.kind === 'REGISTER').length;
+    return { orderCount, subCount, regCount };
+  }, [rows]);
+
   return (
-    <Card x-chunk="dashboard-06-chunk-0" className="h-full flex flex-col">
-      <div className="flex items-center justify-between">
-        <div>
-          <CardHeader>
-            <CardTitle>Products</CardTitle>
-            <CardDescription>Manage your products.</CardDescription>
-          </CardHeader>
-        </div>
-        <div className="relative ml-auto mr-4 flex-1 md:grow-0">
-          <SearchInput search={search} />
-        </div>
-      </div>
-      <CardContent className="flex-grow">
-        <Table>
-          <TableHeadRecords />
-          <TableBodyRecords data={convertedData} />
-        </Table>
-      </CardContent>
-      <CardFooter className="mt-auto">
-        <PaginationDemo {...metadata} />
-      </CardFooter>
-    </Card>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Transaction History</CardTitle>
+          <CardDescription>
+            Unified transaction records for orders, subscriptions, and register sales.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 md:grid-cols-4">
+            <Input
+              placeholder="Search by transaction/order/subscription id..."
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <Select
+              value={kind}
+              onValueChange={(v: 'ALL' | TransactionHistoryKind) => setKind(v)}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="ALL">All types</SelectItem>
+                <SelectItem value="ORDER">Orders</SelectItem>
+                <SelectItem value="SUBSCRIPTION">Subscriptions</SelectItem>
+                <SelectItem value="REGISTER">Register</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button type="button" variant="outline" onClick={() => void load()}>
+              Refresh
+            </Button>
+            <div className="text-sm text-muted-foreground md:text-right">
+              {total} records
+            </div>
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-3">
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Orders in current page</p>
+                <p className="text-2xl font-semibold">{stats.orderCount}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Subscriptions in current page</p>
+                <p className="text-2xl font-semibold">{stats.subCount}</p>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="p-4">
+                <p className="text-xs text-muted-foreground">Register in current page</p>
+                <p className="text-2xl font-semibold">{stats.regCount}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="rounded-md border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Transaction ID</TableHead>
+                  <TableHead className="hidden md:table-cell">Order / Subscription</TableHead>
+                  <TableHead className="hidden lg:table-cell">Source</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Amount</TableHead>
+                  <TableHead className="hidden lg:table-cell">When</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {loading ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      Loading...
+                    </TableCell>
+                  </TableRow>
+                ) : error ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-destructive">
+                      {error}
+                    </TableCell>
+                  </TableRow>
+                ) : rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                      No records found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  rows.map((row) => (
+                    <TableRow key={row.key}>
+                      <TableCell>
+                        <Badge variant="secondary">{kindBadge(row.kind)}</Badge>
+                      </TableCell>
+                      <TableCell className="font-mono text-xs">{row.transactionId}</TableCell>
+                      <TableCell className="hidden font-mono text-xs md:table-cell">
+                        {row.referenceId ?? '—'}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell">{row.source}</TableCell>
+                      <TableCell>{row.status}</TableCell>
+                      <TableCell className="text-right tabular-nums">
+                        {money(row.amount, row.currency)}
+                      </TableCell>
+                      <TableCell className="hidden lg:table-cell text-muted-foreground">
+                        {new Date(row.createdAt).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setActive(row);
+                            setDetailOpen(true);
+                          }}
+                        >
+                          View
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <p className="text-sm text-muted-foreground">
+              Page {page} of {totalPages}
+            </p>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page <= 1 || loading}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+              >
+                Previous
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages || loading}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Sheet
+        open={detailOpen}
+        onOpenChange={(open) => {
+          setDetailOpen(open);
+          if (!open) setActive(null);
+        }}
+      >
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>Transaction details</SheetTitle>
+            <SheetDescription className="font-mono text-xs">
+              {active?.transactionId}
+            </SheetDescription>
+          </SheetHeader>
+          {active ? (
+            <div className="mt-4 space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-muted-foreground">Type</p>
+                  <p>{kindBadge(active.kind)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Status</p>
+                  <p>{active.status}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Amount</p>
+                  <p className="tabular-nums">{money(active.amount, active.currency)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Method</p>
+                  <p>{active.method ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Source</p>
+                  <p>{active.source}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-muted-foreground">Date</p>
+                  <p>{new Date(active.createdAt).toLocaleString()}</p>
+                </div>
+              </div>
+              <div className="rounded-md border p-3">
+                <p className="text-xs text-muted-foreground">Order / Subscription reference</p>
+                <p className="font-mono text-xs">{active.referenceId ?? '—'}</p>
+              </div>
+              {active.customerName ? (
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Customer</p>
+                  <p>{active.customerName}</p>
+                </div>
+              ) : null}
+              {active.note ? (
+                <div className="rounded-md border p-3">
+                  <p className="text-xs text-muted-foreground">Notes / Address snapshot</p>
+                  <p className="whitespace-pre-wrap text-xs">{active.note}</p>
+                </div>
+              ) : null}
+            </div>
+          ) : null}
+        </SheetContent>
+      </Sheet>
+    </div>
   );
 }

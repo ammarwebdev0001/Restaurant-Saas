@@ -1,10 +1,9 @@
 import React from 'react';
 import { Records } from '@/components/tablerecords/table';
-import { PageProps } from '@/types/paginations';
-const page = async (props: PageProps) => {
+const page = async () => {
   return (
     <div className="w-full h-full">
-      <Records {...props} />
+      <Records />
     </div>
   );
 };

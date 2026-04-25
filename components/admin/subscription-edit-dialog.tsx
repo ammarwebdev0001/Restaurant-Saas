@@ -282,6 +282,9 @@ export function SubscriptionEditDialog({
                           {p.currency} {Number(p.amount).toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </div>
                         <div className="text-muted-foreground">
+                          Transaction ID: <span className="font-mono">{p.id}</span>
+                        </div>
+                        <div className="text-muted-foreground">
                           Paid: {new Date(p.paidAt).toLocaleString()}
                         </div>
                         {p.periodEnd && (

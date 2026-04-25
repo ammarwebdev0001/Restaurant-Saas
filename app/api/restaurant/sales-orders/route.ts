@@ -51,6 +51,7 @@ export async function GET(_req: NextRequest) {
           total: number;
           status: string;
           paymentStatus: string | null;
+          paymentId: string | null;
           sourceType: string;
           createdAt: Date;
         }>
@@ -62,7 +63,14 @@ export async function GET(_req: NextRequest) {
             WHERE p."orderId" = o.id
             ORDER BY p."createdAt" DESC
             LIMIT 1
-          ) AS "paymentStatus"
+          ) AS "paymentStatus",
+          (
+            SELECT p.id
+            FROM "Payment" p
+            WHERE p."orderId" = o.id
+            ORDER BY p."createdAt" DESC
+            LIMIT 1
+          ) AS "paymentId"
         FROM "Order" o
         WHERE "restaurantId" = ${restaurant.id}::uuid
         ORDER BY o."createdAt" DESC
@@ -74,6 +82,7 @@ export async function GET(_req: NextRequest) {
         total: o.total,
         status: o.status,
         paymentStatus: o.paymentStatus,
+          transactionId: o.paymentId ?? o.id,
         createdAt: o.createdAt.toISOString(),
       }));
     } catch {
@@ -87,7 +96,7 @@ export async function GET(_req: NextRequest) {
             createdAt: true,
             sourceType: true,
             payments: {
-              select: { status: true, createdAt: true },
+              select: { id: true, status: true, createdAt: true },
               orderBy: { createdAt: 'desc' },
               take: 1,
             },
@@ -101,6 +110,7 @@ export async function GET(_req: NextRequest) {
           total: o.total,
           status: o.status,
           paymentStatus: o.payments[0]?.status ?? null,
+          transactionId: o.payments[0]?.id ?? o.id,
           createdAt: o.createdAt.toISOString(),
         }));
       } catch {
@@ -131,6 +141,7 @@ export async function GET(_req: NextRequest) {
         total:
           t.totalAmount != null ? Number(t.totalAmount as string | number) : null,
         status: t.isComplete ? 'Complete' : 'Open',
+        transactionId: t.id,
         createdAt: t.createdAt.toISOString(),
       }));
     } catch {
@@ -151,6 +162,7 @@ export async function GET(_req: NextRequest) {
           sourceType: 'WALK_IN',
           total: t.totalAmount != null ? Number(t.totalAmount) : null,
           status: t.isComplete ? 'Complete' : 'Open',
+          transactionId: t.id,
           createdAt: t.createdAt.toISOString(),
         }));
       } catch {
