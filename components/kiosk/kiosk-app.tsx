@@ -27,6 +27,13 @@ import {
 } from '@/components/order/product-customize-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -125,6 +132,12 @@ type MenuRestaurant = {
   themePrimaryColor?: string | null;
   slug: string;
   menus: CustomerMenuCategory[];
+};
+
+type DiningTableOption = {
+  id: string;
+  name: string;
+  sortOrder: number;
 };
 
 function effectiveUnitPrice(price: number, salePrice: number | null) {
@@ -239,6 +252,11 @@ export function KioskApp({ slug }: { slug: string }) {
   const [cookingNote, setCookingNote] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
+  const [selectedTableId, setSelectedTableId] = useState('');
+  const [diningTables, setDiningTables] = useState<DiningTableOption[]>([]);
+  const [pendingFulfillment, setPendingFulfillment] = useState<'dine_in' | null>(
+    null
+  );
   const [placing, setPlacing] = useState(false);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [lastTicketNumber, setLastTicketNumber] = useState<number | null>(null);
@@ -324,6 +342,30 @@ export function KioskApp({ slug }: { slug: string }) {
         if (!cancelled) setMenuError('Could not load menu.');
       } finally {
         if (!cancelled) setMenuLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [slug]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/customer/tables?slug=${encodeURIComponent(slug)}`,
+          { cache: 'no-store' }
+        );
+        if (!res.ok) return;
+        const body = (await res.json().catch(() => ({}))) as {
+          data?: DiningTableOption[];
+        };
+        if (!cancelled) {
+          setDiningTables(Array.isArray(body.data) ? body.data : []);
+        }
+      } catch {
+        if (!cancelled) setDiningTables([]);
       }
     })();
     return () => {
@@ -524,6 +566,7 @@ export function KioskApp({ slug }: { slug: string }) {
       }>('/api/kiosk/orders', {
         restaurantSlug: slug,
         fulfillment,
+        tableId: fulfillment === 'dine_in' ? selectedTableId || undefined : undefined,
         lines,
         subtotal: cartSubtotal,
         total: cartSubtotal,
@@ -574,6 +617,7 @@ export function KioskApp({ slug }: { slug: string }) {
       const orderPayload = {
         restaurantSlug: slug,
         fulfillment,
+        tableId: fulfillment === 'dine_in' ? selectedTableId || undefined : undefined,
         lines,
         subtotal: cartSubtotal,
         total: cartSubtotal,
@@ -794,12 +838,19 @@ export function KioskApp({ slug }: { slug: string }) {
                 {fulfillment ? (
                   <p className="text-xs text-[#64748b]">
                     {fulfillment === 'dine_in' ? 'Dine in' : 'Take away'}
+                    {fulfillment === 'dine_in' && selectedTableId
+                      ? ` · Table ${
+                          diningTables.find((t) => t.id === selectedTableId)?.name ??
+                          selectedTableId
+                        }`
+                      : ''}
                     {' · '}
                     <button
                       type="button"
                       className="text-primary underline-offset-2 hover:underline"
                       onClick={() => {
                         setFulfillment(null);
+                        setSelectedTableId('');
                         setStep('mode');
                       }}
                     >
@@ -853,8 +904,7 @@ export function KioskApp({ slug }: { slug: string }) {
               <button
                 type="button"
                 onClick={() => {
-                  setFulfillment('dine_in');
-                  setStep('menu');
+                  setPendingFulfillment('dine_in');
                 }}
                 className="flex flex-col items-center gap-3 rounded-2xl border-2 border-primary bg-gradient-to-b from-primary to-primary/90 p-8 text-white shadow-lg transition hover:opacity-95"
               >
@@ -1138,27 +1188,13 @@ export function KioskApp({ slug }: { slug: string }) {
           <div className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 py-6">
             <h1 className="text-2xl font-bold">Checkout</h1>
             <p className="text-sm text-[#64748b]">
-              Optional: leave a name or phone for the counter. Pay at pickup
-              unless your venue configures payment devices here later.
+              {fulfillment === 'dine_in'
+                ? `Dine in · Table ${
+                    diningTables.find((t) => t.id === selectedTableId)?.name ??
+                    selectedTableId
+                  }`
+                : `Take away · ${customerName || 'Guest'} · ${customerPhone || 'No phone'}`}
             </p>
-            <div className="space-y-2">
-              <Label htmlFor="k-name">Name (optional)</Label>
-              <Input
-                id="k-name"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-                autoComplete="name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="k-phone">Phone (optional)</Label>
-              <Input
-                id="k-phone"
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-                autoComplete="tel"
-              />
-            </div>
             <div className="rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4 text-sm text-[#0f172a]">
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#64748b]">
                 Order summary
@@ -1240,6 +1276,64 @@ export function KioskApp({ slug }: { slug: string }) {
             </Button>
           </div>
         )}
+
+        <Dialog
+          open={pendingFulfillment === 'dine_in'}
+          onOpenChange={(open) => {
+            if (!open) setPendingFulfillment(null);
+          }}
+        >
+          <DialogContent className="border-[#e2e8f0] bg-[#f8fafc] text-[#0f172a] shadow-xl">
+            <DialogHeader>
+              <DialogTitle className="text-primary">Select table</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-2">
+              <Label htmlFor="kiosk-table">Table</Label>
+              <select
+                id="kiosk-table"
+                className="h-10 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-sm text-[#0f172a] outline-none ring-offset-0 focus:border-primary focus:ring-2 focus:ring-primary/30"
+                value={selectedTableId}
+                onChange={(e) => setSelectedTableId(e.target.value)}
+              >
+                <option value="">Select table</option>
+                {diningTables.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f1f5f9]"
+                onClick={() => {
+                  setPendingFulfillment(null);
+                }}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                className="bg-primary text-primary-foreground hover:brightness-95"
+                onClick={() => {
+                  if (!selectedTableId) {
+                    toast.warn('Please select a table first.');
+                    return;
+                  }
+                  setFulfillment('dine_in');
+                  setStep('menu');
+                  setPendingFulfillment(null);
+                }}
+              >
+                Continue
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         <ProductCustomizeDialog
           productName={customizeProduct?.name ?? ''}

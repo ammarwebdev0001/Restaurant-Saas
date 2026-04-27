@@ -93,14 +93,14 @@ export function CustomerEntryLinks() {
       <div className="flex flex-wrap gap-2">
         <Button asChild className="gap-2">
           <Link href={webAppPath} target="_blank" rel="noopener noreferrer">
-            <IconExternalLink className="h-4 w-4" aria-hidden />
             Open website
+            <IconExternalLink className="h-4 w-4" aria-hidden />
           </Link>
         </Button>
         <Button asChild variant="secondary" className="gap-2">
           <Link href={kioskPath} target="_blank" rel="noopener noreferrer">
+            Open kiosk
             <IconExternalLink className="h-4 w-4" aria-hidden />
-            Open kiosk UI
           </Link>
         </Button>
       </div>

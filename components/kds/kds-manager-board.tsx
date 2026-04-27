@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { RefreshCw } from 'lucide-react';
+import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,23 @@ type PendingOrder = {
     modifiers: { name: string; quantity: number }[];
   }[];
 };
+
+function normalizeLineName(rawName: string, rawQty: number) {
+  const trimmed = String(rawName || '').trim();
+  const trailingQty = trimmed.match(/^(.*)\s+x(\d+)$/i);
+  if (!trailingQty) {
+    return { name: trimmed, quantity: rawQty };
+  }
+
+  const parsed = Number(trailingQty[2]);
+  const safeParsed = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+  const baseName = trailingQty[1].trim();
+  const effectiveQty = rawQty > 1 ? rawQty * safeParsed : safeParsed;
+  return {
+    name: baseName || trimmed,
+    quantity: effectiveQty,
+  };
+}
 
 function fmt(v: number) {
   return v.toLocaleString('en-IE', {
@@ -198,7 +215,7 @@ export function KdsManagerBoard() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-4">
           {orders.map((o) => (
             <Card key={o.id}>
               <CardHeader className="pb-3">
@@ -207,130 +224,149 @@ export function KdsManagerBoard() {
                   <Badge variant="secondary">{o.sourceType}</Badge>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm font-medium">
-                  {o.customer?.name || 'Walk-in'}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {new Date(o.createdAt).toLocaleString()}
-                </p>
-                <div className="space-y-1">
-                  {o.items.map((it) => {
-                    return (
-                      <div key={it.id} className="text-xs leading-snug">
-                        <p>
-                          <span className="font-semibold tabular-nums">
-                            {it.quantity}×
-                          </span>{' '}
-                          {it.menuItem.name}
-                        </p>
-                        {it.modifiers?.map((m, idx) => (
-                          <p key={`${it.id}-m-${idx}`} className="pl-4 text-muted-foreground">
-                            <span className="font-semibold tabular-nums">
-                              {m.quantity}×
-                            </span>{' '}
-                            {m.name}
-                          </p>
+              <CardContent>
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_340px]">
+                  <div className="space-y-3">
+                    <p className="text-sm font-medium">
+                      {o.customer?.name || 'Walk-in'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {new Date(o.createdAt).toLocaleString()}
+                    </p>
+                    <div className="space-y-1">
+                      {o.items.map((it) => {
+                        const base = normalizeLineName(it.menuItem.name, it.quantity);
+                        return (
+                          <div key={it.id} className="text-xs leading-snug">
+                            <p>
+                              <span className="font-semibold tabular-nums">
+                                {base.quantity}×
+                              </span>{' '}
+                              {base.name}
+                            </p>
+                            {it.modifiers?.map((m, idx) => {
+                              const mod = normalizeLineName(m.name, m.quantity);
+                              return (
+                                <p key={`${it.id}-m-${idx}`} className="pl-4 text-muted-foreground">
+                                  <span className="font-semibold tabular-nums">
+                                    {mod.quantity}×
+                                  </span>{' '}
+                                  {mod.name}
+                                </p>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <p className="text-xs font-semibold">€{fmt(o.total)}</p>
+                  </div>
+
+                 
+
+                  <div className="flex w-full justify-between flex-col gap-3 rounded-lg border bg-muted/20 p-3">
+                   <div className="flex flex-col justify-between">
+
+                    <div className="space-y-2">
+                      <p className="text-xs text-muted-foreground">
+                        Select time:
+                      </p>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[10, 15, 30].map((m) => (
+                          <Button
+                            key={m}
+                            size="sm"
+                            type="button"
+                            variant={
+                              (prepMinutes[o.id] ?? 10) === m
+                                ? 'default'
+                                : 'outline'
+                            }
+                            onClick={() => {
+                              setPrepMinutes((prev) => ({ ...prev, [o.id]: m }));
+                              setCustomMinutesText((prev) => {
+                                const next = { ...prev };
+                                delete next[o.id];
+                                return next;
+                              });
+                            }}
+                          >
+                            {m}m
+                          </Button>
                         ))}
                       </div>
-                    );
-                  })}
-                </div>
-                <p className="text-xs font-semibold">€{fmt(o.total)}</p>
-
-                <div className="space-y-2">
-                  <p className="text-xs text-muted-foreground">Select time:</p>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[10, 15, 30].map((m) => (
-                      <Button
-                        key={m}
-                        size="sm"
-                        type="button"
-                        variant={
-                          (prepMinutes[o.id] ?? 10) === m
-                            ? 'default'
-                            : 'outline'
-                        }
-                        onClick={() => {
-                          setPrepMinutes((prev) => ({ ...prev, [o.id]: m }));
-                          setCustomMinutesText((prev) => {
-                            const next = { ...prev };
-                            delete next[o.id];
-                            return next;
-                          });
-                        }}
+                    </div>
+                    <div className="space-y-1">
+                      <label
+                        htmlFor={`kds-custom-min-${o.id}`}
+                        className="text-xs text-muted-foreground"
                       >
-                        {m}m
-                      </Button>
-                    ))}
-                  </div>
-                  <div className="space-y-1">
-                    <label
-                      htmlFor={`kds-custom-min-${o.id}`}
-                      className="text-xs text-muted-foreground"
-                    >
-                      Custom (minutes)
-                    </label>
-                    <Input
-                      id={`kds-custom-min-${o.id}`}
-                      className="h-9"
-                      inputMode="numeric"
-                      placeholder={`${MIN_CUSTOM_MINUTES}–${MAX_CUSTOM_MINUTES}`}
-                      value={customMinutesText[o.id] ?? ''}
-                      onChange={(e) => {
-                        const v = e.target.value;
-                        setCustomMinutesText((prev) => ({
-                          ...prev,
-                          [o.id]: v,
-                        }));
-                        const n = Math.round(Number(v));
-                        if (
-                          v.trim() !== '' &&
-                          Number.isFinite(n) &&
-                          n >= MIN_CUSTOM_MINUTES &&
-                          n <= MAX_CUSTOM_MINUTES
-                        ) {
-                          setPrepMinutes((prev) => ({ ...prev, [o.id]: n }));
-                        }
-                      }}
-                    />
-                  </div>
-                </div>
+                        Custom (minutes)
+                      </label>
+                      <Input
+                        id={`kds-custom-min-${o.id}`}
+                        className="h-9"
+                        inputMode="numeric"
+                        placeholder={`${MIN_CUSTOM_MINUTES}–${MAX_CUSTOM_MINUTES}`}
+                        value={customMinutesText[o.id] ?? ''}
+                        onChange={(e) => {
+                          const v = e.target.value;
+                          setCustomMinutesText((prev) => ({
+                            ...prev,
+                            [o.id]: v,
+                          }));
+                          const n = Math.round(Number(v));
+                          if (
+                            v.trim() !== '' &&
+                            Number.isFinite(n) &&
+                            n >= MIN_CUSTOM_MINUTES &&
+                            n <= MAX_CUSTOM_MINUTES
+                          ) {
+                            setPrepMinutes((prev) => ({ ...prev, [o.id]: n }));
+                          }
+                        }}
+                      />
+                    </div>
+                   </div>
 
-                <div className="grid grid-cols-2 gap-2">
-                  <Button
-                    className="w-full"
-                    type="button"
-                    disabled={
-                      (activeSubmitCount > 0 &&
-                        activeSubmittingOrderId !== o.id) ||
-                      (activeSubmittingOrderId !== null &&
-                        activeSubmittingOrderId === o.id) ||
-                      (activeCancelCount > 0 && activeCancelOrderId === o.id)
-                    }
-                    onClick={() => void proceed(o.id)}
-                  >
-                    {activeSubmitCount > 0 && activeSubmittingOrderId === o.id
-                      ? 'Proceeding...'
-                      : 'Proceed'}
-                  </Button>
-                  <Button
-                    className="w-full"
-                    variant="destructive"
-                    type="button"
-                    disabled={
-                      (activeCancelCount > 0 &&
-                        activeCancelOrderId !== o.id) ||
-                      (activeCancelOrderId !== null &&
-                        activeCancelOrderId === o.id) ||
-                      (activeSubmitCount > 0 && activeSubmittingOrderId === o.id)
-                    }
-                    onClick={() => void cancelOrder(o.id)}
-                  >
-                    {activeCancelCount > 0 && activeCancelOrderId === o.id
-                      ? 'Canceling...'
-                      : 'Cancel Order'}
-                  </Button>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button
+                      className="w-full"
+                      type="button"
+                      disabled={
+                        (activeSubmitCount > 0 &&
+                          activeSubmittingOrderId !== o.id) ||
+                        (activeSubmittingOrderId !== null &&
+                          activeSubmittingOrderId === o.id) ||
+                        (activeCancelCount > 0 && activeCancelOrderId === o.id)
+                      }
+                      onClick={() => void proceed(o.id)}
+                    >
+                      <CheckCircle2 className="mr-2 h-5 w-5" />
+                      {activeSubmitCount > 0 && activeSubmittingOrderId === o.id
+                        ? 'Proceeding...'
+                        : 'Proceed'}
+                    </Button>
+                    <Button
+                      className="w-full"
+                      variant="destructive"
+                      type="button"
+                      disabled={
+                        (activeCancelCount > 0 &&
+                          activeCancelOrderId !== o.id) ||
+                        (activeCancelOrderId !== null &&
+                          activeCancelOrderId === o.id) ||
+                        (activeSubmitCount > 0 && activeSubmittingOrderId === o.id)
+                      }
+                      onClick={() => void cancelOrder(o.id)}
+                    >
+                      <XCircle className="mr-2 h-5 w-5" />
+                      {activeCancelCount > 0 && activeCancelOrderId === o.id
+                        ? 'Canceling...'
+                        : 'Cancel Order'}
+                    </Button>
+                  </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>

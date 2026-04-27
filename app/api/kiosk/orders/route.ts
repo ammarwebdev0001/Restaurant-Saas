@@ -30,6 +30,7 @@ const lineSchema = z.object({
 const postSchema = z.object({
   restaurantSlug: z.string().min(1).max(200),
   fulfillment: z.enum(['dine_in', 'take_away']),
+  tableId: z.string().uuid().optional(),
   lines: z.array(lineSchema).min(1).max(200),
   subtotal: z.number().finite().nonnegative(),
   total: z.number().finite().nonnegative(),
@@ -42,6 +43,7 @@ const postSchema = z.object({
 
 function buildKioskAddressSnapshot(
   fulfillment: 'dine_in' | 'take_away',
+  tableName?: string,
   cookingNote?: string,
   customerName?: string,
   customerPhone?: string
@@ -50,6 +52,7 @@ function buildKioskAddressSnapshot(
     'Source: Kiosk',
     `Fulfillment: ${fulfillment === 'dine_in' ? 'Dine in' : 'Take away'}`,
   ];
+  if (tableName?.trim()) lines.push(`Table: ${tableName.trim()}`);
   if (customerName?.trim()) lines.push(`Name: ${customerName.trim()}`);
   if (customerPhone?.trim()) lines.push(`Phone: ${customerPhone.trim()}`);
   if (cookingNote?.trim()) lines.push(`Cooking / notes: ${cookingNote.trim()}`);
@@ -94,6 +97,7 @@ export async function POST(req: NextRequest) {
   const {
     restaurantSlug,
     fulfillment,
+    tableId,
     lines,
     subtotal,
     total,
@@ -147,8 +151,27 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let selectedTableName: string | undefined;
+  if (fulfillment === 'dine_in') {
+    if (!tableId) {
+      return NextResponse.json(
+        { error: 'Table is required for dine in orders' },
+        { status: 400 }
+      );
+    }
+    const table = await db.diningTable.findFirst({
+      where: { id: tableId, restaurantId: restaurant.id },
+      select: { name: true },
+    });
+    if (!table) {
+      return NextResponse.json({ error: 'Selected table not found' }, { status: 400 });
+    }
+    selectedTableName = table.name;
+  }
+
   const addressSnapshot = buildKioskAddressSnapshot(
     fulfillment,
+    selectedTableName,
     cookingNote,
     customerName,
     customerPhone

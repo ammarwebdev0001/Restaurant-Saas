@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, CheckCircle2, XCircle, Clock3 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,147 @@ type Ticket = {
   customerName: string | null;
   items: { id: string; productName: string; quantity: number }[];
 };
+
+type BoardLikeLines = {
+  main: { name: string; quantity: number } | null;
+  nested: { name: string; quantity: number }[];
+};
+
+function normalizeTicketItem(rawName: string, rawQty: number) {
+  const trimmed = String(rawName || '').trim();
+  const nested = trimmed.startsWith('+');
+  const withoutPrefix = nested ? trimmed.replace(/^\+\s*/, '') : trimmed;
+  const trailingQty = withoutPrefix.match(/^(.*)\s+x(\d+)$/i);
+
+  if (!trailingQty) {
+    return {
+      isNested: nested,
+      name: withoutPrefix,
+      quantity: rawQty,
+    };
+  }
+
+  const parsed = Number(trailingQty[2]);
+  const safeParsed = Number.isFinite(parsed) && parsed > 0 ? parsed : 1;
+  const baseName = trailingQty[1].trim();
+  const effectiveQty = rawQty > 1 ? rawQty * safeParsed : safeParsed;
+
+  return {
+    isNested: nested,
+    name: baseName || withoutPrefix,
+    quantity: effectiveQty,
+  };
+}
+
+function normalizeRecommendedDisplay(rawName: string, rawQty: number) {
+  const normalized = normalizeTicketItem(rawName, rawQty);
+  return {
+    ...normalized,
+    name: normalized.name.replace(/\s{2,}/g, ' ').trim(),
+  };
+}
+
+function splitTopLevel(input: string, sep: string): string[] {
+  const out: string[] = [];
+  let depth = 0;
+  let buf = '';
+  for (let i = 0; i < input.length; i += 1) {
+    const ch = input[i]!;
+    if (ch === '(') depth += 1;
+    if (ch === ')') depth = Math.max(0, depth - 1);
+    if (ch === sep && depth === 0) {
+      if (buf.trim()) out.push(buf.trim());
+      buf = '';
+      continue;
+    }
+    buf += ch;
+  }
+  if (buf.trim()) out.push(buf.trim());
+  return out;
+}
+
+function extractTopLevelParenSegments(input: string) {
+  const segments: Array<{ start: number; end: number; content: string }> = [];
+  let depth = 0;
+  let start = -1;
+  for (let i = 0; i < input.length; i += 1) {
+    const ch = input[i]!;
+    if (ch === '(') {
+      if (depth === 0) start = i;
+      depth += 1;
+      continue;
+    }
+    if (ch === ')') {
+      if (depth > 0) depth -= 1;
+      if (depth === 0 && start >= 0) {
+        segments.push({
+          start,
+          end: i,
+          content: input.slice(start + 1, i).trim(),
+        });
+        start = -1;
+      }
+    }
+  }
+  return segments;
+}
+
+function parseQtySuffix(input: string, fallbackQty: number) {
+  const m = input.match(/^(.*)\s+x(\d+)$/i);
+  if (!m) return { name: input.trim(), qty: fallbackQty };
+  const n = Number(m[2]);
+  const safe = Number.isFinite(n) && n > 0 ? n : 1;
+  return { name: m[1].trim(), qty: safe };
+}
+
+function toBoardLikeLines(rawName: string, rawQty: number): BoardLikeLines {
+  const normalized = normalizeRecommendedDisplay(rawName, rawQty);
+  if (normalized.isNested) {
+    return {
+      main: null,
+      nested: [{ name: normalized.name, quantity: normalized.quantity }],
+    };
+  }
+
+  const segments = extractTopLevelParenSegments(normalized.name);
+  const recommendationSegments = segments.filter(
+    (s) => s.content.includes(':') || s.content.includes(';')
+  );
+  if (recommendationSegments.length === 0) {
+    return {
+      main: { name: normalized.name, quantity: normalized.quantity },
+      nested: [],
+    };
+  }
+
+  let baseName = normalized.name;
+  recommendationSegments
+    .sort((a, b) => b.start - a.start)
+    .forEach((s) => {
+      baseName = `${baseName.slice(0, s.start)}${baseName.slice(s.end + 1)}`.trim();
+    });
+  baseName = baseName.replace(/\s{2,}/g, ' ').trim();
+
+  const nested: { name: string; quantity: number }[] = [];
+  for (const seg of recommendationSegments) {
+    const parts = splitTopLevel(seg.content.replace(/,\s*/g, ';'), ';');
+    for (const part of parts) {
+      const pair = part.match(/^([^:]+):\s*(.+)$/);
+      const valuesRaw = pair ? pair[2] : part;
+      const values = splitTopLevel(valuesRaw, ',');
+      for (const v of values) {
+        const parsed = parseQtySuffix(v.trim(), 1);
+        if (!parsed.name) continue;
+        nested.push({ name: parsed.name, quantity: parsed.qty });
+      }
+    }
+  }
+
+  return {
+    main: { name: baseName || normalized.name, quantity: normalized.quantity },
+    nested,
+  };
+}
 
 type MenuItemRow = {
   id: string;
@@ -192,7 +333,7 @@ export function KdsKitchenScreen() {
           </CardContent>
         </Card>
       ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="space-y-4">
           {sorted.map((t) => {
             const left = remainingSeconds(
               t.startedAt,
@@ -202,88 +343,113 @@ export function KdsKitchenScreen() {
             const overdue = left < 0;
             return (
               <Card key={t.id} className={overdue ? 'border-red-500' : ''}>
-                <CardContent className="space-y-3 pt-5">
-                  <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="font-mono text-xs">
-                        {t.orderId.slice(0, 10)}
-                      </p>
-                      <p className="text-sm font-medium">
-                        {t.customerName || 'Walk-in'}
+                <CardContent className="pt-5">
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-mono text-xs">
+                            {t.orderId.slice(0, 10)}
+                          </p>
+                          <p className="text-sm font-medium">
+                            {t.customerName || 'Walk-in'}
+                          </p>
+                        </div>
+                        <Badge variant={overdue ? 'destructive' : 'secondary'}>
+                          {t.sourceType}
+                        </Badge>
+                      </div>
+
+                      <div className="space-y-1">
+                        {t.items.map((it) => {
+                          const lines = toBoardLikeLines(it.productName, it.quantity);
+                          return (
+                            <div key={it.id} className="text-sm leading-snug">
+                              {lines.main ? (
+                                <p>
+                                  <span className="font-semibold tabular-nums">
+                                    {lines.main.quantity}×
+                                  </span>{' '}
+                                  {lines.main.name}
+                                </p>
+                              ) : null}
+                              {lines.nested.map((line, idx) => (
+                                <p key={`${it.id}-nested-${idx}`} className="pl-4 text-muted-foreground">
+                                  <span className="font-semibold tabular-nums">
+                                    {line.quantity}×
+                                  </span>{' '}
+                                  {line.name}
+                                </p>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      <p className="text-xs font-semibold">
+                        €{fmt(t.orderTotal)}
                       </p>
                     </div>
-                    <Badge variant={overdue ? 'destructive' : 'secondary'}>
-                      {t.sourceType}
-                    </Badge>
-                  </div>
 
-                  <div className="rounded-md border p-2">
-                    <p className="text-xs text-muted-foreground">
-                      Selected time
-                    </p>
-                    <p
-                      className={`text-lg font-bold tabular-nums ${overdue ? 'text-red-500' : ''}`}
-                    >
-                      {formatCountdown(left)}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground">
-                      Target: {t.selectedMinutes}m
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    {t.items.map((it) => {
-                      const isNested = it.productName.trim().startsWith('+');
-                      return (
-                        <p
-                          key={it.id}
-                          className={`text-sm leading-snug ${isNested ? 'pl-4 text-muted-foreground' : ''}`}
-                        >
-                          <span className="font-semibold tabular-nums">
-                            {it.quantity}×
-                          </span>{' '}
-                          {isNested ? it.productName.trim().replace(/^\+\s*/, '') : it.productName}
+                    <div className="flex flex-col justify-between gap-3">
+                      <div className="flex items-center justify-between rounded-md border p-3">
+                        <Clock3 className="w-12 h-12 text-muted-foreground" />
+                        <div className="flex flex-col justify-between">
+                        <p className="text-xs text-muted-foreground">
+                          Selected time
                         </p>
-                      );
-                    })}
-                  </div>
+                        <p
+                          className={`text-2xl font-bold tabular-nums ${overdue ? 'text-red-500' : ''}`}
+                        >
+                          {formatCountdown(left)}
+                        </p>
+                        <p className="text-[11px] text-muted-foreground">
+                          Target: {t.selectedMinutes}m
+                        </p>
+                          </div>  
+                            
+                      </div>
 
-                  <p className="text-xs font-semibold">
-                    €{fmt(t.orderTotal)}
-                  </p>
-
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button
-                      type="button"
-                      disabled={
-                        (activeUpdateCount > 0 &&
-                          activeUpdatingTicketId !== null &&
-                          activeUpdatingTicketId !== t.id) ||
-                        (activeUpdatingTicketId !== null &&
-                          activeUpdatingTicketId === t.id)
-                      }
-                      onClick={() => void updateStatus(t.id, 'completed')}
-                    >
-                      {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
-                        ? 'Loading...'
-                        : 'Complete'}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      disabled={
-                        (activeUpdateCount > 0 &&
-                          activeUpdatingTicketId !== null &&
-                          activeUpdatingTicketId !== t.id) ||
-                        (activeUpdatingTicketId !== null &&
-                          activeUpdatingTicketId === t.id)
-                      }
-                      onClick={() => void updateStatus(t.id, 'canceled')}
-                    >
-                      {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
-                        ? 'Loading...'
-                        : 'Cancel'}
-                    </Button>
+                      <div className="grid grid-cols-1 gap-2">
+                        <Button
+                          type="button"
+                          size="lg"
+                          className="h-12 justify-start gap-2 text-base"
+                          disabled={
+                            (activeUpdateCount > 0 &&
+                              activeUpdatingTicketId !== null &&
+                              activeUpdatingTicketId !== t.id) ||
+                            (activeUpdatingTicketId !== null &&
+                              activeUpdatingTicketId === t.id)
+                          }
+                          onClick={() => void updateStatus(t.id, 'completed')}
+                        >
+                          <CheckCircle2 className="h-5 w-5" />
+                          {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
+                            ? 'Loading...'
+                            : 'Complete'}
+                        </Button>
+                        <Button
+                          type="button"
+                          size="lg"
+                          variant="destructive"
+                          className="h-12 justify-start gap-2 text-base"
+                          disabled={
+                            (activeUpdateCount > 0 &&
+                              activeUpdatingTicketId !== null &&
+                              activeUpdatingTicketId !== t.id) ||
+                            (activeUpdatingTicketId !== null &&
+                              activeUpdatingTicketId === t.id)
+                          }
+                          onClick={() => void updateStatus(t.id, 'canceled')}
+                        >
+                          <XCircle className="h-5 w-5" />
+                          {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
+                            ? 'Loading...'
+                            : 'Cancel'}
+                        </Button>
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>

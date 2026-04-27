@@ -19,6 +19,7 @@ import {
 import { MODULE_ICONS } from '@/constant/navbarMenu';
 import { canAccessDashboardModule } from '@/lib/restaurant-roles';
 import { cn } from '@/lib/utils';
+import { IconExternalLink } from '@tabler/icons-react';
 
 type AnalyticsCounts = {
   branches: number;
@@ -283,7 +284,9 @@ export default function DashboardAnalytics() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await axios.get<{ data: { slug?: string } | null }>('/api/restaurant');
+        const res = await axios.get<{ data: { slug?: string } | null }>(
+          '/api/restaurant'
+        );
         const s = res.data?.data?.slug?.trim();
         if (!cancelled) setSlug(s && s.length > 0 ? s : null);
       } catch {
@@ -308,34 +311,40 @@ export default function DashboardAnalytics() {
 
   return (
     <div className="space-y-8 w-full">
-      <div>
-        <h2 className="text-lg font-semibold tracking-tight">Overview</h2>
-        <p className="text-sm text-muted-foreground">
-          Live counts for each area of your restaurant. Open a module to work
-          there.
-        </p>
-        {slug ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button asChild size="sm">
-              <a
-                href={`/web-app/${encodeURIComponent(slug)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open website
-              </a>
-            </Button>
-            <Button asChild size="sm" variant="secondary">
-              <a
-                href={`/kiosk/${encodeURIComponent(slug)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Open kiosk UI
-              </a>
-            </Button>
-          </div>
-        ) : null}
+      <div className="flex justify-between items-center">
+        <div>
+          <h2 className="text-lg font-semibold tracking-tight">Overview</h2>
+          <p className="text-sm text-muted-foreground">
+            Live counts for each area of your restaurant. Open a module to work
+            there.
+          </p>
+        </div>
+        <div>
+          {slug ? (
+            <div className="mt-3 flex flex-wrap gap-2">
+              <Button asChild size="sm">
+                <a
+                  href={`/web-app/${encodeURIComponent(slug)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open website
+                  <IconExternalLink className="ml-2 h-4 w-4" aria-hidden />
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="secondary">
+                <a
+                  href={`/kiosk/${encodeURIComponent(slug)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open kiosk
+                  <IconExternalLink className="ml-2 h-4 w-4" aria-hidden />
+                </a>
+              </Button>
+            </div>
+          ) : null}
+        </div>
       </div>
 
       {error ? (
@@ -344,36 +353,38 @@ export default function DashboardAnalytics() {
         </p>
       ) : null}
 
-      {analytics && <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Orders (7 days)</CardTitle>
-            <CardDescription>Daily order volume</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <OrdersBarChart series={analytics?.series ?? []} />
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Revenue (7 days)</CardTitle>
-            <CardDescription>Daily sum of order totals</CardDescription>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <RevenueAreaChart series={analytics?.series ?? []} />
-            <p className="mt-2 text-center text-xs text-muted-foreground">
-              Totals use order <span className="font-medium">total</span> per
-              day (
-              {analytics
-                ? formatMoney(
-                    analytics.series.reduce((s, p) => s + p.revenue, 0)
-                  )
-                : '—'}{' '}
-              in window).
-            </p>
-          </CardContent>
-        </Card>
-      </div>}
+      {analytics && (
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Orders (7 days)</CardTitle>
+              <CardDescription>Daily order volume</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <OrdersBarChart series={analytics?.series ?? []} />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Revenue (7 days)</CardTitle>
+              <CardDescription>Daily sum of order totals</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              <RevenueAreaChart series={analytics?.series ?? []} />
+              <p className="mt-2 text-center text-xs text-muted-foreground">
+                Totals use order <span className="font-medium">total</span> per
+                day (
+                {analytics
+                  ? formatMoney(
+                      analytics.series.reduce((s, p) => s + p.revenue, 0)
+                    )
+                  : '—'}{' '}
+                in window).
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {modules.map((m) => {
