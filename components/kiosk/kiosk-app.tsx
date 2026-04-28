@@ -2,9 +2,11 @@
 
 import axios from 'axios';
 import {
+  CheckCircle,
   Minus,
   Plus,
   ShoppingBag,
+  ShoppingCart,
   Store,
   Trash2,
   UtensilsCrossed,
@@ -39,6 +41,7 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { buildThemeCssVars } from '@/lib/restaurant-theme';
+import { IconArrowBack } from '@tabler/icons-react';
 
 type CartModifierSelection = {
   attributeGroupId: string;
@@ -703,6 +706,8 @@ export function KioskApp({ slug }: { slug: string }) {
     const unit = effectiveUnitPrice(p.price, p.salePrice);
     const showStrike =
       p.salePrice != null && p.salePrice > 0 && p.salePrice < p.price;
+    const isCustomizable =
+      hasRequiredAddons(p) || (p.variations?.length ?? 0) > 0;
     const q = qtyOnMenu(p.id);
 
     return (
@@ -753,7 +758,7 @@ export function KioskApp({ slug }: { slug: string }) {
                 className="w-full bg-primary font-semibold text-primary-foreground hover:brightness-95"
                 onClick={() => onProductTap(p)}
               >
-                ADD
+                {isCustomizable ? 'Customize +' : 'Add +'}
               </Button>
             )}
           </div>
@@ -868,6 +873,9 @@ export function KioskApp({ slug }: { slug: string }) {
                 className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
                 onClick={() => setStep('cart')}
               >
+                <ShoppingCart
+                  className="mr-2 h-4 w-4"
+                />
                 Cart ({cartCount})
               </Button>
             ) : null}
@@ -1054,6 +1062,9 @@ export function KioskApp({ slug }: { slug: string }) {
                   disabled={cartCount === 0}
                   onClick={() => setStep('cart')}
                 >
+                  <ShoppingCart
+                  className="mr-2 h-4 w-4"
+                />
                   View cart
                 </Button>
               </div>
@@ -1065,14 +1076,7 @@ export function KioskApp({ slug }: { slug: string }) {
           <div className="mx-auto w-full max-w-lg flex-1 space-y-4 px-4 py-6">
             <div className="flex items-center justify-between">
               <h1 className="text-2xl font-bold">Cart</h1>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() => setStep('menu')}
-              >
-                Back to menu
-              </Button>
+             
             </div>
             {cart.length === 0 ? (
               <p className="text-[#64748b]">Your cart is empty.</p>
@@ -1177,8 +1181,22 @@ export function KioskApp({ slug }: { slug: string }) {
                   className="w-full bg-primary py-6 text-base font-semibold text-primary-foreground hover:brightness-95"
                   onClick={() => setStep('checkout')}
                 >
+                  <CheckCircle
+                  className="mr-2 h-4 w-4"
+                />
                   Checkout
                 </Button>
+
+                <Button
+                type="button"
+                className="w-full bg-black text-white"
+                onClick={() => setStep('menu')}
+              >
+                <IconArrowBack
+                className="mr-2 h-4 w-4"
+                />
+                Back to menu
+              </Button>
               </>
             )}
           </div>

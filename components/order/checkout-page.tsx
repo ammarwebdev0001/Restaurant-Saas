@@ -58,8 +58,14 @@ function parseCartFromStorage(raw: string | null): CartLine[] {
     for (const row of parsed) {
       if (!row || typeof row !== 'object') continue;
 
-      const maybeLine = row as Partial<CartLine> & { lineId?: string; baseUnitPrice?: number };
-      if (typeof maybeLine.lineId === 'string' && typeof maybeLine.baseUnitPrice === 'number') {
+      const maybeLine = row as Partial<CartLine> & {
+        lineId?: string;
+        baseUnitPrice?: number;
+      };
+      if (
+        typeof maybeLine.lineId === 'string' &&
+        typeof maybeLine.baseUnitPrice === 'number'
+      ) {
         out.push({
           lineId: maybeLine.lineId,
           menuItemId: String(maybeLine.menuItemId ?? ''),
@@ -68,7 +74,9 @@ function parseCartFromStorage(raw: string | null): CartLine[] {
           imageUrl: (maybeLine as any).imageUrl ?? null,
           baseUnitPrice: maybeLine.baseUnitPrice,
           quantity: Number(maybeLine.quantity ?? 1),
-          modifiers: Array.isArray((maybeLine as any).modifiers) ? (maybeLine as any).modifiers : [],
+          modifiers: Array.isArray((maybeLine as any).modifiers)
+            ? (maybeLine as any).modifiers
+            : [],
           modifiersSignature: String(maybeLine.modifiersSignature ?? ''),
         });
         continue;
@@ -76,7 +84,11 @@ function parseCartFromStorage(raw: string | null): CartLine[] {
 
       // Legacy: { product: {id,name,price,image,description...}, quantity }
       const legacy = row as any;
-      if (legacy?.product?.id && typeof legacy.quantity === 'number' && typeof legacy.product.price === 'number') {
+      if (
+        legacy?.product?.id &&
+        typeof legacy.quantity === 'number' &&
+        typeof legacy.product.price === 'number'
+      ) {
         const p = legacy.product;
         out.push({
           lineId: `legacy-${p.id}`,
@@ -98,7 +110,11 @@ function parseCartFromStorage(raw: string | null): CartLine[] {
   }
 }
 
-export default function CheckoutPageClient({ orderType, orderId, orderInfo }: CheckoutPageProps) {
+export default function CheckoutPageClient({
+  orderType,
+  orderId,
+  orderInfo,
+}: CheckoutPageProps) {
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
   const router = useRouter();
@@ -111,53 +127,68 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
     setCartHydrated(true);
   }, [orderId]);
 
-  const total = useMemo(() => cart.reduce((sum, item) => sum + lineTotal(item), 0), [cart]);
+  const total = useMemo(
+    () => cart.reduce((sum, item) => sum + lineTotal(item), 0),
+    [cart]
+  );
   const grandTotal = total + SERVICE_FEE;
 
   const placeOrder = async () => {
     const slug = orderInfo?.restaurantSlug?.trim();
     if (!slug) {
-      toast.error('Missing store link. Open the menu from your restaurant page, then checkout again.');
+      toast.error(
+        'Missing store link. Open the menu from your restaurant page, then checkout again.'
+      );
       return;
     }
 
     setSubmitting(true);
     try {
-      const { data } = await axios.post<{ data?: { orderId?: string } }>('/api/customer/orders', {
-        restaurantSlug: slug,
-        orderType,
-        orderInfo: {
-          mode: orderType,
-          restaurantName: orderInfo?.restaurantName,
-          storeId: orderInfo?.storeId,
-          storeName: orderInfo?.storeName,
-          storeAddress: orderInfo?.storeAddress,
-          address: orderInfo?.address,
-          apartment: orderInfo?.apartment,
-          gateCode: orderInfo?.gateCode,
-          addressName: orderInfo?.addressName,
-          customerPhone: orderInfo?.customerPhone,
+      const { data } = await axios.post<{ data?: { orderId?: string } }>(
+        '/api/customer/orders',
+        {
           restaurantSlug: slug,
-        },
-        lines: cart.map((line) => ({
-          menuItemId: line.menuItemId,
-          quantity: line.quantity,
-          unitPrice: lineUnitTotal(line),
-          productName: line.productName,
-          modifiers: line.modifiers,
-        })),
-        subtotal: total,
-        total: grandTotal,
-        cutlery,
-        comment: comment.trim() || undefined,
-      });
+          orderType,
+          orderInfo: {
+            mode: orderType,
+            restaurantName: orderInfo?.restaurantName,
+            storeId: orderInfo?.storeId,
+            storeName: orderInfo?.storeName,
+            storeAddress: orderInfo?.storeAddress,
+            address: orderInfo?.address,
+            apartment: orderInfo?.apartment,
+            gateCode: orderInfo?.gateCode,
+            addressName: orderInfo?.addressName,
+            customerPhone: orderInfo?.customerPhone,
+            restaurantSlug: slug,
+          },
+          lines: cart.map((line) => ({
+            menuItemId: line.menuItemId,
+            quantity: line.quantity,
+            unitPrice: lineUnitTotal(line),
+            productName: line.productName,
+            modifiers: line.modifiers,
+          })),
+          subtotal: total,
+          total: grandTotal,
+          cutlery,
+          comment: comment.trim() || undefined,
+        }
+      );
 
       const placedId = data?.data?.orderId;
       toast.success(
-        placedId ? `Order placed. Reference: ${placedId}` : 'Order placed successfully.'
+        placedId
+          ? `Order placed. Reference: ${placedId}`
+          : 'Order placed successfully.'
       );
       localStorage.removeItem(`cart-${orderId}`);
-      router.push(orderPathWithQuery(`/order/${orderType}/${encodeURIComponent(orderId)}`, orderInfo));
+      router.push(
+        orderPathWithQuery(
+          `/order/${orderType}/${encodeURIComponent(orderId)}`,
+          orderInfo
+        )
+      );
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: unknown } } };
       const msg = err.response?.data?.error;
@@ -176,7 +207,9 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
   const startStripePayment = async () => {
     const slug = orderInfo?.restaurantSlug?.trim();
     if (!slug) {
-      toast.error('Missing store link. Open the menu from your restaurant page, then checkout again.');
+      toast.error(
+        'Missing store link. Open the menu from your restaurant page, then checkout again.'
+      );
       return;
     }
     if (cart.length === 0) {
@@ -228,22 +261,28 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
       const successPath = `/web-app/order/${orderType}/${orderId}/success?orderId=${encodeURIComponent(
         createdOrderId
       )}&restaurantSlug=${encodeURIComponent(slug)}&session_id={CHECKOUT_SESSION_ID}`;
-      const cancelPath = orderPathWithQuery(`/order/${orderType}/${orderId}/checkout`, orderInfo);
-      const res = await axios.post<{ url: string }>('/api/stripe/create-order-checkout-session', {
-        amount: grandTotal,
-        currency: 'eur',
-        source: 'online',
-        successPath,
-        cancelPath,
-        title: `Online order (${orderType === 'delivery' ? 'Delivery' : 'Pick-up'})`,
-        description: `Order ${createdOrderId} · ${slug}`,
-        metadata: {
+      const cancelPath = orderPathWithQuery(
+        `/order/${orderType}/${orderId}/checkout`,
+        orderInfo
+      );
+      const res = await axios.post<{ url: string }>(
+        '/api/stripe/create-order-checkout-session',
+        {
+          amount: grandTotal,
+          currency: 'eur',
           source: 'online',
-          restaurantSlug: slug,
-          orderType,
-          orderId: createdOrderId,
-        },
-      });
+          successPath,
+          cancelPath,
+          title: `Online order (${orderType === 'delivery' ? 'Delivery' : 'Pick-up'})`,
+          description: `Order ${createdOrderId} · ${slug}`,
+          metadata: {
+            source: 'online',
+            restaurantSlug: slug,
+            orderType,
+            orderId: createdOrderId,
+          },
+        }
+      );
       if (!res.data?.url) {
         toast.error('Could not start payment checkout.');
         return;
@@ -252,7 +291,9 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: unknown } } };
       const msg = err.response?.data?.error;
-      toast.error(typeof msg === 'string' ? msg : 'Could not start Stripe payment.');
+      toast.error(
+        typeof msg === 'string' ? msg : 'Could not start Stripe payment.'
+      );
       setSubmitting(false);
     }
   };
@@ -284,7 +325,10 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
             <Button
               onClick={() =>
                 router.push(
-                  orderPathWithQuery(`/order/${orderType}/${orderId}`, orderInfo)
+                  orderPathWithQuery(
+                    `/order/${orderType}/${orderId}`,
+                    orderInfo
+                  )
                 )
               }
               type="button"
@@ -303,7 +347,8 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
         <div className="mb-6">
           <h1 className="text-3xl font-bold">Checkout</h1>
           <p className="text-muted-foreground">
-            {orderType === 'delivery' ? 'Delivery' : 'Pick-Up'} order - {orderId}
+            {orderType === 'delivery' ? 'Delivery' : 'Pick-Up'} order -{' '}
+            {orderId}
           </p>
         </div>
 
@@ -318,34 +363,41 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
                   {orderInfo?.mode === 'delivery' ? (
                     <>
                       <div>
-                        <strong>Delivery Address:</strong> {orderInfo.address || 'N/A'}
+                        <strong>Delivery Address:</strong>{' '}
+                        {orderInfo.address || 'N/A'}
                       </div>
                       <div>
                         <strong>Name:</strong> {orderInfo.addressName || 'N/A'}
                       </div>
                       <div>
-                        <strong>Phone:</strong> {orderInfo.customerPhone || 'N/A'}
+                        <strong>Phone:</strong>{' '}
+                        {orderInfo.customerPhone || 'N/A'}
                       </div>
                       <div>
-                        <strong>Apartment/Door:</strong> {orderInfo.apartment || 'N/A'}
+                        <strong>Apartment/Door:</strong>{' '}
+                        {orderInfo.apartment || 'N/A'}
                       </div>
                       <div>
-                        <strong>Gate code:</strong> {orderInfo.gateCode || 'N/A'}
+                        <strong>Gate code:</strong>{' '}
+                        {orderInfo.gateCode || 'N/A'}
                       </div>
                     </>
                   ) : (
                     <>
                       <div>
-                        <strong>Pickup location:</strong> {orderInfo?.storeName || 'N/A'}
+                        <strong>Pickup location:</strong>{' '}
+                        {orderInfo?.storeName || 'N/A'}
                       </div>
                       <div>
-                        <strong>Store address:</strong> {orderInfo?.storeAddress || 'N/A'}
+                        <strong>Store address:</strong>{' '}
+                        {orderInfo?.storeAddress || 'N/A'}
                       </div>
                       <div>
                         <strong>Name:</strong> {orderInfo?.addressName || 'N/A'}
                       </div>
                       <div>
-                        <strong>Phone:</strong> {orderInfo?.customerPhone || 'N/A'}
+                        <strong>Phone:</strong>{' '}
+                        {orderInfo?.customerPhone || 'N/A'}
                       </div>
                     </>
                   )}
@@ -361,7 +413,9 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
                 <div className="flex items-center justify-between py-2">
                   <div>
                     <h3 className="text-sm font-semibold">Cutlery</h3>
-                    <p className="text-xs text-muted-foreground">Only ask for cutlery if you need it.</p>
+                    <p className="text-xs text-muted-foreground">
+                      Only ask for cutlery if you need it.
+                    </p>
                   </div>
                   <Button
                     size="sm"
@@ -384,20 +438,6 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
                 </div>
               </CardContent>
             </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>Promotions</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-3">
-                  <span className="text-sm text-muted-foreground">Add a promo code</span>
-                  <Button size="sm" type="button">
-                    Add
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
           </div>
 
           <div className="space-y-4">
@@ -416,13 +456,19 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
                       {line.modifiers.length > 0 ? (
                         <div className="space-y-1">
                           {line.modifiers.map((m) => (
-                            <p key={m.attributeGroupId} className="text-xs text-muted-foreground">
-                              {m.groupName}: {m.selections.map((s) => s.name).join(', ')}
+                            <p
+                              key={m.attributeGroupId}
+                              className="text-xs text-muted-foreground"
+                            >
+                              {m.groupName}:{' '}
+                              {m.selections.map((s) => s.name).join(', ')}
                             </p>
                           ))}
                         </div>
                       ) : null}
-                      <p className="text-xs text-muted-foreground">x{line.quantity}</p>
+                      <p className="text-xs text-muted-foreground">
+                        x{line.quantity}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -449,30 +495,26 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
                     type="button"
                     disabled={submitting}
                   >
-                    {submitting ? 'Processing…' : `Pay with Stripe (€${grandTotal.toFixed(2)})`}
+                    {submitting
+                      ? 'Processing…'
+                      : `Pay with Stripe (€${grandTotal.toFixed(2)})`}
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  By continuing, you confirm your order for pickup or delivery as shown above.
+                  By continuing, you confirm your order for pickup or delivery
+                  as shown above.
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Secure payment</CardTitle>
+                <CardTitle>Promotions</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid gap-2">
-                  <Button variant="outline" size="sm" className="justify-start" type="button">
-                    Bank Card / Swile
-                  </Button>
-                  <Button variant="outline" size="sm" className="justify-start" type="button">
-                    Up Group
-                  </Button>
-                  <Button variant="outline" size="sm" className="justify-start" type="button">
-                    Bimpli (Apetiz)
-                  </Button>
+                <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-3">
+                  <input id="promo-code" type="text" className="text-sm p-2 rounded-lg " placeholder="Add a promo code" />
+                  <Button type="button">Apply</Button>
                 </div>
               </CardContent>
             </Card>
@@ -482,4 +524,3 @@ export default function CheckoutPageClient({ orderType, orderId, orderInfo }: Ch
     </div>
   );
 }
-

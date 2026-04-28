@@ -892,7 +892,7 @@ export default function OrderPageClient({
             )}
           </main>
 
-          <aside className="sticky top-20 rounded-2xl border border-border bg-card p-4 max-h-[70vh]">
+          <aside className="sticky top-0 rounded-2xl border border-border bg-card p-4 max-h-[70vh]">
             <div className="flex h-full flex-col">
               <h3 className="text-lg font-semibold">
                 {orderType === 'delivery' ? 'Delivery' : 'Takeaway'} / Order
