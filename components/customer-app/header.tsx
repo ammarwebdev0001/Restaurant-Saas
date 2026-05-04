@@ -4,9 +4,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { IconMenu2 } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { buildThemeCssVars } from '@/lib/restaurant-theme';
+import { setUiLanguage } from '@/lib/i18n/client';
+import type { UiLanguage } from '@/lib/i18n/resources';
 
 type RestaurantBrand = {
   name: string | null;
@@ -34,6 +43,12 @@ export function Header() {
     themePrimaryColor: null,
   });
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
+  const { t, i18n } = useTranslation();
+  const uiLang: UiLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'es';
+  const applyLanguage = (lang: UiLanguage) => {
+    setUiLanguage(lang);
+    void i18n.changeLanguage(lang);
+  };
 
   const inferredSubdomain = useMemo(() => {
     if (typeof window === 'undefined') return null;
@@ -124,7 +139,43 @@ export function Header() {
           </span>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-primary-foreground/85">Welcome</span>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                className="rounded-full border border-primary/20 bg-white text-primary hover:bg-white/95"
+              >
+                {t('language')}: {uiLang.toUpperCase()}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onSelect={() => {
+                  applyLanguage('es');
+                }}
+                onClick={() => {
+                  applyLanguage('es');
+                }}
+              >
+                Espanol
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  applyLanguage('en');
+                }}
+                onClick={() => {
+                  applyLanguage('en');
+                }}
+              >
+                English
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <span className="text-sm text-primary-foreground/85">
+            {uiLang === 'en' ? 'Welcome' : 'Bienvenido'}
+          </span>
           <Button
             type="button"
             variant="secondary"

@@ -20,6 +20,7 @@ import {
   type ChangeEvent,
 } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 
 import {
@@ -29,6 +30,12 @@ import {
 } from '@/components/order/product-customize-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +48,8 @@ import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { buildThemeCssVars } from '@/lib/restaurant-theme';
+import { setUiLanguage } from '@/lib/i18n/client';
+import type { UiLanguage } from '@/lib/i18n/resources';
 import { IconArrowBack } from '@tabler/icons-react';
 
 type CartModifierSelection = {
@@ -263,6 +272,8 @@ export function KioskApp({ slug }: { slug: string }) {
   const [placing, setPlacing] = useState(false);
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [lastTicketNumber, setLastTicketNumber] = useState<number | null>(null);
+  const { t, i18n } = useTranslation();
+  const uiLang: UiLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'es';
 
   useEffect(() => {
     const sessionId = searchParams.get('session_id')?.trim();
@@ -565,7 +576,7 @@ export function KioskApp({ slug }: { slug: string }) {
         modifiers: line.modifiers,
       }));
       const res = await axios.post<{
-        data: { orderId: string; ticketNumber?: number | null };
+        data: { orderId: string; shortOrderId?: string; ticketNumber?: number | null };
       }>('/api/kiosk/orders', {
         restaurantSlug: slug,
         fulfillment,
@@ -577,7 +588,7 @@ export function KioskApp({ slug }: { slug: string }) {
         customerName: customerName.trim() || undefined,
         customerPhone: customerPhone.trim() || undefined,
       });
-      const placedId = res.data.data.orderId;
+      const placedId = res.data.data.shortOrderId ?? res.data.data.orderId;
       const ticketNumber = res.data.data.ticketNumber ?? null;
       setLastOrderId(placedId);
       setLastTicketNumber(ticketNumber);
@@ -631,9 +642,11 @@ export function KioskApp({ slug }: { slug: string }) {
         paymentMethod: 'Stripe (pending)',
       };
       const preOrder = await axios.post<{
-        data?: { orderId?: string; ticketNumber?: number | null };
+        data?: { orderId?: string; shortOrderId?: string; ticketNumber?: number | null };
       }>('/api/kiosk/orders', orderPayload);
       const createdOrderId = preOrder.data?.data?.orderId;
+      const createdShortOrderId =
+        preOrder.data?.data?.shortOrderId ?? createdOrderId;
       const createdTicketNumber = preOrder.data?.data?.ticketNumber ?? null;
       if (!createdOrderId) {
         toast.error('Could not create order before payment.');
@@ -641,7 +654,7 @@ export function KioskApp({ slug }: { slug: string }) {
         return;
       }
       const successPath = `/kiosk/${encodeURIComponent(slug)}/success?orderId=${encodeURIComponent(
-        createdOrderId
+        createdShortOrderId ?? createdOrderId
       )}${createdTicketNumber != null ? `&ticket=${encodeURIComponent(String(createdTicketNumber))}` : ''}&session_id={CHECKOUT_SESSION_ID}`;
       const cancelPath = `/kiosk/${encodeURIComponent(slug)}?step=checkout`;
       const res = await axios.post<{ url: string }>(
@@ -758,7 +771,7 @@ export function KioskApp({ slug }: { slug: string }) {
                 className="w-full bg-primary font-semibold text-primary-foreground hover:brightness-95"
                 onClick={() => onProductTap(p)}
               >
-                {isCustomizable ? 'Customize +' : 'Add +'}
+                {isCustomizable ? t('customizePlus') : t('addPlus')}
               </Button>
             )}
           </div>
@@ -792,7 +805,7 @@ export function KioskApp({ slug }: { slug: string }) {
   if (menuLoading && !menu) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] p-6">
-        <p className="text-[#64748b]">Loading kiosk…</p>
+        <p className="text-[#64748b]">{t('loadingKiosk')}</p>
       </div>
     );
   }
@@ -865,20 +878,48 @@ export function KioskApp({ slug }: { slug: string }) {
                 ) : null}
               </div>
             </div>
-            {step === 'menu' ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
-                onClick={() => setStep('cart')}
-              >
-                <ShoppingCart
-                  className="mr-2 h-4 w-4"
-                />
-                Cart ({cartCount})
-              </Button>
-            ) : null}
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
+                  >
+                    {t('language')}: {uiLang.toUpperCase()}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setUiLanguage('es');
+                    }}
+                  >
+                    Espanol
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => {
+                      setUiLanguage('en');
+                    }}
+                  >
+                    English
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {step === 'menu' ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
+                  onClick={() => setStep('cart')}
+                >
+                  <ShoppingCart className="mr-2 h-4 w-4" />
+                  {t('cart')} ({cartCount})
+                </Button>
+              ) : null}
+            </div>
           </div>
         </header>
 
@@ -902,10 +943,10 @@ export function KioskApp({ slug }: { slug: string }) {
             ) : null}
             <div className="text-center bg-black/25 backdrop-blur p-6 rounded-lg shadow-lg relative z-20">
               <h1 className="text-2xl font-bold tracking-tight sm:text-3xl text-primary">
-                Where are you eating today?
+                {t('whereEatingToday')}
               </h1>
               <p className="mt-2 text-sm text-white">
-                Tap an option to browse the menu on this kiosk.
+                {t('tapOptionToBrowse')}
               </p>
             </div>
             <div className="grid w-full max-w-md grid-cols-2 gap-4 relative z-20">
@@ -917,7 +958,7 @@ export function KioskApp({ slug }: { slug: string }) {
                 className="flex flex-col items-center gap-3 rounded-2xl border-2 border-primary bg-gradient-to-b from-primary to-primary/90 p-8 text-white shadow-lg transition hover:opacity-95"
               >
                 <UtensilsCrossed className="h-10 w-10" />
-                <span className="font-semibold">Dine in</span>
+                <span className="font-semibold">{t('dineIn')}</span>
               </button>
               <button
                 type="button"
@@ -928,7 +969,9 @@ export function KioskApp({ slug }: { slug: string }) {
                 className="flex flex-col items-center gap-3 rounded-2xl border-2 border-primary bg-gradient-to-b from-primary to-primary/90 p-8 text-white shadow-lg transition hover:opacity-95"
               >
                 <ShoppingBag className="h-10 w-10" />
-                <span className="font-semibold">Take away</span>
+                <span className="font-semibold">
+                  {t('takeAway')}
+                </span>
               </button>
             </div>
           </div>
@@ -1009,21 +1052,24 @@ export function KioskApp({ slug }: { slug: string }) {
                   ))}
                 </div>
 
-                <HorizontalRow title="Recommended" products={recommended} />
                 <HorizontalRow
-                  title="Offers & add-ons"
+                  title={t('recommended')}
+                  products={recommended}
+                />
+                <HorizontalRow
+                  title={t('offersAndAddons')}
                   products={offeredPool}
                 />
 
                 <section>
                   <h2 className="mb-3 text-lg font-bold">
                     {categoryId === 'all'
-                      ? 'All categories'
+                      ? t('allCategories')
                       : menu.menus.find((c) => c.id === categoryId)?.name}
                   </h2>
                   {displayedProducts.length === 0 ? (
                     <p className="text-sm text-[#64748b]">
-                      No products in this category.
+                      {t('noProductsInCategory')}
                     </p>
                   ) : (
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -1042,7 +1088,9 @@ export function KioskApp({ slug }: { slug: string }) {
                   <p className="text-lg font-bold tabular-nums">
                     €{formatMoney(cartSubtotal)}
                   </p>
-                  <p className="text-xs opacity-90">{cartCount} items</p>
+                  <p className="text-xs opacity-90">
+                    {cartCount} {t('items')}
+                  </p>
                   {cart.length > 0 ? (
                     <p
                       className="mt-1 line-clamp-2 text-[11px] leading-snug opacity-95"
@@ -1065,7 +1113,7 @@ export function KioskApp({ slug }: { slug: string }) {
                   <ShoppingCart
                   className="mr-2 h-4 w-4"
                 />
-                  View cart
+                  {t('viewCart')}
                 </Button>
               </div>
             </div>
@@ -1303,18 +1351,20 @@ export function KioskApp({ slug }: { slug: string }) {
         >
           <DialogContent className="border-[#e2e8f0] bg-[#f8fafc] text-[#0f172a] shadow-xl">
             <DialogHeader>
-              <DialogTitle className="text-primary">Select table</DialogTitle>
+              <DialogTitle className="text-primary">
+                {t('selectTable')}
+              </DialogTitle>
             </DialogHeader>
 
             <div className="space-y-2">
-              <Label htmlFor="kiosk-table">Table</Label>
+              <Label htmlFor="kiosk-table">{t('table')}</Label>
               <select
                 id="kiosk-table"
                 className="h-10 w-full rounded-md border border-[#e2e8f0] bg-white px-3 text-sm text-[#0f172a] outline-none ring-offset-0 focus:border-primary focus:ring-2 focus:ring-primary/30"
                 value={selectedTableId}
                 onChange={(e) => setSelectedTableId(e.target.value)}
               >
-                <option value="">Select table</option>
+                <option value="">{t('selectTable')}</option>
                 {diningTables.map((t) => (
                   <option key={t.id} value={t.id}>
                     {t.name}
@@ -1332,14 +1382,14 @@ export function KioskApp({ slug }: { slug: string }) {
                   setPendingFulfillment(null);
                 }}
               >
-                Cancel
+                {t('cancel')}
               </Button>
               <Button
                 type="button"
                 className="bg-primary text-primary-foreground hover:brightness-95"
                 onClick={() => {
                   if (!selectedTableId) {
-                    toast.warn('Please select a table first.');
+                    toast.warn(t('chooseTableFirst'));
                     return;
                   }
                   setFulfillment('dine_in');
@@ -1347,7 +1397,7 @@ export function KioskApp({ slug }: { slug: string }) {
                   setPendingFulfillment(null);
                 }}
               >
-                Continue
+                {t('continue')}
               </Button>
             </DialogFooter>
           </DialogContent>

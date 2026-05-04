@@ -48,6 +48,7 @@ function formatMoney(n: number | null) {
 
 type MenuOrderDetail = {
   id: string;
+  shortOrderId?: string;
   total: number;
   status: string;
   sourceType: string;
@@ -443,6 +444,10 @@ export function SalesOrdersTabs() {
             {!detailLoading && activeRow?.kind === 'menu_order' && menuDetail && (
               <div className="space-y-4 text-sm">
                 <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <p className="text-muted-foreground">Tracking ID</p>
+                    <p className="font-mono text-xs">{menuDetail.shortOrderId ?? menuDetail.id}</p>
+                  </div>
                   <div>
                     <p className="text-muted-foreground">Total</p>
                     <p className="font-semibold tabular-nums">

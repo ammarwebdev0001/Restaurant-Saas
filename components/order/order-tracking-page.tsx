@@ -10,7 +10,8 @@ import { Input } from '@/components/ui/input';
 
 type TrackingResult = {
   id: string;
-  ticketNumber: number;
+  shortOrderId?: string;
+  ticketNumber: number | null;
   status: string;
   total: number;
   createdAt: string;
@@ -36,7 +37,7 @@ export function OrderTrackingPage({
   const track = async () => {
     const id = orderId.trim();
     if (!id) {
-      setError('Enter an order ID.');
+      setError('Enter a tracking ID.');
       setResult(null);
       return;
     }
@@ -71,7 +72,7 @@ export function OrderTrackingPage({
           <CardContent className="space-y-3">
             <div className="flex gap-2">
               <Input
-                placeholder="Enter order ID"
+                placeholder="Enter tracking ID"
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
               />
@@ -96,7 +97,7 @@ export function OrderTrackingPage({
           <Card>
             <CardHeader>
               <CardTitle>
-                Ticket #{result.ticketNumber} · Order {result.id}
+                Ticket #{result.ticketNumber ?? '—'} · Tracking {result.shortOrderId ?? result.id}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3 text-sm">

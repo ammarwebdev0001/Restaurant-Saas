@@ -23,8 +23,24 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { DeleteConfirmation, SaveConfirmation } from '@/components/ui/confirmation-dialogs';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 import type { AttrGroupRow, MenuCategoryRow, MenuItemRow } from './types';
+
+function effectiveUnitPrice(price: number, salePrice: number | null) {
+  if (salePrice != null && salePrice > 0 && salePrice < price) return salePrice;
+  return price;
+}
+
+function linkedItemsForGroup(
+  group: AttrGroupRow,
+  baseProduct: MenuItemRow,
+  categories: MenuCategoryRow[]
+): MenuItemRow[] {
+  const cat = categories.find((c) => c.id === group.linkedCategory.id);
+  return (cat?.items ?? []).filter((i) => i.id !== baseProduct.id);
+}
 
 type Props = {
   categories: MenuCategoryRow[];
@@ -71,10 +87,33 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
   const [deletingOfferId, setDeletingOfferId] = useState<string | null>(null);
   const [deleteOfferConfirmOpen, setDeleteOfferConfirmOpen] = useState(false);
   const [deletingOffer, setDeletingOffer] = useState(false);
+  /** Local-only preview of how single / multiple picks look at checkout (not persisted). */
+  const [previewByGroup, setPreviewByGroup] = useState<Record<string, string[]>>({});
+
+  /** Categories usable for “offered products” (any except the product’s own). */
   const linkedOptions = useMemo(
     () => localCategories.filter((c) => c.id !== selected?.categoryId),
     [localCategories, selected?.categoryId]
   );
+
+  /** Categories not yet used as a recommendation rule for this product (cannot assign twice). */
+  const assignableRuleCategories = useMemo(() => {
+    if (!selected) return [];
+    const alreadyLinked = new Set(
+      selected.attributeGroups.map((g) => g.linkedCategory.id)
+    );
+    return localCategories.filter(
+      (c) => c.id !== selected.categoryId && !alreadyLinked.has(c.id)
+    );
+  }, [localCategories, selected]);
+
+  const assignedCategoryIdsKey = useMemo(() => {
+    if (!selected?.attributeGroups.length) return '';
+    return selected.attributeGroups
+      .map((g) => g.linkedCategory.id)
+      .sort()
+      .join(',');
+  }, [selected?.attributeGroups]);
 
   const currentOffers = selected?.offersFromThis ?? [];
   const offeredProductsFromSelectedCategories = useMemo(() => {
@@ -94,6 +133,28 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
 
   const toggleInArray = (arr: string[], id: string) =>
     arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
+
+  useEffect(() => {
+    setPreviewByGroup({});
+  }, [selectedId]);
+
+  useEffect(() => {
+    if (!selected) {
+      setRuleCategoryIds([]);
+      return;
+    }
+    const alreadyLinked = new Set(
+      selected.attributeGroups.map((g) => g.linkedCategory.id)
+    );
+    setRuleCategoryIds((prev) =>
+      prev.filter(
+        (id) =>
+          id !== selected.categoryId &&
+          !alreadyLinked.has(id) &&
+          localCategories.some((c) => c.id === id)
+      )
+    );
+  }, [selectedId, assignedCategoryIdsKey, selected, localCategories]);
 
   const updateSelectedItem = (updater: (item: MenuItemRow) => MenuItemRow) => {
     if (!selectedId) return;
@@ -118,7 +179,7 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
     }
     setSavingRules(true);
     try {
-      const selectedCategories = linkedOptions.filter((c) =>
+      const selectedCategories = assignableRuleCategories.filter((c) =>
         ruleCategoryIds.includes(c.id)
       );
       const responses = await Promise.all(
@@ -267,13 +328,52 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
             <div className="grid gap-2 max-w-md">
               <Label>Product</Label>
               <Select value={selectedId} onValueChange={setSelectedId}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Choose a product" />
+                <SelectTrigger className="h-auto min-h-11 py-2">
+                  {selected ? (
+                    <div className="flex min-w-0 items-center gap-3 text-left">
+                      {selected.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- dashboard menu URLs
+                        <img
+                          src={selected.imageUrl}
+                          alt=""
+                          className="h-10 w-10 shrink-0 rounded-md border border-border object-cover"
+                        />
+                      ) : (
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted text-[10px] text-muted-foreground">
+                          —
+                        </div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate font-medium">{selected.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {selected.categoryName}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <SelectValue placeholder="Choose a product" />
+                  )}
                 </SelectTrigger>
                 <SelectContent>
                   {allProducts.map((p) => (
                     <SelectItem key={p.id} value={p.id}>
-                      {p.name} ({p.categoryName})
+                      <span className="flex items-center gap-2">
+                        {p.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={p.imageUrl}
+                            alt=""
+                            className="h-8 w-8 rounded object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-8 w-8 items-center justify-center rounded bg-muted text-[10px] text-muted-foreground">
+                            —
+                          </span>
+                        )}
+                        <span className="truncate">
+                          {p.name} ({p.categoryName})
+                        </span>
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -282,11 +382,48 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
 
             {selected && (
               <>
+                {/* Match order customize sheet: hero image + title + price strip */}
+                <div className="overflow-hidden rounded-xl border border-slate-200 bg-white text-slate-900 shadow-sm">
+                  {selected.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={selected.imageUrl}
+                      alt={selected.name}
+                      className="h-44 w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-44 w-full items-center justify-center bg-slate-100 text-sm text-slate-500">
+                      No photo
+                    </div>
+                  )}
+                  <div className="space-y-3 p-5">
+                    <div>
+                      <h3 className="text-xl font-bold uppercase tracking-wide text-primary">
+                        {selected.name}
+                      </h3>
+                      <p className="mt-1 text-sm text-slate-500">
+                        {selected.categoryName}
+                      </p>
+                    </div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50/80 p-4">
+                      <p className="inline-flex rounded-full bg-white px-2.5 py-1 text-base font-bold text-primary ring-1 ring-slate-200">
+                        €{effectiveUnitPrice(selected.price, selected.salePrice).toFixed(2)}
+                      </p>
+                      {selected.description?.trim() ? (
+                        <p className="mt-3 text-sm leading-relaxed text-slate-700">
+                          {selected.description}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-3 rounded-lg border border-border p-4">
                   <h4 className="text-sm font-semibold">1) Recommendation source categories</h4>
                   <p className="text-xs text-muted-foreground">
                     Select one or more categories. Each selected category is saved as
-                    a required/optional recommendation group for this product.
+                    a required/optional recommendation group for this product. Categories
+                    already used for this product cannot be assigned again.
                   </p>
                   {linkedOptions.length === 0 ? (
                     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
@@ -297,6 +434,11 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
                         <Link href="/categories">Go to Categories</Link>
                       </Button>
                     </div>
+                  ) : assignableRuleCategories.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Every other category is already assigned as a recommendation for this
+                      product. Remove a rule below if you want to reuse a category.
+                    </p>
                   ) : (
                     <>
                       <div className="flex flex-wrap gap-4">
@@ -325,7 +467,7 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
                         </label>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                        {linkedOptions.map((cat) => {
+                        {assignableRuleCategories.map((cat) => {
                           const checked = ruleCategoryIds.includes(cat.id);
                           return (
                             <label
@@ -357,44 +499,225 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
                   )}
                 </div>
 
-                <div className="space-y-3 rounded-lg border border-border p-4">
-                  <h4 className="text-sm font-semibold">Saved recommendation groups</h4>
+                <div className="space-y-4">
+                  <div>
+                    <h4 className="text-sm font-semibold">Saved recommendation groups</h4>
+                    <p className="text-xs text-muted-foreground">
+                      Same layout as the customer order sidebar: one dropdown per group when
+                      selection is single; multiple choice uses a multi-select list with photos.
+                      Preview choices here are not saved — they show how the rule behaves.
+                    </p>
+                  </div>
                   {selected.attributeGroups.length === 0 ? (
                     <p className="text-sm text-muted-foreground">
                       No rules yet.
                     </p>
                   ) : (
-                    <ul className="space-y-2">
-                      {selected.attributeGroups.map((g) => (
-                        <li
-                          key={g.id}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
-                        >
-                          <div>
-                            <span className="font-medium">{g.name}</span>
-                            <span className="text-muted-foreground">
-                              {' '}
-                              → from “{g.linkedCategory.name}” ·{' '}
-                              {g.selectionType.toLowerCase()}
-                              {g.required ? ' · required' : ''}
-                            </span>
-                          </div>
-                          <Button
-                            type="button"
-                            size="icon"
-                            variant="ghost"
-                            className="text-destructive"
-                            onClick={() => {
-                              setDeletingRuleId(g.id);
-                              setDeleteRuleConfirmOpen(true);
-                            }}
-                            aria-label="Remove rule"
+                    <div className="space-y-4">
+                      {selected.attributeGroups.map((g) => {
+                        const items = linkedItemsForGroup(
+                          g,
+                          selected,
+                          localCategories
+                        );
+                        const previewIds = previewByGroup[g.id] ?? [];
+                        const singleValue = previewIds[0] ?? '';
+
+                        return (
+                          <section
+                            key={g.id}
+                            className="rounded-lg border border-slate-200 bg-white p-4 text-slate-900 shadow-sm"
                           >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                              <div className="min-w-0 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                  <Label className="text-sm font-semibold text-slate-900">
+                                    {g.name}
+                                  </Label>
+                                  {g.required ? (
+                                    <Badge
+                                      variant="outline"
+                                      className="border-red-200 bg-red-50 text-[10px] font-semibold uppercase text-red-700"
+                                    >
+                                      Required
+                                    </Badge>
+                                  ) : null}
+                                  <Badge variant="secondary" className="text-[10px] uppercase">
+                                    {g.selectionType === 'SINGLE' ? 'Single' : 'Multiple'}
+                                  </Badge>
+                                </div>
+                                <p className="text-xs text-slate-500">
+                                  From {g.linkedCategory.name}
+                                </p>
+                                <p className="text-xs text-slate-500">
+                                  {g.selectionType === 'SINGLE'
+                                    ? 'Choose one option'
+                                    : 'Choose one or more options'}
+                                </p>
+                              </div>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="ghost"
+                                className="shrink-0 text-destructive hover:text-destructive"
+                                onClick={() => {
+                                  setDeletingRuleId(g.id);
+                                  setDeleteRuleConfirmOpen(true);
+                                }}
+                                aria-label="Remove rule"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+
+                            <div className="mt-4">
+                              {items.length === 0 ? (
+                                <p className="text-sm text-slate-500">
+                                  No products in this linked category yet.
+                                </p>
+                              ) : g.selectionType === 'SINGLE' ? (
+                                <Select
+                                  value={singleValue || undefined}
+                                  onValueChange={(v) =>
+                                    setPreviewByGroup((prev) => ({
+                                      ...prev,
+                                      [g.id]: v ? [v] : [],
+                                    }))
+                                  }
+                                >
+                                  <SelectTrigger className="h-auto min-h-11 border-slate-300 bg-white py-2 text-slate-900">
+                                    {(() => {
+                                      const it = items.find((x) => x.id === singleValue);
+                                      if (!it) {
+                                        return (
+                                          <SelectValue placeholder="Select an option…" />
+                                        );
+                                      }
+                                      return (
+                                        <div className="flex min-w-0 items-center gap-3 text-left">
+                                          {it.imageUrl ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                              src={it.imageUrl}
+                                              alt=""
+                                              className="h-9 w-9 shrink-0 rounded-md border border-slate-200 object-cover"
+                                            />
+                                          ) : (
+                                            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50 text-[10px] text-slate-400">
+                                              —
+                                            </div>
+                                          )}
+                                          <div className="min-w-0">
+                                            <p className="truncate text-sm font-medium">
+                                              {it.name}
+                                            </p>
+                                            <p className="truncate text-xs text-slate-500">
+                                              €
+                                              {effectiveUnitPrice(
+                                                it.price,
+                                                it.salePrice
+                                              ).toFixed(2)}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      );
+                                    })()}
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {items.map((it) => (
+                                      <SelectItem key={it.id} value={it.id}>
+                                        <span className="flex items-center gap-2 py-0.5">
+                                          {it.imageUrl ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                              src={it.imageUrl}
+                                              alt=""
+                                              className="h-8 w-8 rounded object-cover"
+                                            />
+                                          ) : (
+                                            <span className="flex h-8 w-8 items-center justify-center rounded bg-slate-100 text-[10px] text-slate-400">
+                                              —
+                                            </span>
+                                          )}
+                                          <span className="flex flex-col gap-0.5 text-left">
+                                            <span className="font-medium leading-tight">
+                                              {it.name}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">
+                                              €
+                                              {effectiveUnitPrice(
+                                                it.price,
+                                                it.salePrice
+                                              ).toFixed(2)}
+                                            </span>
+                                          </span>
+                                        </span>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              ) : (
+                                <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                                  {items.map((it) => {
+                                    const checked = previewIds.includes(it.id);
+                                    const unit = effectiveUnitPrice(
+                                      it.price,
+                                      it.salePrice
+                                    );
+                                    return (
+                                      <label
+                                        key={it.id}
+                                        className={cn(
+                                          'flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5 transition',
+                                          checked
+                                            ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                                            : 'border-slate-200 bg-white hover:bg-slate-50'
+                                        )}
+                                      >
+                                        {it.imageUrl ? (
+                                          // eslint-disable-next-line @next/next/no-img-element
+                                          <img
+                                            src={it.imageUrl}
+                                            alt=""
+                                            className="h-12 w-12 shrink-0 rounded-md border border-slate-200 object-cover"
+                                          />
+                                        ) : (
+                                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-dashed border-slate-200 bg-slate-50 text-[10px] text-slate-400">
+                                            —
+                                          </div>
+                                        )}
+                                        <div className="min-w-0 flex-1">
+                                          <p className="truncate text-sm font-medium text-slate-900">
+                                            {it.name}
+                                          </p>
+                                          <p className="text-xs text-slate-500">
+                                            €{unit.toFixed(2)}
+                                          </p>
+                                        </div>
+                                        <input
+                                          type="checkbox"
+                                          className="h-4 w-4 shrink-0 accent-primary"
+                                          checked={checked}
+                                          onChange={() =>
+                                            setPreviewByGroup((prev) => ({
+                                              ...prev,
+                                              [g.id]: toggleInArray(
+                                                prev[g.id] ?? [],
+                                                it.id
+                                              ),
+                                            }))
+                                          }
+                                        />
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                            </div>
+                          </section>
+                        );
+                      })}
+                    </div>
                   )}
                 </div>
 
@@ -439,15 +762,27 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
                     <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                       {offeredProductsFromSelectedCategories.map((p) => {
                         const checked = selectedOfferProductIds.includes(p.id);
-                        const displayPrice = p.salePrice ?? p.price;
+                        const displayPrice = effectiveUnitPrice(p.price, p.salePrice);
                         return (
                           <label
                             key={`offer-product-${p.id}`}
-                            className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2 text-sm ${
+                            className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm ${
                               checked ? 'border-primary bg-primary/10' : 'border-border'
                             }`}
                           >
-                            <div className="min-w-0">
+                            {p.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={p.imageUrl}
+                                alt=""
+                                className="h-12 w-12 shrink-0 rounded-md object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted text-[10px] text-muted-foreground">
+                                —
+                              </div>
+                            )}
+                            <div className="min-w-0 flex-1">
                               <p className="truncate font-medium">{p.name}</p>
                               <p className="truncate text-xs text-muted-foreground">
                                 {p.categoryName} · €{displayPrice.toFixed(2)}
@@ -455,6 +790,7 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
                             </div>
                             <input
                               type="checkbox"
+                              className="h-4 w-4 shrink-0 accent-primary"
                               checked={checked}
                               onChange={() =>
                                 setSelectedOfferProductIds((prev) => toggleInArray(prev, p.id))
@@ -482,16 +818,34 @@ export function RecommendationsTab({ categories, onRefresh: _onRefresh }: Props)
                       {currentOffers.map((offer) => (
                         <li
                           key={offer.id}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border px-3 py-2 text-sm"
+                          className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-3 py-2 text-sm"
                         >
-                          <div>
-                            <span className="font-medium">
-                              {offer.offeredItem.name}
-                            </span>
-                            <span className="text-muted-foreground">
-                              {' '}
-                              · €{offer.offeredItem.price.toFixed(2)}
-                            </span>
+                          <div className="flex min-w-0 items-center gap-3">
+                            {offer.offeredItem.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={offer.offeredItem.imageUrl}
+                                alt=""
+                                className="h-10 w-10 shrink-0 rounded-md object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted text-[10px] text-muted-foreground">
+                                —
+                              </div>
+                            )}
+                            <div className="min-w-0">
+                              <span className="font-medium">
+                                {offer.offeredItem.name}
+                              </span>
+                              <span className="text-muted-foreground">
+                                {' '}
+                                · €
+                                {effectiveUnitPrice(
+                                  offer.offeredItem.price,
+                                  offer.offeredItem.salePrice
+                                ).toFixed(2)}
+                              </span>
+                            </div>
                           </div>
                           <Button
                             type="button"

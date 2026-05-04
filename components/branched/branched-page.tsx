@@ -58,6 +58,7 @@ export function BranchedPage() {
   }, []);
 
   const activeBranch = branches.find((b) => b.id === activeId) ?? null;
+  const cannotDeleteLastBranch = branches.length <= 1;
 
   function resetForm() {
     setActiveId(null);
@@ -134,6 +135,11 @@ export function BranchedPage() {
   async function deleteBranch() {
     const branchId = activeId;
     if (!branchId) return;
+    if (cannotDeleteLastBranch) {
+      toast.warn('At least one branch is required.');
+      setConfirmDeleteOpen(false);
+      return;
+    }
     setDeletingId(branchId);
     try {
       await axios.delete(`/api/restaurant/branches/${branchId}`);
@@ -196,7 +202,9 @@ export function BranchedPage() {
                 <Button
                   type="button"
                   variant="destructive"
-                  disabled={saving || deletingId === activeId}
+                  disabled={
+                    saving || deletingId === activeId || cannotDeleteLastBranch
+                  }
                   onClick={() => setConfirmDeleteOpen(true)}
                 >
                   {deletingId === activeId ? (
@@ -233,6 +241,11 @@ export function BranchedPage() {
             </p>
           ) : (
             <div className="space-y-2">
+              {branches.length <= 1 ? (
+                <p className="text-xs text-amber-600">
+                  You must keep at least one branch.
+                </p>
+              ) : null}
               {branches.map((b, index) => {
                 const editing = b.id === activeId;
                 return (

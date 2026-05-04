@@ -1,7 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { OrderSourceType } from '@prisma/client';
-import { Prisma } from '@prisma/client';
 
 import { db } from '@/lib/db';
 
@@ -13,11 +12,13 @@ export async function GET(req: NextRequest) {
 
   const order = await db.order.findFirst({
     where: {
-      id: orderId,
+      OR: [{ id: orderId }, { shortOrderId: orderId.toUpperCase() }],
       sourceType: OrderSourceType.KIOSK,
     },
     select: {
       id: true,
+      shortOrderId: true,
+      ticketNumber: true,
       status: true,
       total: true,
       createdAt: true,
@@ -52,20 +53,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Order not found' }, { status: 404 });
   }
 
-  let ticketNumber: number | null = null;
-  try {
-    const rows = await db.$queryRaw<Array<{ ticketNumber: number | null }>>(
-      Prisma.sql`SELECT "ticketNumber" FROM "Order" WHERE id = ${orderId}::uuid LIMIT 1`
-    );
-    ticketNumber = rows[0]?.ticketNumber ?? null;
-  } catch {
-    ticketNumber = null;
-  }
-
   return NextResponse.json({
     data: {
       id: order.id,
-      ticketNumber,
+      shortOrderId: order.shortOrderId,
+      ticketNumber: order.ticketNumber,
       status: order.status,
       total: order.total,
       createdAt: order.createdAt.toISOString(),

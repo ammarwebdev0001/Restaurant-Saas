@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -65,6 +66,7 @@ export function Sidebar({
   setSelectedStoreId,
   restaurantSlug,
 }: SidebarProps) {
+  const { t } = useTranslation();
   const [activeStores, setActiveStores] = useState<Store[]>();
   const [branchesLoading, setBranchesLoading] = useState(false);
   const [menuBanners, setMenuBanners] = useState<string[]>([]);
@@ -183,8 +185,8 @@ export function Sidebar({
             <User2Icon className="h-5 w-5" />
           </span>
           <div>
-            <p className="text-sm font-semibold text-primary">Hi User</p>
-            <p className="text-xs text-[#64748b]">Welcome to the app</p>
+            <p className="text-sm font-semibold text-primary">{t('hiUser')}</p>
+            <p className="text-xs text-[#64748b]">{t('welcomeToApp')}</p>
           </div>
         </div>
       </div>
@@ -246,9 +248,9 @@ export function Sidebar({
       ) : (
         <div className="flex items-center justify-between rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4 text-center">
           <div className="flex flex-col items-center gap-2">
-            <p className="text-lg font-semibold text-[#0f172a]">No menu banners</p>
+            <p className="text-lg font-semibold text-[#0f172a]">{t('noMenuBanners')}</p>
             <p className="text-base font-bold text-[#64748b]">
-              Add banner images in Settings
+              {t('addBannersInSettings')}
             </p>
           </div>
         </div>
@@ -262,37 +264,37 @@ export function Sidebar({
               onClick={() => setMode('delivery')}
             >
               <IconTruck className="mr-2" />
-              Delivery
+              {t('delivery')}
             </Button>
             <Button
               variant={mode === 'takeaway' ? 'default' : 'outline'}
               onClick={() => setMode('takeaway')}
             >
               <IconShoppingBag className="mr-2" />
-              Take Away
+              {t('takeAwayLabel')}
             </Button>
           </div>
 
           {mode === 'delivery' && (
             <div className="space-y-3">
               <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
-                Delivery address
+                {t('deliveryAddress')}
               </p>
              
               <Input
-                placeholder="Your Name"
+                placeholder={t('yourName')}
                 value={addressName}
                 onChange={(event) => setAddressName(event.target.value)}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
-                placeholder="Phone number"
+                placeholder={t('phoneNumber')}
                 value={customerPhone}
                 onChange={(event) => setCustomerPhone(event.target.value)}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
                <Input
-                placeholder="Your Address *"
+                placeholder={t('yourAddressRequired')}
                 value={deliveryAddress}
                 onChange={(event) => setDeliveryAddress(event.target.value)}
                 required
@@ -300,21 +302,20 @@ export function Sidebar({
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
-                placeholder="Apartment or door number"
+                placeholder={t('apartmentOrDoor')}
                 value={apartmentDoorNumber}
                 onChange={(event) => setApartmentDoorNumber(event.target.value)}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
-                placeholder="Gate code, intercom..."
+                placeholder={t('gateCodeIntercom')}
                 value={gateCode}
                 onChange={(event) => setGateCode(event.target.value)}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
 
               <p className="text-xs text-[#64748b]">
-                This information will be used to identify your order and contact
-                you if necessary.
+                {t('deliveryInfoHint')}
               </p>
               <Button
                 className="w-full"
@@ -326,7 +327,7 @@ export function Sidebar({
                 }
               >
                 <IconShoppingCart className="w-4 h-4 mr-2" />
-                Proceed Order
+                {t('proceedOrder')}
               </Button>
             </div>
           )}
@@ -334,27 +335,27 @@ export function Sidebar({
           {mode === 'takeaway' && (
             <div className="space-y-3">
               <Input
-                placeholder="Your Name"
+                placeholder={t('yourName')}
                 value={addressName}
                 onChange={(event) => setAddressName(event.target.value)}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
-                placeholder="Phone number"
+                placeholder={t('phoneNumber')}
                 value={customerPhone}
                 onChange={(event) => setCustomerPhone(event.target.value)}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
-                Select a branch (scroll if needed)
+                {t('selectBranch')}
               </p>
               <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
                 {branchesLoading && (
-                  <p className="text-xs text-[#64748b]">Loading branches...</p>
+                  <p className="text-xs text-[#64748b]">{t('loadingBranches')}</p>
                 )}
                 {!branchesLoading && activeStores?.length === 0 && (
                   <p className="text-xs text-[#64748b]">
-                    No branches available for takeaway.
+                    {t('noBranchesTakeaway')}
                   </p>
                 )}
                 {activeStores?.map((store) => (
@@ -370,12 +371,14 @@ export function Sidebar({
                       <p className="text-sm font-semibold text-[#0f172a]">{store.name}</p>
                       <p className="text-xs text-[#64748b]">{store.address}</p>
                       {store.phone ? (
-                        <p className="text-xs text-[#64748b]">Phone: {store.phone}</p>
+                        <p className="text-xs text-[#64748b]">
+                          {t('phoneLabel')}: {store.phone}
+                        </p>
                       ) : null}
                       <p className="text-xs text-[#64748b]">
                         {store.collectionFrom
-                          ? `Order collection from ${store.collectionFrom}`
-                          : 'Takeaway collection available'}
+                          ? t('orderCollectionFrom', { time: store.collectionFrom })
+                          : t('takeawayCollectionAvailable')}
                       </p>
                     </div>
                     <div className="flex flex-col items-end gap-2">
@@ -391,12 +394,14 @@ export function Sidebar({
                         }
                         onClick={() => setSelectedStoreId(store.id)}
                       >
-                        {selectedStoreId === store.id ? 'Selected' : 'Select'}
+                        {selectedStoreId === store.id
+                          ? t('selected')
+                          : t('select')}
                         <IconChevronRight className="ml-2 h-4 w-4" />
                       </Button>
                       <span className="flex items-center gap-1 text-xs text-[#64748b]">
                         <IconHeart className="h-3.5 w-3.5 text-primary" />
-                        {store.isFavorite ? 'Favorite' : 'Add to favorites'}
+                        {store.isFavorite ? t('favorite') : t('addToFavorites')}
                       </span>
                     </div>
                   </div>
@@ -410,7 +415,7 @@ export function Sidebar({
                 }
               >
                 <IconShoppingCart className="w-4 h-4 mr-2" />
-                Proceed Order
+                {t('proceedOrder')}
               </Button>
             </div>
           )}

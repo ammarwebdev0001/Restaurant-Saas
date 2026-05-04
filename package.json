@@ -1,6 +1,6 @@
 {
   "name": "storage",
-  "version": "2.2.3",
+  "version": "2.3.0",
   "private": true,
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
@@ -42,6 +42,7 @@
     "date-fns": "^3.6.0",
     "decimal.js": "^10.4.3",
     "framer-motion": "^11.1.8",
+    "i18next": "^26.0.8",
     "is-online": "^10.0.0",
     "lucide-react": "^0.378.0",
     "mini-svg-data-uri": "^1.4.4",
@@ -53,6 +54,7 @@
     "react-apexcharts": "^1.4.1",
     "react-dom": "^18",
     "react-hook-form": "^7.51.5",
+    "react-i18next": "^17.0.6",
     "react-resizable-panels": "^2.0.19",
     "react-to-print": "^2.15.1",
     "react-toastify": "^10.0.5",

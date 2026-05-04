@@ -397,6 +397,7 @@ export function fakeOrder() {
 export function fakeOrderComplete() {
   return {
     id: faker.string.uuid(),
+    shortOrderId: '[object Object]',
     restaurantId: faker.string.uuid(),
     customerId: undefined,
     ticketNumber: undefined,

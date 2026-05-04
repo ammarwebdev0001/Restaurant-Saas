@@ -82,27 +82,50 @@ export async function POST(req: NextRequest) {
       },
     },
   });
-  if (existing) {
-    await db.employeeInvite.update({
-      where: { id: invite.id },
-      data: { status: 'ACCEPTED' },
-    });
-    return NextResponse.json({ ok: true, alreadyMember: true });
-  }
 
+  // When a user accepts *any* restaurant invite, they should only be a member of
+  // that restaurant. We therefore revoke/decline membership/invites for all other restaurants.
   await db.$transaction(async (tx) => {
-    await tx.employee.create({
-      data: {
-        restaurantId: invite.restaurantId,
-        userId: user.id,
-        roleId: invite.roleId,
+    if (existing) {
+      await tx.employeeInvite.update({
+        where: { id: invite.id },
+        data: { status: 'ACCEPTED' },
+      });
+    } else {
+      await tx.employee.create({
+        data: {
+          restaurantId: invite.restaurantId,
+          userId: user.id,
+          roleId: invite.roleId,
+        },
+      });
+      await tx.employeeInvite.update({
+        where: { id: invite.id },
+        data: { status: 'ACCEPTED' },
+      });
+    }
+
+    // Decline any other pending invites for the same email in other restaurants.
+    await tx.employeeInvite.updateMany({
+      where: {
+        email: invite.email,
+        status: 'PENDING',
+        restaurantId: { not: invite.restaurantId },
       },
+      data: { status: 'DECLINED' },
     });
-    await tx.employeeInvite.update({
-      where: { id: invite.id },
-      data: { status: 'ACCEPTED' },
+
+    // Remove membership from all other restaurants.
+    await tx.employee.deleteMany({
+      where: {
+        userId: user.id,
+        restaurantId: { not: invite.restaurantId },
+      },
     });
   });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({
+    ok: true,
+    alreadyMember: Boolean(existing),
+  });
 }

@@ -259,9 +259,11 @@ export default function DashboardAnalytics() {
   const [analytics, setAnalytics] = useState<AnalyticsPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [slug, setSlug] = useState<string | null>(null);
+  const [permissionsLoaded, setPermissionsLoaded] = useState(false);
 
   const load = useCallback(async () => {
     setError(null);
+    setPermissionsLoaded(false);
     try {
       const [permRes, dashRes] = await Promise.all([
         axios.get<{ permissions: string[] }>('/api/me/dashboard-permissions'),
@@ -273,6 +275,8 @@ export default function DashboardAnalytics() {
       setError('Could not load dashboard analytics.');
       setPermissions([]);
       setAnalytics(null);
+    } finally {
+      setPermissionsLoaded(true);
     }
   }, []);
 
@@ -298,14 +302,18 @@ export default function DashboardAnalytics() {
     };
   }, []);
 
-  const modules = useMemo(
-    () => DASHBOARD_MODULES.filter((m) => m.moduleKey !== 'dashboard'),
-    []
-  );
+  const modules = useMemo(() => {
+    if (!permissionsLoaded || !permissions) return [];
+    return DASHBOARD_MODULES.filter(
+      (m) =>
+        m.moduleKey !== 'dashboard' &&
+        canAccessDashboardModule(permissions, m.moduleKey)
+    );
+  }, [permissions, permissionsLoaded]);
 
   const can = useCallback(
     (key: DashboardModuleKey) =>
-      permissions ? canAccessDashboardModule(permissions, key) : true,
+      permissions ? canAccessDashboardModule(permissions, key) : false,
     [permissions]
   );
 
@@ -351,6 +359,10 @@ export default function DashboardAnalytics() {
         <p className="text-sm text-destructive" role="alert">
           {error}
         </p>
+      ) : null}
+
+      {!permissionsLoaded ? (
+        <p className="text-sm text-muted-foreground">Checking module access…</p>
       ) : null}
 
       {analytics && (

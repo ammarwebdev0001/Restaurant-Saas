@@ -23,6 +23,7 @@ export function KioskPaymentSuccess({
   const router = useRouter();
   const [ticket, setTicket] = useState<number | null>(ticketFromQuery);
   const [paymentStatus, setPaymentStatus] = useState<string>('pending');
+  const [trackingId, setTrackingId] = useState<string | null>(orderId);
 
   useEffect(() => {
     try {
@@ -67,9 +68,14 @@ export function KioskPaymentSuccess({
           `/api/kiosk/order-tracking?orderId=${encodeURIComponent(orderId)}`
         );
         const body = (await res.json().catch(() => ({}))) as {
-          data?: { ticketNumber?: number | null; payment?: { status?: string } | null };
+          data?: {
+            shortOrderId?: string;
+            ticketNumber?: number | null;
+            payment?: { status?: string } | null;
+          };
         };
         if (!cancelled && body.data) {
+          setTrackingId(body.data.shortOrderId ?? orderId);
           setTicket(body.data.ticketNumber ?? null);
           if (body.data.payment?.status) setPaymentStatus(body.data.payment.status);
         }
@@ -102,6 +108,7 @@ export function KioskPaymentSuccess({
       const orderBody = (await orderRes.json().catch(() => ({}))) as {
         data?: {
           id: string;
+          shortOrderId?: string;
           ticketNumber?: number | null;
           total?: number;
           createdAt?: string;
@@ -127,6 +134,7 @@ export function KioskPaymentSuccess({
       const restaurantName = restaurantBody.data?.name?.trim() || 'Restaurant';
       const logoUrl = restaurantBody.data?.logoUrl ?? null;
       const ticketNo = details?.ticketNumber ?? ticket;
+      const displayTrackingId = details?.shortOrderId ?? details?.id ?? trackingId ?? orderId;
       const items = details?.items ?? [];
       const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
       const total = details?.total ?? subtotal;
@@ -187,7 +195,7 @@ export function KioskPaymentSuccess({
     <div class="center muted">${details?.createdAt ? new Date(details.createdAt).toLocaleString() : new Date().toLocaleString()}</div>
     <div class="sep"></div>
     ${ticketNo != null ? `<div><strong>Ticket:</strong> #${ticketNo}</div>` : ''}
-    <div><strong>Order:</strong> ${details?.id ?? orderId}</div>
+    <div><strong>Tracking:</strong> ${displayTrackingId ?? '—'}</div>
     <div><strong>Payment:</strong> ${paymentMethod}</div>
     <div><strong>Status:</strong> ${paymentState}</div>
     <div class="sep"></div>
@@ -264,7 +272,7 @@ export function KioskPaymentSuccess({
             </div>
             <div className="text-sm">
               <p>
-                <strong>Order ID:</strong> {orderId ?? '—'}
+                <strong>Tracking ID:</strong> {trackingId ?? '—'}
               </p>
               <p>
                 <strong>Payment:</strong> {paymentStatus}

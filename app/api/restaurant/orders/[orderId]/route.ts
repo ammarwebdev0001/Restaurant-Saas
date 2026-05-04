@@ -38,6 +38,7 @@ export async function GET(
       },
       select: {
         id: true,
+        shortOrderId: true,
         total: true,
         status: true,
         sourceType: true,

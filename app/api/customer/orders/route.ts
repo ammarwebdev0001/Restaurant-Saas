@@ -295,6 +295,7 @@ export async function POST(req: NextRequest) {
       {
         data: {
           orderId: result.order.id,
+          shortOrderId: result.order.shortOrderId,
           restaurantId: restaurant.id,
           ticketNumber: result.ticketNumber,
         },

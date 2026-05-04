@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import {
   IconChevronLeft,
@@ -27,6 +28,10 @@ import {
   inferHostSubdomainForMenu,
 } from '@/lib/customer-menu-client';
 import { orderPathWithQuery } from '@/lib/order-search-params';
+import {
+  setUiLanguage,
+} from '@/lib/i18n/client';
+import type { UiLanguage } from '@/lib/i18n/resources';
 
 export type OrderPageProps = {
   orderType: 'delivery' | 'pickUp';
@@ -272,6 +277,7 @@ function ProductCard({
   onAdd: () => void;
   showCustomizeIndicator: boolean;
 }) {
+  const { t } = useTranslation();
   const display = effectiveUnitPrice(product.price, product.salePrice);
   const hasSale =
     product.salePrice != null &&
@@ -309,7 +315,7 @@ function ProductCard({
             €{display.toFixed(2)}
           </span>
           <Button size="sm" onClick={onAdd} type="button">
-            {showCustomizeIndicator ? 'Customize +' : 'Add +'}
+            {showCustomizeIndicator ? t('customizePlus') : t('addPlus')}
           </Button>
         </div>
       </CardContent>
@@ -339,6 +345,8 @@ export default function OrderPageClient({
 
   const [menuLoading, setMenuLoading] = useState(false);
   const [themePrimaryColor, setThemePrimaryColor] = useState<string | null>(null);
+  const { t, i18n } = useTranslation();
+  const uiLang: UiLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'es';
 
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [customizeProduct, setCustomizeProduct] =
@@ -359,7 +367,7 @@ export default function OrderPageClient({
   const openModifyForLine = (line: CartLine) => {
     const product = products.find((p) => p.id === line.menuItemId) ?? null;
     if (!product) {
-      toast.error('Could not find this product to modify.');
+      toast.error(t('productNotFoundToModify'));
       return;
     }
     setEditingLineId(line.lineId);
@@ -400,9 +408,9 @@ export default function OrderPageClient({
             // ignore storage errors
           }
           setCart([]);
-          toast.success('Payment received. Your order was sent to the kitchen.');
+          toast.success(t('paymentReceivedOrderSent'));
         } else {
-          toast.info('Payment is processing. Your order will sync shortly.');
+          toast.info(t('paymentProcessingSyncSoon'));
         }
         router.replace(
           orderPathWithQuery(`/order/${orderType}/${orderId}`, orderInfoRef.current)
@@ -688,9 +696,9 @@ export default function OrderPageClient({
             {orderInfo?.restaurantName ?? 'Enjoy Tacos'}
           </h1>
           <div className="flex items-center gap-2">
+            
             <div className="text-sm text-muted-foreground">
-              {orderType === 'delivery' ? 'Delivery' : 'Pick-Up'} order -{' '}
-              {orderId}
+              {orderType === 'delivery' ? t('delivery') : t('pickUp')} {t('order')} - {orderId}
             </div>
             <Button
               type="button"
@@ -699,11 +707,11 @@ export default function OrderPageClient({
               onClick={() => router.push(storefrontPath)}
             >
               <IconShoppingCart className="w-4 h-4 mr-2" />
-              Switch Order Type / New Order
+              {t('switchOrderTypeNewOrder')}
             </Button>
           </div>
           <div className="text-xs text-muted-foreground">
-            Theme: {resolvedTheme || theme}
+            {t('theme')}: {resolvedTheme || theme}
           </div>
         </div>
 
@@ -720,55 +728,55 @@ export default function OrderPageClient({
 
         {orderInfo && (
           <section className="mb-6 rounded-2xl border border-border bg-card p-4">
-            <h4 className="text-sm font-semibold mb-2">Order details</h4>
+            <h4 className="text-sm font-semibold mb-2">{t('orderDetails')}</h4>
             <div className="grid gap-2 text-sm text-muted-foreground">
               <div>
-                <strong className="text-foreground">Mode:</strong>{' '}
+                <strong className="text-foreground">{t('mode')}:</strong>{' '}
                 {orderInfo.mode}
               </div>
               {orderInfo.mode === 'delivery' ? (
                 <>
                   <div>
-                    <strong className="text-foreground">Address:</strong>{' '}
+                    <strong className="text-foreground">{t('address')}:</strong>{' '}
                     {orderInfo.address || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">Name:</strong>{' '}
+                    <strong className="text-foreground">{t('name')}:</strong>{' '}
                     {orderInfo.addressName || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">Phone:</strong>{' '}
+                    <strong className="text-foreground">{t('phoneLabel')}:</strong>{' '}
                     {orderInfo.customerPhone || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">Apartment:</strong>{' '}
+                    <strong className="text-foreground">{t('apartment')}:</strong>{' '}
                     {orderInfo.apartment || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">Gate code:</strong>{' '}
+                    <strong className="text-foreground">{t('gateCode')}:</strong>{' '}
                     {orderInfo.gateCode || 'N/A'}
                   </div>
                 </>
               ) : (
                 <>
                   <div>
-                    <strong className="text-foreground">Store:</strong>{' '}
+                    <strong className="text-foreground">{t('store')}:</strong>{' '}
                     {orderInfo.storeName || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">Store address:</strong>{' '}
+                    <strong className="text-foreground">{t('storeAddress')}:</strong>{' '}
                     {orderInfo.storeAddress || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">Store id:</strong>{' '}
+                    <strong className="text-foreground">{t('storeId')}:</strong>{' '}
                     {orderInfo.storeId || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">Name:</strong>{' '}
+                    <strong className="text-foreground">{t('name')}:</strong>{' '}
                     {orderInfo.addressName || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">Phone:</strong>{' '}
+                    <strong className="text-foreground">{t('phoneLabel')}:</strong>{' '}
                     {orderInfo.customerPhone || 'N/A'}
                   </div>
                 </>
@@ -789,7 +797,7 @@ export default function OrderPageClient({
                     : 'bg-card text-foreground ring-1 ring-border hover:bg-primary/20'
                 }`}
               >
-                All
+                {t('all')}
               </button>
               {categories.map((category) => (
                 <button
@@ -811,7 +819,7 @@ export default function OrderPageClient({
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Search products..."
+                placeholder={t('searchProducts')}
                 className="w-full sm:w-96"
               />
               <Button
@@ -820,20 +828,20 @@ export default function OrderPageClient({
                 variant="outline"
                 type="button"
               >
-                Clear
+                {t('clear')}
               </Button>
             </div>
 
             {menuLoading ? (
-              <p className="text-sm text-muted-foreground">Loading menu…</p>
+              <p className="text-sm text-muted-foreground">{t('loadingMenu')}</p>
             ) : (
               <>
                 <section className="mb-8">
                   <h2 className="mb-4 text-xl font-semibold">
                     {selectedCategory === ALL_CATEGORY_ID
-                      ? 'All categories'
+                      ? t('allCategories')
                       : categories.find((c) => c.id === selectedCategory)
-                          ?.name ?? 'Selected category'}
+                          ?.name ?? t('selectedCategory')}
                   </h2>
 
                   {displayedCategories.length > 0 ? (
@@ -844,7 +852,7 @@ export default function OrderPageClient({
                         return (
                           <div key={category.id} className="mb-10">
                             <p className="text-sm text-muted-foreground">
-                              No products found in this category
+                              {t('noProductsFoundInCategory')}
                             </p>
                           </div>
                         );
@@ -883,7 +891,7 @@ export default function OrderPageClient({
                   ) : (
                     <div className="mb-10">
                       <p className="text-sm text-muted-foreground">
-                        No categories found
+                        {t('noCategoriesFound')}
                       </p>
                     </div>
                   )}
@@ -895,20 +903,18 @@ export default function OrderPageClient({
           <aside className="sticky top-0 rounded-2xl border border-border bg-card p-4 max-h-[70vh]">
             <div className="flex h-full flex-col">
               <h3 className="text-lg font-semibold">
-                {orderType === 'delivery' ? 'Delivery' : 'Takeaway'} / Order
-                Info
+                {orderType === 'delivery' ? t('delivery') : t('takeAway')} /{' '}
+                {t('orderInfo')}
               </h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Order type: {orderType}. Estimated{' '}
-                {orderType === 'delivery' ? 'delivery' : 'takeaway'} time 20-30
-                mins.
+                {t('orderType')}: {orderType}. {t('estimated')} {orderType === 'delivery' ? t('delivery') : t('takeAway')} {t('time20to30Mins')}
               </p>
 
-              <h4 className="text-lg font-bold mt-5">Cart</h4>
+              <h4 className="text-lg font-bold mt-5">{t('cart')}</h4>
               <div className="mt-4 flex-1 overflow-y-auto pr-1">
                 {cart.length === 0 ? (
                   <p className="mt-2 text-sm text-muted-foreground">
-                    cart is empty
+                    {t('cartEmpty')}
                   </p>
                 ) : (
                   <div className="space-y-3">
@@ -967,7 +973,7 @@ export default function OrderPageClient({
                               onClick={() => removeFromCart(line.lineId)}
                               type="button"
                             >
-                              Remove
+                              {t('remove')}
                             </Button>
                             {isCustomized ? (
                               <Button
@@ -976,7 +982,7 @@ export default function OrderPageClient({
                                 onClick={() => openModifyForLine(line)}
                                 type="button"
                               >
-                                Modify
+                                {t('modify')}
                               </Button>
                             ) : null}
                           </div>
@@ -991,7 +997,7 @@ export default function OrderPageClient({
                 )}
               </div>
               <div className="border-t border-border pt-2 mt-2 text-sm font-bold flex items-center justify-between gap-2">
-                <span>Total</span>
+                <span>{t('total')}</span>
                 <span>€{total.toFixed(2)}</span>
               </div>
               <Button
@@ -1008,7 +1014,7 @@ export default function OrderPageClient({
                 type="button"
                 disabled={cart.length === 0}
               >
-                View Order Details
+                {t('viewCart')}
               </Button>
             </div>
           </aside>

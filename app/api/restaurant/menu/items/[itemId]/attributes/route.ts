@@ -57,6 +57,23 @@ export async function POST(
     );
   }
 
+  const duplicate = await db.menuItemAttributeGroup.findFirst({
+    where: {
+      menuItemId: itemId,
+      linkedCategoryId: parsed.data.linkedCategoryId,
+    },
+    select: { id: true },
+  });
+  if (duplicate) {
+    return NextResponse.json(
+      {
+        error:
+          "This category is already assigned as a recommendation for this product.",
+      },
+      { status: 400 }
+    );
+  }
+
   const group = await db.menuItemAttributeGroup.create({
     data: {
       menuItemId: itemId,

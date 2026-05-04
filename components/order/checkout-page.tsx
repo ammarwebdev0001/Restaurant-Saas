@@ -3,7 +3,9 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
+import { ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -115,6 +117,7 @@ export default function CheckoutPageClient({
   orderId,
   orderInfo,
 }: CheckoutPageProps) {
+  const { t } = useTranslation();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartHydrated, setCartHydrated] = useState(false);
   const router = useRouter();
@@ -144,7 +147,9 @@ export default function CheckoutPageClient({
 
     setSubmitting(true);
     try {
-      const { data } = await axios.post<{ data?: { orderId?: string } }>(
+      const { data } = await axios.post<{
+        data?: { orderId?: string; shortOrderId?: string };
+      }>(
         '/api/customer/orders',
         {
           restaurantSlug: slug,
@@ -176,7 +181,7 @@ export default function CheckoutPageClient({
         }
       );
 
-      const placedId = data?.data?.orderId;
+      const placedId = data?.data?.shortOrderId ?? data?.data?.orderId;
       toast.success(
         placedId
           ? `Order placed. Reference: ${placedId}`
@@ -248,18 +253,22 @@ export default function CheckoutPageClient({
         paymentStatus: 'pending' as const,
         paymentMethod: 'Stripe (pending)',
       };
-      const preOrder = await axios.post<{ data?: { orderId?: string } }>(
+      const preOrder = await axios.post<{
+        data?: { orderId?: string; shortOrderId?: string };
+      }>(
         '/api/customer/orders',
         orderPayload
       );
       const createdOrderId = preOrder.data?.data?.orderId;
+      const createdShortOrderId =
+        preOrder.data?.data?.shortOrderId ?? createdOrderId;
       if (!createdOrderId) {
         toast.error('Could not create order before payment.');
         setSubmitting(false);
         return;
       }
       const successPath = `/web-app/order/${orderType}/${orderId}/success?orderId=${encodeURIComponent(
-        createdOrderId
+        createdShortOrderId ?? createdOrderId
       )}&restaurantSlug=${encodeURIComponent(slug)}&session_id={CHECKOUT_SESSION_ID}`;
       const cancelPath = orderPathWithQuery(
         `/order/${orderType}/${orderId}/checkout`,
@@ -303,10 +312,26 @@ export default function CheckoutPageClient({
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>Preparing checkout…</CardTitle>
+            <CardTitle>{t('preparingCheckout')}</CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground">Loading your cart.</p>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">{t('loadingYourCart')}</p>
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-2"
+              onClick={() =>
+                router.push(
+                  orderPathWithQuery(
+                    `/order/${orderType}/${encodeURIComponent(orderId)}`,
+                    orderInfo
+                  )
+                )
+              }
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              {t('backToOrder')}
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -318,22 +343,25 @@ export default function CheckoutPageClient({
       <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
         <Card className="w-full max-w-md">
           <CardHeader>
-            <CardTitle>No Items to Checkout</CardTitle>
+            <CardTitle>{t('noItemsToCheckout')}</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground mb-4">Your cart is empty.</p>
+            <p className="text-muted-foreground mb-4">{t('cartEmpty')}</p>
             <Button
               onClick={() =>
                 router.push(
                   orderPathWithQuery(
-                    `/order/${orderType}/${orderId}`,
+                    `/order/${orderType}/${encodeURIComponent(orderId)}`,
                     orderInfo
                   )
                 )
               }
               type="button"
+              variant="outline"
+              className="gap-2"
             >
-              Back to Menu
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              {t('backToOrder')}
             </Button>
           </CardContent>
         </Card>
@@ -344,59 +372,77 @@ export default function CheckoutPageClient({
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold">Checkout</h1>
-          <p className="text-muted-foreground">
-            {orderType === 'delivery' ? 'Delivery' : 'Pick-Up'} order -{' '}
-            {orderId}
-          </p>
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">{t('checkout')}</h1>
+            <p className="text-muted-foreground">
+              {orderType === 'delivery' ? 'Delivery' : 'Pick-Up'} order -{' '}
+              {orderId}
+            </p>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="shrink-0 gap-2"
+            onClick={() =>
+              router.push(
+                orderPathWithQuery(
+                  `/order/${orderType}/${encodeURIComponent(orderId)}`,
+                  orderInfo
+                )
+              )
+            }
+          >
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            {t('backToOrder')}
+          </Button>
         </div>
 
         <div className="grid gap-8 lg:grid-cols-[2fr_1fr]">
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Order information</CardTitle>
+                <CardTitle>{t('orderInformation')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="grid gap-3 text-sm text-muted-foreground">
                   {orderInfo?.mode === 'delivery' ? (
                     <>
                       <div>
-                        <strong>Delivery Address:</strong>{' '}
+                        <strong>{t('deliveryAddress')}:</strong>{' '}
                         {orderInfo.address || 'N/A'}
                       </div>
                       <div>
-                        <strong>Name:</strong> {orderInfo.addressName || 'N/A'}
+                        <strong>{t('name')}:</strong> {orderInfo.addressName || 'N/A'}
                       </div>
                       <div>
-                        <strong>Phone:</strong>{' '}
+                        <strong>{t('phoneLabel')}:</strong>{' '}
                         {orderInfo.customerPhone || 'N/A'}
                       </div>
                       <div>
-                        <strong>Apartment/Door:</strong>{' '}
+                        <strong>{t('apartmentDoor')}:</strong>{' '}
                         {orderInfo.apartment || 'N/A'}
                       </div>
                       <div>
-                        <strong>Gate code:</strong>{' '}
+                        <strong>{t('gateCode')}:</strong>{' '}
                         {orderInfo.gateCode || 'N/A'}
                       </div>
                     </>
                   ) : (
                     <>
                       <div>
-                        <strong>Pickup location:</strong>{' '}
+                        <strong>{t('pickupLocation')}:</strong>{' '}
                         {orderInfo?.storeName || 'N/A'}
                       </div>
                       <div>
-                        <strong>Store address:</strong>{' '}
+                        <strong>{t('storeAddress')}:</strong>{' '}
                         {orderInfo?.storeAddress || 'N/A'}
                       </div>
                       <div>
-                        <strong>Name:</strong> {orderInfo?.addressName || 'N/A'}
+                        <strong>{t('name')}:</strong> {orderInfo?.addressName || 'N/A'}
                       </div>
                       <div>
-                        <strong>Phone:</strong>{' '}
+                        <strong>{t('phoneLabel')}:</strong>{' '}
                         {orderInfo?.customerPhone || 'N/A'}
                       </div>
                     </>
@@ -407,14 +453,14 @@ export default function CheckoutPageClient({
 
             <Card>
               <CardHeader>
-                <CardTitle>Order details</CardTitle>
+                <CardTitle>{t('orderDetailsCard')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between py-2">
                   <div>
-                    <h3 className="text-sm font-semibold">Cutlery</h3>
+                    <h3 className="text-sm font-semibold">{t('cutlery')}</h3>
                     <p className="text-xs text-muted-foreground">
-                      Only ask for cutlery if you need it.
+                      {t('cutleryHint')}
                     </p>
                   </div>
                   <Button
@@ -423,16 +469,16 @@ export default function CheckoutPageClient({
                     onClick={() => setCutlery((prev) => !prev)}
                     type="button"
                   >
-                    {cutlery ? 'Yes' : 'No'}
+                    {cutlery ? t('yes') : t('no')}
                   </Button>
                 </div>
                 <div className="mt-4">
-                  <p className="text-sm font-semibold">Comment</p>
+                  <p className="text-sm font-semibold">{t('comment')}</p>
                   <textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     className="mt-2 w-full rounded-lg border border-border bg-background p-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
-                    placeholder="Do you have a specific request regarding the order?"
+                    placeholder={t('commentPlaceholder')}
                     rows={4}
                   />
                 </div>
@@ -443,7 +489,7 @@ export default function CheckoutPageClient({
           <div className="space-y-4">
             <Card className="border-2 border-primary">
               <CardHeader>
-                <CardTitle>Basket</CardTitle>
+                <CardTitle>{t('basket')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -475,15 +521,15 @@ export default function CheckoutPageClient({
 
                 <div className="mt-4 space-y-2 border-t border-border pt-2 text-sm">
                   <div className="flex justify-between">
-                    <span>Subtotal</span>
+                    <span>{t('subtotal')}</span>
                     <span>€{total.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Service fees</span>
+                    <span>{t('serviceFees')}</span>
                     <span>€{SERVICE_FEE.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between font-bold">
-                    <span>Total</span>
+                    <span>{t('total')}</span>
                     <span>€{grandTotal.toFixed(2)}</span>
                   </div>
                 </div>
@@ -496,25 +542,24 @@ export default function CheckoutPageClient({
                     disabled={submitting}
                   >
                     {submitting
-                      ? 'Processing…'
-                      : `Pay with Stripe (€${grandTotal.toFixed(2)})`}
+                      ? t('processing')
+                      : t('payWithStripe', { amount: grandTotal.toFixed(2) })}
                   </Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  By continuing, you confirm your order for pickup or delivery
-                  as shown above.
+                  {t('confirmOrderHint')}
                 </p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>Promotions</CardTitle>
+                <CardTitle>{t('promotions')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-3">
-                  <input id="promo-code" type="text" className="text-sm p-2 rounded-lg " placeholder="Add a promo code" />
-                  <Button type="button">Apply</Button>
+                  <input id="promo-code" type="text" className="text-sm p-2 rounded-lg " placeholder={t('addPromoCode')} />
+                  <Button type="button">{t('apply')}</Button>
                 </div>
               </CardContent>
             </Card>

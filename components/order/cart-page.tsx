@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
-import { IconMinus, IconPlus, IconTrash } from '@tabler/icons-react';
+import { IconArrowLeft, IconMinus, IconPlus, IconTrash } from '@tabler/icons-react';
+import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -156,6 +157,7 @@ function parseCartFromStorage(raw: string | null): CartLine[] {
 }
 
 export default function CartPageClient({ orderType, orderId, orderInfo }: CartPageProps) {
+  const { t } = useTranslation();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [menuRestaurant, setMenuRestaurant] = useState<CustomerMenuRestaurant | null>(null);
   const [offersOpen, setOffersOpen] = useState(false);
@@ -339,7 +341,7 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold">Your Cart</h1>
+          <h1 className="text-3xl font-bold">{t('yourCart')}</h1>
           <p className="text-sm text-muted-foreground">
             {orderType === 'delivery' ? 'Delivery' : 'Pick-Up'} order - {orderId}
           </p>
@@ -348,35 +350,35 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
         {orderInfo && (
           <Card className="mb-6">
             <CardHeader>
-              <CardTitle className="text-lg">Order Details</CardTitle>
+              <CardTitle className="text-lg">{t('orderDetails')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="grid gap-2 text-sm">
                 <div>
-                  <strong>Mode:</strong> {orderInfo.mode}
+                  <strong>{t('mode')}:</strong> {orderInfo.mode}
                 </div>
                 {orderInfo.mode === 'delivery' ? (
                   <>
                     <div>
-                      <strong>Address:</strong> {orderInfo.address || 'N/A'}
+                      <strong>{t('address')}:</strong> {orderInfo.address || 'N/A'}
                     </div>
                     <div>
-                      <strong>Name:</strong> {orderInfo.addressName || 'N/A'}
+                      <strong>{t('name')}:</strong> {orderInfo.addressName || 'N/A'}
                     </div>
                     <div>
-                      <strong>Apartment:</strong> {orderInfo.apartment || 'N/A'}
+                      <strong>{t('apartment')}:</strong> {orderInfo.apartment || 'N/A'}
                     </div>
                     <div>
-                      <strong>Gate code:</strong> {orderInfo.gateCode || 'N/A'}
+                      <strong>{t('gateCode')}:</strong> {orderInfo.gateCode || 'N/A'}
                     </div>
                   </>
                 ) : (
                   <>
                     <div>
-                      <strong>Store:</strong> {orderInfo.storeName || 'N/A'}
+                      <strong>{t('store')}:</strong> {orderInfo.storeName || 'N/A'}
                     </div>
                     <div>
-                      <strong>Store Address:</strong> {orderInfo.storeAddress || 'N/A'}
+                      <strong>{t('storeAddress')}:</strong> {orderInfo.storeAddress || 'N/A'}
                     </div>
                   </>
                 )}
@@ -388,17 +390,22 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
         {cart.length === 0 ? (
           <Card>
             <CardContent className="py-8 text-center">
-              <p className="text-muted-foreground">Your cart is empty.</p>
+              <p className="text-muted-foreground">{t('cartEmpty')}</p>
               <Button
-                className="mt-4"
+                className="mt-4 gap-2"
+                variant="outline"
                 onClick={() =>
                   router.push(
-                    orderPathWithQuery(`/order/${orderType}/${orderId}`, orderInfo)
+                    orderPathWithQuery(
+                      `/order/${orderType}/${encodeURIComponent(orderId)}`,
+                      orderInfo
+                    )
                   )
                 }
                 type="button"
               >
-                Continue Shopping
+                <IconArrowLeft className="h-4 w-4" aria-hidden />
+                {t('backToOrder')}
               </Button>
             </CardContent>
           </Card>
@@ -428,7 +435,9 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
                             ))}
                           </div>
                         ) : null}
-                        <p className="mt-2 text-xs text-muted-foreground">Unit: €{lineUnitTotal(line).toFixed(2)}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                          {t('unitPrice')}: EUR {lineUnitTotal(line).toFixed(2)}
+                        </p>
                       </div>
                     </div>
 
@@ -472,7 +481,7 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
             <Card>
               <CardContent className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-lg font-semibold">Total</span>
+                  <span className="text-lg font-semibold">{t('total')}</span>
                   <span className="text-lg font-bold">€{total.toFixed(2)}</span>
                 </div>
                 {offeredProducts.length > 0 ? (
@@ -482,7 +491,7 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
                     type="button"
                     onClick={() => setOffersOpen(true)}
                   >
-                    View recommended add-ons
+                    {t('viewRecommendedAddons')}
                   </Button>
                 ) : null}
                 <Button
@@ -490,14 +499,14 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
                   onClick={() =>
                     router.push(
                       orderPathWithQuery(
-                        `/order/${orderType}/${orderId}/checkout`,
+                        `/order/${orderType}/${encodeURIComponent(orderId)}/checkout`,
                         orderInfo
                       )
                     )
                   }
                   type="button"
                 >
-                  Proceed to Checkout
+                  {t('proceedToCheckout')}
                 </Button>
               </CardContent>
             </Card>
@@ -511,11 +520,11 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
           style={offersDialogVars}
         >
           <DialogHeader>
-            <DialogTitle>Recommended add-ons</DialogTitle>
+            <DialogTitle>{t('recommendedAddons')}</DialogTitle>
           </DialogHeader>
           {offeredProducts.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No extra products are available for this cart.
+              {t('noExtraProducts')}
             </p>
           ) : (
             <div className="max-h-80 space-y-3 overflow-y-auto py-1">
@@ -554,7 +563,7 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
                       type="button"
                       onClick={() => handleAddOffered(p)}
                     >
-                      Add
+                      {t('add')}
                     </Button>
                   </div>
                 </div>
@@ -567,7 +576,7 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
               variant="outline"
               onClick={() => setOffersOpen(false)}
             >
-              Close
+              {t('close')}
             </Button>
           </DialogFooter>
         </DialogContent>

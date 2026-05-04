@@ -96,6 +96,16 @@ export async function DELETE(
     if ('error' in auth) return auth.error;
 
     const { branchId } = await ctx.params;
+    const totalBranches = await db.branch.count({
+      where: { restaurantId: auth.restaurantId },
+    });
+    if (totalBranches <= 1) {
+      return NextResponse.json(
+        { error: 'You must keep at least one branch.' },
+        { status: 400 }
+      );
+    }
+
     const deleted = await db.branch.deleteMany({
       where: {
         id: branchId,
