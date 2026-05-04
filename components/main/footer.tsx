@@ -14,6 +14,23 @@ export default function Footer() {
               Create your account, set up your brand, and launch your first
               branch.
             </p>
+            <nav
+              aria-label="Legal and product"
+              className="mt-6 flex flex-wrap gap-x-5 gap-y-2 border-t border-border/60 pt-6 text-sm text-muted-foreground"
+            >
+              <Link href="/documentation" className="hover:text-foreground">
+                Documentation
+              </Link>
+              <Link href="/privacy" className="hover:text-foreground">
+                Privacy
+              </Link>
+              <Link href="/policies" className="hover:text-foreground">
+                Policies
+              </Link>
+              <Link href="/subscription-returns" className="hover:text-foreground">
+                Subscription returns &amp; exchanges
+              </Link>
+            </nav>
           </div>
           <Button className="h-11 rounded-xl px-6" asChild>
             <Link href="/register">Create Account</Link>

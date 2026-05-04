@@ -46,7 +46,7 @@ export default function Home() {
 
           <div className="mt-12 grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border bg-background p-4">
-              <p className="text-2xl font-bold">+85%</p>
+              <p className="text-2xl font-bold">+89%</p>
               <p className="text-sm text-muted-foreground">
                 Faster order handling
               </p>
