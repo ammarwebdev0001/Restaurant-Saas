@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 import { getRestaurantForOwnerRequest } from "@/lib/restaurant/ownerRestaurant";
+import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from "@/lib/subscription-plan-enforcement";
 
 export async function DELETE(
   req: NextRequest,
@@ -11,6 +12,11 @@ export async function DELETE(
   const auth = await getRestaurantForOwnerRequest(req);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const planFeatures = await getRestaurantPlanFeatures(auth.restaurant.id);
+  if (!planFeatures.recommendations) {
+    return subscriptionPlanDeniedResponse("Product recommendations and add-on offers");
   }
 
   const { offerId } = await ctx.params;

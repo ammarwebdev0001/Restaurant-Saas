@@ -44,7 +44,7 @@ export default function DemoRequestPage() {
       <div className="mx-auto max-w-xl rounded-xl border bg-background p-8">
         <h1 className="text-3xl font-bold">Request a Demo</h1>
         <p className="mt-2 text-sm text-muted-foreground">
-          See how Restaurant SaaS can fit your operation in a guided product
+          See how Foodluk SaaS can fit your operation in a guided product
           walkthrough.
         </p>
 

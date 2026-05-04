@@ -44,7 +44,13 @@ type RoleRow = {
   permissions: string[];
 };
 
-export default function RolesCard() {
+type RolesCardProps = {
+  roleBasedSettingsAllowed?: boolean;
+};
+
+export default function RolesCard({
+  roleBasedSettingsAllowed = true,
+}: RolesCardProps) {
   const [roles, setRoles] = useState<RoleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [drafts, setDrafts] = useState<Record<string, RoleRow>>({});
@@ -106,6 +112,7 @@ export default function RolesCard() {
   };
 
   const handleSave = async (id: string) => {
+    if (!roleBasedSettingsAllowed) return;
     const cur = drafts[id];
     if (!cur) return;
     if (!navigator.onLine) {
@@ -135,6 +142,7 @@ export default function RolesCard() {
   };
 
   const handleCreate = async () => {
+    if (!roleBasedSettingsAllowed) return;
     const name = newName.trim();
     if (!name) {
       toast.error('Enter a role name.');
@@ -165,6 +173,7 @@ export default function RolesCard() {
   };
 
   const confirmDelete = async () => {
+    if (!roleBasedSettingsAllowed) return;
     if (!deleteId) return;
     if (!navigator.onLine) {
       toast.error('You are offline.');
@@ -193,6 +202,7 @@ export default function RolesCard() {
     action: PermissionAction,
     enabled: boolean
   ) => {
+    if (!roleBasedSettingsAllowed) return;
     const cur = drafts[roleId];
     if (!cur) return;
     const next = toggleModuleAction(
@@ -222,6 +232,13 @@ export default function RolesCard() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
+          {!roleBasedSettingsAllowed ? (
+            <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              Custom roles and per-module permissions are included on Growth and
+              Scale. Starter keeps the built-in Owner and Admin roles.
+            </p>
+          ) : (
+            <>
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <div className="flex-1 space-y-2">
               <label htmlFor="new-role-name" className="text-sm font-medium">
@@ -401,6 +418,8 @@ export default function RolesCard() {
                 );
               })}
             </div>
+          )}
+            </>
           )}
         </CardContent>
         <CardFooter className="border-t px-6 py-4">

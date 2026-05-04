@@ -15,11 +15,18 @@ export function useDashboardNavItems(): NavItem[] {
   useEffect(() => {
     let cancelled = false;
     axios
-      .get<{ permissions?: string[] }>('/api/me/dashboard-permissions')
+      .get<{
+        permissions?: string[];
+        plan?: { recommendations?: boolean };
+      }>('/api/me/dashboard-permissions')
       .then((res) => {
         if (cancelled) return;
         const perms = res.data.permissions ?? [];
-        setItems(navItemsForPermissions(perms));
+        let items = navItemsForPermissions(perms);
+        if (res.data.plan?.recommendations === false) {
+          items = items.filter((i) => i.moduleKey !== 'recommendations');
+        }
+        setItems(items);
       })
       .catch(() => {
         if (cancelled) return;

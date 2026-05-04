@@ -4,6 +4,12 @@ import { OrderSourceType } from '@prisma/client';
 import { z } from 'zod';
 
 import { db } from '@/lib/db';
+import {
+  isPrismaUniqueViolation,
+  parseOrderIdempotencyKey,
+  recoverOrderFromIdempotencyConflict,
+  respondIfIdempotentOrderExists,
+} from '@/lib/order-idempotency-server';
 
 const SELECTED_MINUTES_KIOSK = 25;
 
@@ -118,6 +124,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
   }
 
+  const idempotencyKey = parseOrderIdempotencyKey(req);
+  const idempotentHit = await respondIfIdempotentOrderExists(
+    idempotencyKey,
+    restaurant.id
+  );
+  if (idempotentHit) return idempotentHit;
+
   const computedSubtotal = lines.reduce((sum, l) => sum + l.unitPrice * l.quantity, 0);
   if (Math.abs(computedSubtotal - subtotal) > 0.02) {
     return NextResponse.json({ error: 'Subtotal does not match cart lines' }, { status: 400 });
@@ -208,6 +221,7 @@ export async function POST(req: NextRequest) {
           address: addressSnapshot || null,
           taxAmount: 0,
           discountAmount: 0,
+          idempotencyKey: idempotencyKey ?? undefined,
         },
       });
 
@@ -279,6 +293,13 @@ export async function POST(req: NextRequest) {
       { status: 201 }
     );
   } catch (e) {
+    if (isPrismaUniqueViolation(e)) {
+      const recovered = await recoverOrderFromIdempotencyConflict(
+        idempotencyKey,
+        restaurant.id
+      );
+      if (recovered) return recovered;
+    }
     console.error(e);
     return NextResponse.json({ error: 'Failed to place order' }, { status: 500 });
   }

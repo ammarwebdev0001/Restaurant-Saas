@@ -43,7 +43,13 @@ type PendingInvite = {
   expiresAt: string;
 };
 
-export default function RestaurantUsersCard() {
+type RestaurantUsersCardProps = {
+  roleBasedSettingsAllowed?: boolean;
+};
+
+export default function RestaurantUsersCard({
+  roleBasedSettingsAllowed = true,
+}: RestaurantUsersCardProps) {
   const [employees, setEmployees] = useState<EmployeeRow[]>([]);
   const [pendingInvites, setPendingInvites] = useState<PendingInvite[]>([]);
   const [roles, setRoles] = useState<RoleOption[]>([]);
@@ -60,17 +66,20 @@ export default function RestaurantUsersCard() {
     const res = await axios.get<{ roles: RoleOption[] }>(
       '/api/restaurant/roles'
     );
-    const list = (res.data.roles ?? []).filter(
-      (r) =>
-        r.slug !== RESTAURANT_ROLE_SLUG.ADMIN &&
-        r.slug !== RESTAURANT_ROLE_SLUG.OWNER
-    );
+    const all = res.data.roles ?? [];
+    const list = !roleBasedSettingsAllowed
+      ? all.filter((r) => r.slug === RESTAURANT_ROLE_SLUG.ADMIN)
+      : all.filter(
+          (r) =>
+            r.slug !== RESTAURANT_ROLE_SLUG.ADMIN &&
+            r.slug !== RESTAURANT_ROLE_SLUG.OWNER
+        );
     setRoles(list);
     setRoleId((prev) => {
       if (prev && list.some((r) => r.id === prev)) return prev;
       return list[0]?.id ?? '';
     });
-  }, []);
+  }, [roleBasedSettingsAllowed]);
 
   const fetchAll = useCallback(async () => {
     if (!navigator.onLine) {
@@ -249,6 +258,13 @@ export default function RestaurantUsersCard() {
           email already has an account, only the invite is sent—password is
           ignored and they accept in email.
         </CardDescription>
+        {!roleBasedSettingsAllowed ? (
+          <p className="text-sm text-muted-foreground">
+            On Starter, new invites use the <strong>Admin</strong> role only.
+            Custom roles and permission presets are available on Growth and
+            Scale.
+          </p>
+        ) : null}
       </CardHeader>
       <CardContent className="space-y-6">
         <div className="grid gap-3 rounded-lg border bg-muted/30 p-4 sm:grid-cols-2 lg:grid-cols-4 lg:items-end">

@@ -63,7 +63,7 @@ export default function LandingAuthActions() {
               onClick={() => setOpen(false)}
             >
               <Shield className="mr-2 h-4 w-4" />
-              SaaS admin
+              Foodluk admin
             </Link>
           ) : (
             <Link

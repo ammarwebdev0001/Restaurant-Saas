@@ -385,6 +385,7 @@ export function fakeCustomerComplete() {
 }
 export function fakeOrder() {
   return {
+    idempotencyKey: undefined,
     ticketNumber: undefined,
     ticketDate: undefined,
     status: faker.lorem.words(5),
@@ -398,6 +399,7 @@ export function fakeOrderComplete() {
   return {
     id: faker.string.uuid(),
     shortOrderId: '[object Object]',
+    idempotencyKey: undefined,
     restaurantId: faker.string.uuid(),
     customerId: undefined,
     ticketNumber: undefined,

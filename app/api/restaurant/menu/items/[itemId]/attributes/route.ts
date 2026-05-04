@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { getRestaurantForOwnerRequest } from "@/lib/restaurant/ownerRestaurant";
+import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from "@/lib/subscription-plan-enforcement";
 
 const createSchema = z.object({
   name: z.string().min(1).max(120),
@@ -20,6 +21,11 @@ export async function POST(
   const auth = await getRestaurantForOwnerRequest(req);
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
+  }
+
+  const planFeatures = await getRestaurantPlanFeatures(auth.restaurant.id);
+  if (!planFeatures.recommendations) {
+    return subscriptionPlanDeniedResponse("Recommendation groups (add-on categories)");
   }
 
   const { itemId } = await ctx.params;

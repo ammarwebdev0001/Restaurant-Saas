@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
+import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from '@/lib/subscription-plan-enforcement';
 
 const patchSchema = z.object({
   roleId: z.string().uuid(),
@@ -61,6 +62,14 @@ export async function PATCH(
   });
   if (!newRole) {
     return NextResponse.json({ error: 'Role not found.' }, { status: 400 });
+  }
+
+  const planFeatures = await getRestaurantPlanFeatures(auth.restaurantId);
+  if (!planFeatures.roleBasedSettings) {
+    const slug = newRole.slug;
+    if (slug !== RESTAURANT_ROLE_SLUG.OWNER && slug !== RESTAURANT_ROLE_SLUG.ADMIN) {
+      return subscriptionPlanDeniedResponse('Assigning custom roles to team members');
+    }
   }
 
   const ownerRole = await db.role.findUnique({

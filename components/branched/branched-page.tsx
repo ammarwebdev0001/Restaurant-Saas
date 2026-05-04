@@ -23,6 +23,8 @@ type BranchRow = {
 
 export function BranchedPage() {
   const [branches, setBranches] = useState<BranchRow[]>([]);
+  /** `null` from API means unlimited (Scale). */
+  const [maxBranches, setMaxBranches] = useState<number | null>(1);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -40,10 +42,15 @@ export function BranchedPage() {
     setLoading(true);
     (async () => {
       try {
-        const res = await axios.get<{ data: BranchRow[] }>(
-          '/api/restaurant/branches'
-        );
+        const [res, subRes] = await Promise.all([
+          axios.get<{ data: BranchRow[] }>('/api/restaurant/branches'),
+          axios.get<{
+            data?: { limits?: { maxBranches?: number | null } };
+          }>('/api/me/subscription-access'),
+        ]);
         setBranches(res.data.data ?? []);
+        const cap = subRes.data?.data?.limits?.maxBranches;
+        setMaxBranches(typeof cap === 'number' ? cap : cap === null ? null : 1);
       } catch {
         toast.error('Could not load branches');
         setBranches([]);
@@ -59,6 +66,9 @@ export function BranchedPage() {
 
   const activeBranch = branches.find((b) => b.id === activeId) ?? null;
   const cannotDeleteLastBranch = branches.length <= 1;
+  const branchCap =
+    maxBranches === null ? Number.POSITIVE_INFINITY : maxBranches;
+  const atBranchLimit = branches.length >= branchCap;
 
   function resetForm() {
     setActiveId(null);
@@ -78,6 +88,13 @@ export function BranchedPage() {
     const trimmed = name.trim();
     if (!trimmed) {
       toast.warn('Branch name is required.');
+      return;
+    }
+    if (atBranchLimit) {
+      toast.warn(
+        'You have reached the branch limit for your subscription plan.'
+      );
+      setConfirmAddOpen(false);
       return;
     }
     setSaving(true);
@@ -155,7 +172,6 @@ export function BranchedPage() {
       toast.error(msg);
     } finally {
       setDeletingId(null);
-      setDeletingId(null);
       setActiveId(null);
     }
   }
@@ -167,6 +183,15 @@ export function BranchedPage() {
           <CardTitle>Branch Management</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
+          {!loading && atBranchLimit && !activeId ? (
+            <p className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+              Your plan allows{' '}
+              {maxBranches === null
+                ? 'unlimited'
+                : `${maxBranches} location${maxBranches === 1 ? '' : 's'}`}
+              . Upgrade to Growth or Scale on Pricing to add more branches.
+            </p>
+          ) : null}
           <div className="grid gap-3 md:grid-cols-3">
             <Input
               placeholder="Branch name *"
@@ -226,7 +251,7 @@ export function BranchedPage() {
               <Button
                 type="button"
                 onClick={() => setConfirmAddOpen(true)}
-                disabled={saving}
+                disabled={saving || atBranchLimit}
               >
                 Add new branch
               </Button>

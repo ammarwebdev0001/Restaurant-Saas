@@ -12,7 +12,7 @@ export default function Home() {
       <section className="relative overflow-hidden border-b bg-gradient-to-b from-background via-background to-muted/40">
         <div className="mx-auto max-w-6xl px-6 py-20 md:py-28">
           <span className="inline-flex rounded-full border bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
-            Restaurant SaaS Platform
+          Foodluk SAAS Platform
           </span>
 
           <h1 className="mt-6 max-w-3xl text-4xl font-bold leading-tight md:text-6xl">
@@ -46,7 +46,7 @@ export default function Home() {
 
           <div className="mt-12 grid gap-4 sm:grid-cols-3">
             <div className="rounded-xl border bg-background p-4">
-              <p className="text-2xl font-bold">+38%</p>
+              <p className="text-2xl font-bold">+85%</p>
               <p className="text-sm text-muted-foreground">
                 Faster order handling
               </p>

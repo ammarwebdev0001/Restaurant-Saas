@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { normalizeDashboardPermissions } from '@/lib/dashboard-permissions';
 import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
+import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from '@/lib/subscription-plan-enforcement';
 
 const patchSchema = z.object({
   name: z.string().min(1).max(80).trim().optional(),
@@ -46,6 +47,11 @@ export async function PATCH(
       { error: parsed.error.flatten() },
       { status: 400 }
     );
+  }
+
+  const planFeatures = await getRestaurantPlanFeatures(auth.restaurantId);
+  if (!planFeatures.roleBasedSettings && parsed.data.permissions !== undefined) {
+    return subscriptionPlanDeniedResponse('Per-role dashboard permissions');
   }
 
   if (!parsed.data.name && parsed.data.permissions === undefined) {

@@ -3,10 +3,31 @@ import { Prisma } from '@prisma/client';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/db';
 import { getAppSession } from '@/lib/auth/app-session';
+import { getRestaurantForUser } from '@/lib/restaurant-owner';
 
 export default async function PricingPage() {
   const session = await getAppSession();
   const isLoggedIn = Boolean(session?.user?.email);
+
+  let currentPlanSlug: string | null = null;
+  if (session?.user?.email) {
+    const user = await db.user.findUnique({
+      where: { email: session.user.email },
+      select: { id: true },
+    });
+    if (user) {
+      const restaurant = await getRestaurantForUser(user.id);
+      if (restaurant) {
+        const sub = await db.restaurantSubscription.findUnique({
+          where: { restaurantId: restaurant.id },
+          select: { plan: true },
+        });
+        if (sub?.plan) {
+          currentPlanSlug = sub.plan;
+        }
+      }
+    }
+  }
 
   let plans: Array<{
     plan: string;
@@ -72,7 +93,12 @@ export default async function PricingPage() {
           </div>
         ) : (
           <div className="grid gap-5 md:grid-cols-3">
-            {plans.map((plan) => (
+            {plans.map((plan) => {
+              const isCurrentPlan =
+                currentPlanSlug !== null &&
+                plan.plan.toUpperCase() === currentPlanSlug.toUpperCase();
+
+              return (
               <article
                 key={plan.plan}
                 className="rounded-xl border bg-background p-6 shadow-sm"
@@ -87,24 +113,33 @@ export default async function PricingPage() {
                     <li key={f}>- {f}</li>
                   ))}
                 </ul>
-                <Button className="mt-6 w-full" asChild>
-                  <Link
-                    href={
-                      isLoggedIn
-                        ? `/payment?plan=${encodeURIComponent(plan.plan)}`
-                        : `/login?callbackUrl=${encodeURIComponent(
-                            `/payment?plan=${encodeURIComponent(plan.plan)}`
-                          )}`
-                    }
-                  >
-                    Choose {plan.name}
-                  </Link>
-                </Button>
-                <Button className="mt-2 w-full" variant="outline" asChild>
-                  <Link href="/demo-request">Request demo for trial</Link>
-                </Button>
+                {isCurrentPlan ? (
+                  <p className="mt-6 rounded-md border border-primary/25 bg-primary/5 px-4 py-3 text-center text-sm font-medium text-foreground">
+                    Your current plan
+                  </p>
+                ) : (
+                  <>
+                    <Button className="mt-6 w-full" asChild>
+                      <Link
+                        href={
+                          isLoggedIn
+                            ? `/payment?plan=${encodeURIComponent(plan.plan)}`
+                            : `/login?callbackUrl=${encodeURIComponent(
+                                `/payment?plan=${encodeURIComponent(plan.plan)}`
+                              )}`
+                        }
+                      >
+                        Choose {plan.name}
+                      </Link>
+                    </Button>
+                    <Button className="mt-2 w-full" variant="outline" asChild>
+                      <Link href="/demo-request">Request demo for trial</Link>
+                    </Button>
+                  </>
+                )}
               </article>
-            ))}
+            );
+            })}
           </div>
         )}
       </div>

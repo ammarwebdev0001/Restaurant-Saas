@@ -21,7 +21,7 @@ function AdminMobileNav({ onOpenChange }: { onOpenChange: (o: boolean) => void }
     <SheetContent side="left" className="flex w-[min(100vw,280px)] flex-col">
       <div className="mb-4 flex items-center gap-2 font-semibold">
         <Shield className="h-5 w-5" />
-        SaaS Admin
+        Foodluk Admin
       </div>
       <nav className="grid flex-1 gap-1">
         {ADMIN_NAV_ITEMS.map((item) => (
@@ -92,7 +92,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
           <div className="flex h-14 items-center gap-2 border-b border-zinc-200 px-4 dark:border-zinc-800">
             <Shield className="h-5 w-5 text-primary" />
             <div className="flex flex-col leading-tight">
-              <span className="text-sm font-semibold">SaaS Admin</span>
+              <span className="text-sm font-semibold">Foodluk Admin</span>
               <span className="text-[10px] text-muted-foreground">Platform</span>
             </div>
           </div>

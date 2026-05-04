@@ -389,6 +389,8 @@ model Order {
   id             String          @id @default(uuid())
   /// Short public-facing id for easy tracking (keep `id` as stable internal PK).
   shortOrderId   String          @unique @default(dbgenerated("upper(substring(replace(gen_random_uuid()::text, '-', ''), 1, 6))")) @db.VarChar(6)
+  /// Client-generated key for offline sync / retries (same key = same order).
+  idempotencyKey String?         @unique @db.VarChar(80)
   restaurantId   String
   customerId     String?
   /// Daily ticket number (resets from 0 each day per restaurant).

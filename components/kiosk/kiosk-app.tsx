@@ -51,6 +51,16 @@ import { buildThemeCssVars } from '@/lib/restaurant-theme';
 import { setUiLanguage } from '@/lib/i18n/client';
 import type { UiLanguage } from '@/lib/i18n/resources';
 import { IconArrowBack } from '@tabler/icons-react';
+import { submitKioskOrder } from '@/lib/offline/submit-order';
+
+function formatKioskOrderApiError(body: unknown): string {
+  if (!body || typeof body !== 'object') {
+    return 'Could not place order.';
+  }
+  const err = (body as { error?: unknown }).error;
+  if (typeof err === 'string') return err;
+  return 'Could not place order.';
+}
 
 type CartModifierSelection = {
   attributeGroupId: string;
@@ -575,9 +585,7 @@ export function KioskApp({ slug }: { slug: string }) {
         productName: cartLineDisplayName(line),
         modifiers: line.modifiers,
       }));
-      const res = await axios.post<{
-        data: { orderId: string; shortOrderId?: string; ticketNumber?: number | null };
-      }>('/api/kiosk/orders', {
+      const payload = {
         restaurantSlug: slug,
         fulfillment,
         tableId: fulfillment === 'dine_in' ? selectedTableId || undefined : undefined,
@@ -587,9 +595,16 @@ export function KioskApp({ slug }: { slug: string }) {
         cookingNote: cookingNote.trim() || undefined,
         customerName: customerName.trim() || undefined,
         customerPhone: customerPhone.trim() || undefined,
-      });
-      const placedId = res.data.data.shortOrderId ?? res.data.data.orderId;
-      const ticketNumber = res.data.data.ticketNumber ?? null;
+      };
+      const result = await submitKioskOrder(payload);
+      if (result.status === 'queued') {
+        toast.info(
+          'You appear offline. This order is saved on this device and will send when you are back online.'
+        );
+        return;
+      }
+      const placedId = result.data.shortOrderId ?? result.data.orderId;
+      const ticketNumber = result.data.ticketNumber ?? null;
       setLastOrderId(placedId);
       setLastTicketNumber(ticketNumber);
       clearCart();
@@ -606,12 +621,12 @@ export function KioskApp({ slug }: { slug: string }) {
         }`
       );
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: string | object } } };
-      const msg =
-        typeof err.response?.data?.error === 'string'
-          ? err.response.data.error
-          : 'Could not place order.';
-      toast.error(msg);
+      const ex = e as { body?: unknown };
+      toast.error(
+        ex.body !== undefined
+          ? formatKioskOrderApiError(ex.body)
+          : 'Could not place order.'
+      );
     } finally {
       setPlacing(false);
     }
@@ -619,6 +634,10 @@ export function KioskApp({ slug }: { slug: string }) {
 
   const startStripePayment = async () => {
     if (!fulfillment || cart.length === 0) return;
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      toast.error('Card payment requires an internet connection.');
+      return;
+    }
     setPlacing(true);
     try {
       const lines = cart.map((line) => ({
@@ -641,13 +660,32 @@ export function KioskApp({ slug }: { slug: string }) {
         paymentStatus: 'pending' as const,
         paymentMethod: 'Stripe (pending)',
       };
-      const preOrder = await axios.post<{
-        data?: { orderId?: string; shortOrderId?: string; ticketNumber?: number | null };
-      }>('/api/kiosk/orders', orderPayload);
-      const createdOrderId = preOrder.data?.data?.orderId;
+      const idempotencyKey = crypto.randomUUID();
+      const preOrderRes = await fetch('/api/kiosk/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(orderPayload),
+      });
+      const preJson: unknown = await preOrderRes.json().catch(() => null);
+      if (!preOrderRes.ok) {
+        toast.error(formatKioskOrderApiError(preJson));
+        setPlacing(false);
+        return;
+      }
+      const preData = preJson as {
+        data?: {
+          orderId?: string;
+          shortOrderId?: string;
+          ticketNumber?: number | null;
+        };
+      };
+      const createdOrderId = preData?.data?.orderId;
       const createdShortOrderId =
-        preOrder.data?.data?.shortOrderId ?? createdOrderId;
-      const createdTicketNumber = preOrder.data?.data?.ticketNumber ?? null;
+        preData?.data?.shortOrderId ?? createdOrderId;
+      const createdTicketNumber = preData?.data?.ticketNumber ?? null;
       if (!createdOrderId) {
         toast.error('Could not create order before payment.');
         setPlacing(false);

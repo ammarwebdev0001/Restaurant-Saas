@@ -6,8 +6,8 @@ export default function Header() {
   return (
     <header>
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link href="/" className="text-sm font-semibold tracking-wide">
-          Restaurant SaaS
+        <Link href="/" className="text-2xl font-semibold tracking-wide">
+        Foodluk
         </Link>
         <nav className="hidden items-center gap-5 text-sm text-muted-foreground md:flex">
           <Link href="/demo-request" className="hover:text-foreground">

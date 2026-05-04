@@ -3,8 +3,11 @@ import { NextResponse } from 'next/server';
 
 import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
+import { SubscriptionPlan } from '@prisma/client';
+
 import { getEffectiveDashboardPermissionNames } from '@/lib/restaurant-roles';
 import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getPlanFeatures } from '@/lib/subscription-plan-features';
 
 export async function GET(_req: NextRequest) {
   try {
@@ -24,15 +27,39 @@ export async function GET(_req: NextRequest) {
 
     const restaurant = await getRestaurantForUser(user.id);
     if (!restaurant) {
-      return NextResponse.json({ permissions: [] });
+      const f0 = getPlanFeatures(SubscriptionPlan.STARTER);
+      return NextResponse.json({
+        permissions: [],
+        plan: {
+          maxBranches: f0.maxBranches,
+          recommendations: f0.recommendations,
+          roleBasedSettings: f0.roleBasedSettings,
+          branding: f0.branding,
+          advancedAnalytics: f0.advancedAnalytics,
+        },
+      });
     }
 
-    const permissions = await getEffectiveDashboardPermissionNames(
-      user.id,
-      restaurant.id
-    );
+    const [permissions, sub] = await Promise.all([
+      getEffectiveDashboardPermissionNames(user.id, restaurant.id),
+      db.restaurantSubscription.findUnique({
+        where: { restaurantId: restaurant.id },
+        select: { plan: true },
+      }),
+    ]);
 
-    return NextResponse.json({ permissions });
+    const f = getPlanFeatures(sub?.plan ?? SubscriptionPlan.STARTER);
+
+    return NextResponse.json({
+      permissions,
+      plan: {
+        maxBranches: Number.isFinite(f.maxBranches) ? f.maxBranches : null,
+        recommendations: f.recommendations,
+        roleBasedSettings: f.roleBasedSettings,
+        branding: f.branding,
+        advancedAnalytics: f.advancedAnalytics,
+      },
+    });
   } catch (e) {
     console.error(e);
     return NextResponse.json(

@@ -8,6 +8,7 @@ import { estimateDataUrlBytes, isAcceptedImageValue } from "@/lib/image-data-url
 import { ensurePresetRolesAndOwnerEmployee } from "@/lib/restaurant-roles";
 import { getRestaurantForUser } from "@/lib/restaurant-owner";
 import { normalizeThemePrimaryColor } from "@/lib/restaurant-theme";
+import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from "@/lib/subscription-plan-enforcement";
 
 function assertHttpUrl(label: string, raw: string, ctx: z.RefinementCtx, path: (string | number)[]) {
   const t = raw.trim();
@@ -135,6 +136,8 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
     }
 
+    const planFeatures = await getRestaurantPlanFeatures(restaurant.id);
+
     const json = await req.json().catch(() => null);
     const parsed = brandingPatchSchema.safeParse(json);
     if (!parsed.success) {
@@ -145,6 +148,16 @@ export async function PATCH(req: NextRequest) {
     }
 
     const { logoUrl, mainBannerUrl, menuBannerUrls, themePrimaryColor } = parsed.data;
+    if (!planFeatures.branding) {
+      if (
+        logoUrl !== undefined ||
+        mainBannerUrl !== undefined ||
+        menuBannerUrls !== undefined ||
+        themePrimaryColor !== undefined
+      ) {
+        return subscriptionPlanDeniedResponse("Custom logo, banners, and theme colors");
+      }
+    }
     if (
       logoUrl === undefined &&
       mainBannerUrl === undefined &&

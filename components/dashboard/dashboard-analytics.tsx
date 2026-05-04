@@ -38,6 +38,7 @@ type SeriesPoint = { day: string; orders: number; revenue: number };
 type AnalyticsPayload = {
   counts: AnalyticsCounts;
   series: SeriesPoint[];
+  analyticsTier?: 'basic' | 'advanced';
 };
 
 function formatDayLabel(isoDay: string): string {
@@ -260,20 +261,26 @@ export default function DashboardAnalytics() {
   const [error, setError] = useState<string | null>(null);
   const [slug, setSlug] = useState<string | null>(null);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
+  const [planRecommendations, setPlanRecommendations] = useState(true);
 
   const load = useCallback(async () => {
     setError(null);
     setPermissionsLoaded(false);
     try {
       const [permRes, dashRes] = await Promise.all([
-        axios.get<{ permissions: string[] }>('/api/me/dashboard-permissions'),
+        axios.get<{
+          permissions: string[];
+          plan?: { recommendations?: boolean };
+        }>('/api/me/dashboard-permissions'),
         axios.get<AnalyticsPayload>('/api/restaurant/dashboard-analytics'),
       ]);
       setPermissions(permRes.data.permissions ?? []);
+      setPlanRecommendations(permRes.data.plan?.recommendations !== false);
       setAnalytics(dashRes.data);
     } catch {
       setError('Could not load dashboard analytics.');
       setPermissions([]);
+      setPlanRecommendations(true);
       setAnalytics(null);
     } finally {
       setPermissionsLoaded(true);
@@ -304,12 +311,12 @@ export default function DashboardAnalytics() {
 
   const modules = useMemo(() => {
     if (!permissionsLoaded || !permissions) return [];
-    return DASHBOARD_MODULES.filter(
-      (m) =>
-        m.moduleKey !== 'dashboard' &&
-        canAccessDashboardModule(permissions, m.moduleKey)
-    );
-  }, [permissions, permissionsLoaded]);
+    return DASHBOARD_MODULES.filter((m) => {
+      if (m.moduleKey === 'dashboard') return false;
+      if (m.moduleKey === 'recommendations' && !planRecommendations) return false;
+      return canAccessDashboardModule(permissions, m.moduleKey);
+    });
+  }, [permissions, permissionsLoaded, planRecommendations]);
 
   const can = useCallback(
     (key: DashboardModuleKey) =>
@@ -365,7 +372,24 @@ export default function DashboardAnalytics() {
         <p className="text-sm text-muted-foreground">Checking module access…</p>
       ) : null}
 
-      {analytics && (
+      {analytics?.analyticsTier === 'basic' ? (
+        <Card className="border-dashed">
+          <CardHeader>
+            <CardTitle className="text-base">Advanced analytics</CardTitle>
+            <CardDescription>
+              Seven-day order and revenue charts, POS mix, open KDS tickets, and
+              richer metrics are included on Growth and Scale.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild variant="secondary" size="sm">
+              <Link href="/pricing">Compare plans</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
+
+      {analytics && analytics.analyticsTier !== 'basic' ? (
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardHeader>
@@ -396,7 +420,7 @@ export default function DashboardAnalytics() {
             </CardContent>
           </Card>
         </div>
-      )}
+      ) : null}
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {modules.map((m) => {

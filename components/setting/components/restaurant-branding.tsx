@@ -26,7 +26,14 @@ type RestaurantBrandingDto = {
   themePrimaryColor?: string | null;
 };
 
-export function RestaurantBrandingCard() {
+type RestaurantBrandingCardProps = {
+  /** Starter plan: logo, banners, and theme cannot be changed. */
+  brandingAllowed?: boolean;
+};
+
+export function RestaurantBrandingCard({
+  brandingAllowed = true,
+}: RestaurantBrandingCardProps) {
   const [loading, setLoading] = useState(true);
   const [hasRestaurant, setHasRestaurant] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -68,6 +75,10 @@ export function RestaurantBrandingCard() {
   }, []);
 
   async function handleSave() {
+    if (!brandingAllowed) {
+      toast.error('Your plan does not include custom branding.');
+      return;
+    }
     if (!navigator.onLine) {
       toast.error('You are offline. Please check your internet connection.');
       return;
@@ -152,8 +163,14 @@ export function RestaurantBrandingCard() {
           URLs used on the customer website and kiosk. Leave a field empty to
           clear it. Use full <code className="text-xs">https://</code> links.
         </CardDescription>
+        {!brandingAllowed ? (
+          <p className="text-sm text-muted-foreground">
+            Custom logo, banners, and theme colors are available on Growth and
+            Scale.
+          </p>
+        ) : null}
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className={`space-y-4 ${!brandingAllowed ? 'pointer-events-none opacity-60' : ''}`}>
         <Base64ImageUploadField
           label="Logo"
           value={logoUrl}
@@ -213,7 +230,11 @@ export function RestaurantBrandingCard() {
         </div> */}
       </CardContent>
       <CardFooter className="border-t px-6 py-4">
-        <Button type="button" disabled={saving} onClick={() => void handleSave()}>
+        <Button
+          type="button"
+          disabled={saving || !brandingAllowed}
+          onClick={() => void handleSave()}
+        >
           {saving ? 'Saving…' : 'Save branding'}
         </Button>
       </CardFooter>

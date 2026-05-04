@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 import { evaluateSubscriptionAccess } from '@/lib/subscription-access';
+import { getPlanFeatures } from '@/lib/subscription-plan-features';
 
 export async function GET(req: NextRequest) {
   const auth = await getRestaurantIdForRequest(req);
@@ -32,14 +33,25 @@ export async function GET(req: NextRequest) {
     }
 
     const access = evaluateSubscriptionAccess(restaurant.subscription);
+    const plan = restaurant.subscription?.plan ?? null;
+    const limits = getPlanFeatures(plan);
     return NextResponse.json(
       {
         data: {
           ...access,
-          plan: restaurant.subscription?.plan ?? null,
+          plan,
           status: restaurant.subscription?.status ?? null,
           trialEndsAt: restaurant.subscription?.trialEndsAt?.toISOString() ?? null,
           currentPeriodEnd: restaurant.subscription?.currentPeriodEnd?.toISOString() ?? null,
+          limits: {
+            maxBranches: Number.isFinite(limits.maxBranches)
+              ? limits.maxBranches
+              : null,
+            recommendations: limits.recommendations,
+            roleBasedSettings: limits.roleBasedSettings,
+            branding: limits.branding,
+            advancedAnalytics: limits.advancedAnalytics,
+          },
         },
       },
       { status: 200 }

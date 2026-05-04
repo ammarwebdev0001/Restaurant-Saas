@@ -13,6 +13,7 @@ import { db } from '@/lib/db';
 import { GLOBAL_ROLE_SLUG, getGlobalRoleIdBySlug } from '@/lib/global-roles';
 import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
+import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from '@/lib/subscription-plan-enforcement';
 
 const postSchema = z.object({
   email: z.string().email(),
@@ -137,6 +138,15 @@ export async function POST(req: NextRequest) {
   );
   if (!roleCheck.ok) {
     return NextResponse.json({ error: roleCheck.error }, { status: 400 });
+  }
+
+  const planFeatures = await getRestaurantPlanFeatures(auth.restaurantId);
+  if (!planFeatures.roleBasedSettings) {
+    if (roleCheck.role.slug !== RESTAURANT_ROLE_SLUG.ADMIN) {
+      return subscriptionPlanDeniedResponse(
+        'Inviting team members with custom roles'
+      );
+    }
   }
 
   const restaurant = await db.restaurant.findUnique({

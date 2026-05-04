@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
 import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { branchCapacityAllows } from '@/lib/subscription-plan-features';
+import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from '@/lib/subscription-plan-enforcement';
 
 const createBranchSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -71,6 +73,16 @@ export async function POST(req: NextRequest) {
     const parsed = createBranchSchema.safeParse(json);
     if (!parsed.success) {
       return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
+    }
+
+    const existingCount = await db.branch.count({
+      where: { restaurantId: auth.restaurantId },
+    });
+    const planFeatures = await getRestaurantPlanFeatures(auth.restaurantId);
+    if (!branchCapacityAllows(existingCount, 1, planFeatures)) {
+      return subscriptionPlanDeniedResponse(
+        `Your plan allows up to ${Number.isFinite(planFeatures.maxBranches) ? planFeatures.maxBranches : 'unlimited'} branch(es).`
+      );
     }
 
     const branch = await db.branch.create({

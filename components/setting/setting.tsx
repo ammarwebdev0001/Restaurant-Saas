@@ -13,6 +13,34 @@ export function Setting() {
   const [storeName, setStoreName] = useState<string | null>(null);
   const [storeId, setStoreId] = useState<string | null>(null);
   const [taxRate, setTaxRate] = useState<number>(0);
+  const [brandingAllowed, setBrandingAllowed] = useState(true);
+  const [roleBasedSettingsAllowed, setRoleBasedSettingsAllowed] =
+    useState(true);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await axios.get<{
+          data?: {
+            limits?: { branding?: boolean; roleBasedSettings?: boolean };
+          };
+        }>('/api/me/subscription-access');
+        const lim = res.data?.data?.limits;
+        if (cancelled || !lim) return;
+        setBrandingAllowed(lim.branding !== false);
+        setRoleBasedSettingsAllowed(lim.roleBasedSettings !== false);
+      } catch {
+        if (!cancelled) {
+          setBrandingAllowed(true);
+          setRoleBasedSettingsAllowed(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchShopData = async () => {
@@ -61,11 +89,13 @@ export function Setting() {
         <div className="mx-auto grid w-full max-w-6xl items-start gap-6 ">
           <div className="grid gap-6">
             <CustomerEntryLinks />
-            <RestaurantBrandingCard />
+            <RestaurantBrandingCard brandingAllowed={brandingAllowed} />
             {/* <ShopnameCard storeName={storeName} storeId={storeId} />
             <TaxrateCard tax={taxRate} storeId={storeId} /> */}
-            <RestaurantUsersCard />
-            <RolesCard />
+            <RestaurantUsersCard
+              roleBasedSettingsAllowed={roleBasedSettingsAllowed}
+            />
+            <RolesCard roleBasedSettingsAllowed={roleBasedSettingsAllowed} />
           </div>
         </div>
       </div>

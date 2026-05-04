@@ -24,7 +24,7 @@ interface RootLayoutProps {
   children: React.ReactNode;
 }
 
-const DEFAULT_DOCUMENT_TITLE = 'Restaurant SAAS';
+const DEFAULT_DOCUMENT_TITLE = 'Foodluk';
 
 function moduleKeyForPath(pathname: string): string | null {
   const exact = DASHBOARD_MODULES.find((m) => m.path === pathname);
@@ -103,7 +103,10 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   useEffect(() => {
     let mounted = true;
     axios
-      .get<{ permissions?: string[] }>('/api/me/dashboard-permissions')
+      .get<{
+        permissions?: string[];
+        plan?: { recommendations?: boolean };
+      }>('/api/me/dashboard-permissions')
       .then((res) => {
         if (!mounted) return;
         const list = res.data.permissions ?? [];
@@ -113,6 +116,9 @@ const RootLayout = ({ children }: RootLayoutProps) => {
           if (action === 'access' && moduleKey) {
             allowed.add(moduleKey);
           }
+        }
+        if (res.data.plan?.recommendations === false) {
+          allowed.delete('recommendations');
         }
         setAllowedModuleKeys(allowed);
       })

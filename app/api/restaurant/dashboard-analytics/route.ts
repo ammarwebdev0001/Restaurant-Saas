@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
 import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantPlanFeatures } from '@/lib/subscription-plan-enforcement';
 
 function utcDayKey(d: Date): string {
   return d.toISOString().slice(0, 10);
@@ -50,6 +51,7 @@ export async function GET(_req: NextRequest) {
     if ('error' in auth) return auth.error;
 
     const { restaurantId } = auth;
+    const planFeatures = await getRestaurantPlanFeatures(restaurantId);
     const dayKeys = lastNDayKeys(7);
     const from = new Date(`${dayKeys[0]}T00:00:00.000Z`);
 
@@ -104,6 +106,24 @@ export async function GET(_req: NextRequest) {
       return { day, orders: b.orders, revenue: b.revenue };
     });
 
+    if (!planFeatures.advancedAnalytics) {
+      return NextResponse.json({
+        counts: {
+          branches,
+          categories,
+          menuItems,
+          orders: ordersTotal,
+          posOrders: 0,
+          customers: 0,
+          recommendations: 0,
+          kdsOpen: 0,
+          employees: 0,
+        },
+        series: [],
+        analyticsTier: 'basic' as const,
+      });
+    }
+
     return NextResponse.json({
       counts: {
         branches,
@@ -117,6 +137,7 @@ export async function GET(_req: NextRequest) {
         employees,
       },
       series,
+      analyticsTier: 'advanced' as const,
     });
   } catch (e) {
     console.error(e);

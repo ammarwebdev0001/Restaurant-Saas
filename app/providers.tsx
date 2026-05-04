@@ -9,6 +9,7 @@ import "react-toastify/dist/ReactToastify.css";
 import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/lib/i18n/client";
+import { OfflineBootstrap } from "@/components/offline/offline-bootstrap";
 
 export default function Providers({
   children,
@@ -24,6 +25,7 @@ export default function Providers({
     >
       <SessionProvider>
         <NextTopLoader showSpinner={false} />
+        <OfflineBootstrap />
         {children}
         <ToastContainer
           position="top-right"

@@ -19,7 +19,7 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
   if (!session?.user) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 p-6">
-        <p className="text-muted-foreground">Sign in to access SaaS admin.</p>
+        <p className="text-muted-foreground">Sign in to access Foodluk admin.</p>
         <Link href="/login?callbackUrl=/admin/dashboard" className="text-primary underline">
           Sign in
         </Link>

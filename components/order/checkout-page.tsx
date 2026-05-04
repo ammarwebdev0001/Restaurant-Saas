@@ -11,6 +11,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
 import type { OrderInfo } from '@/components/order/order-types';
 import { orderPathWithQuery } from '@/lib/order-search-params';
+import { submitCustomerOrder } from '@/lib/offline/submit-order';
+
+function formatOrderApiError(body: unknown): string {
+  if (!body || typeof body !== 'object') {
+    return 'Could not place order. Please try again.';
+  }
+  const err = (body as { error?: unknown }).error;
+  if (typeof err === 'string') return err;
+  if (err && typeof err === 'object' && 'formErrors' in err) {
+    return 'Invalid order data';
+  }
+  return 'Could not place order. Please try again.';
+}
 
 const SERVICE_FEE = 0.99;
 
@@ -147,41 +160,44 @@ export default function CheckoutPageClient({
 
     setSubmitting(true);
     try {
-      const { data } = await axios.post<{
-        data?: { orderId?: string; shortOrderId?: string };
-      }>(
-        '/api/customer/orders',
-        {
+      const result = await submitCustomerOrder({
+        restaurantSlug: slug,
+        orderType,
+        orderInfo: {
+          mode: orderType,
+          restaurantName: orderInfo?.restaurantName,
+          storeId: orderInfo?.storeId,
+          storeName: orderInfo?.storeName,
+          storeAddress: orderInfo?.storeAddress,
+          address: orderInfo?.address,
+          apartment: orderInfo?.apartment,
+          gateCode: orderInfo?.gateCode,
+          addressName: orderInfo?.addressName,
+          customerPhone: orderInfo?.customerPhone,
           restaurantSlug: slug,
-          orderType,
-          orderInfo: {
-            mode: orderType,
-            restaurantName: orderInfo?.restaurantName,
-            storeId: orderInfo?.storeId,
-            storeName: orderInfo?.storeName,
-            storeAddress: orderInfo?.storeAddress,
-            address: orderInfo?.address,
-            apartment: orderInfo?.apartment,
-            gateCode: orderInfo?.gateCode,
-            addressName: orderInfo?.addressName,
-            customerPhone: orderInfo?.customerPhone,
-            restaurantSlug: slug,
-          },
-          lines: cart.map((line) => ({
-            menuItemId: line.menuItemId,
-            quantity: line.quantity,
-            unitPrice: lineUnitTotal(line),
-            productName: line.productName,
-            modifiers: line.modifiers,
-          })),
-          subtotal: total,
-          total: grandTotal,
-          cutlery,
-          comment: comment.trim() || undefined,
-        }
-      );
+        },
+        lines: cart.map((line) => ({
+          menuItemId: line.menuItemId,
+          quantity: line.quantity,
+          unitPrice: lineUnitTotal(line),
+          productName: line.productName,
+          modifiers: line.modifiers,
+        })),
+        subtotal: total,
+        total: grandTotal,
+        cutlery,
+        comment: comment.trim() || undefined,
+      });
 
-      const placedId = data?.data?.shortOrderId ?? data?.data?.orderId;
+      if (result.status === 'queued') {
+        toast.info(
+          'You appear to be offline. This order is saved on this device and will be sent automatically when you are back online.'
+        );
+        return;
+      }
+
+      const placedId =
+        result.data.shortOrderId ?? result.data.orderId;
       toast.success(
         placedId
           ? `Order placed. Reference: ${placedId}`
@@ -195,15 +211,12 @@ export default function CheckoutPageClient({
         )
       );
     } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: unknown } } };
-      const msg = err.response?.data?.error;
-      const text =
-        typeof msg === 'string'
-          ? msg
-          : msg && typeof msg === 'object' && 'formErrors' in (msg as object)
-            ? 'Invalid order data'
-            : 'Could not place order. Please try again.';
-      toast.error(text);
+      const ex = e as { body?: unknown };
+      toast.error(
+        ex.body !== undefined
+          ? formatOrderApiError(ex.body)
+          : 'Could not place order. Please try again.'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -219,6 +232,10 @@ export default function CheckoutPageClient({
     }
     if (cart.length === 0) {
       toast.error('Cart is empty.');
+      return;
+    }
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      toast.error('Card payment requires an internet connection.');
       return;
     }
     setSubmitting(true);
@@ -253,15 +270,27 @@ export default function CheckoutPageClient({
         paymentStatus: 'pending' as const,
         paymentMethod: 'Stripe (pending)',
       };
-      const preOrder = await axios.post<{
+      const idempotencyKey = crypto.randomUUID();
+      const preOrderRes = await fetch('/api/customer/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Idempotency-Key': idempotencyKey,
+        },
+        body: JSON.stringify(orderPayload),
+      });
+      const preJson: unknown = await preOrderRes.json().catch(() => null);
+      if (!preOrderRes.ok) {
+        toast.error(formatOrderApiError(preJson));
+        setSubmitting(false);
+        return;
+      }
+      const preData = preJson as {
         data?: { orderId?: string; shortOrderId?: string };
-      }>(
-        '/api/customer/orders',
-        orderPayload
-      );
-      const createdOrderId = preOrder.data?.data?.orderId;
+      };
+      const createdOrderId = preData?.data?.orderId;
       const createdShortOrderId =
-        preOrder.data?.data?.shortOrderId ?? createdOrderId;
+        preData?.data?.shortOrderId ?? createdOrderId;
       if (!createdOrderId) {
         toast.error('Could not create order before payment.');
         setSubmitting(false);
