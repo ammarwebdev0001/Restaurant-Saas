@@ -1,4 +1,3 @@
-import { ModeToggle } from '@/components/darkmode/darkmode';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Footer from '@/components/main/footer';

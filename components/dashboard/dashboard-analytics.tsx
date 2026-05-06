@@ -3,6 +3,22 @@
 import axios from 'axios';
 import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Legend,
+  Label,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
 import {
   Card,
@@ -20,6 +36,7 @@ import { MODULE_ICONS } from '@/constant/navbarMenu';
 import { canAccessDashboardModule } from '@/lib/restaurant-roles';
 import { cn } from '@/lib/utils';
 import { IconExternalLink } from '@tabler/icons-react';
+import { TooltipContent } from '../ui/tooltip';
 
 type AnalyticsCounts = {
   branches: number;
@@ -33,17 +50,39 @@ type AnalyticsCounts = {
   employees: number;
 };
 
-type SeriesPoint = { day: string; orders: number; revenue: number };
+type SeriesPoint = {
+  day: string;
+  orders: number;
+  revenue: number;
+  onlineOrders: number;
+  posOrders: number;
+  kioskOrders: number;
+  onlineRevenue: number;
+  posRevenue: number;
+  kioskRevenue: number;
+};
 
 type AnalyticsPayload = {
   counts: AnalyticsCounts;
   series: SeriesPoint[];
+  days?: 7 | 14 | 30;
+  channelTotals?: {
+    orders: { online: number; pos: number; kiosk: number };
+    revenue: { online: number; pos: number; kiosk: number };
+  };
   analyticsTier?: 'basic' | 'advanced';
 };
 
+const DAY_OPTIONS: Array<7 | 14 | 30> = [7, 14, 30];
+const CHANNEL_COLORS = {
+  online: '#ed6e40',
+  pos: '#297fcf',
+  kiosk: '#E03C50',
+} as const;
+
 function formatDayLabel(isoDay: string): string {
   const d = new Date(`${isoDay}T12:00:00.000Z`);
-  return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric' });
+  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
 function formatMoney(n: number): string {
@@ -53,185 +92,20 @@ function formatMoney(n: number): string {
   return n.toFixed(0);
 }
 
-function OrdersBarChart({ series }: { series: SeriesPoint[] }) {
-  const max = Math.max(1, ...series.map((p) => p.orders));
-  const w = 320;
-  const h = 140;
-  const pad = { t: 8, r: 8, b: 28, l: 8 };
-  const innerW = w - pad.l - pad.r;
-  const innerH = h - pad.t - pad.b;
-  const n = series.length || 1;
-  const gap = 4;
-  const barW = Math.max(4, (innerW - gap * (n - 1)) / n);
-
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      className="w-full h-[180px] text-muted-foreground"
-      role="img"
-      aria-label="Orders in the last seven days"
-    >
-      {[0, 0.5, 1].map((t) => {
-        const y = pad.t + innerH * t;
-        return (
-          <line
-            key={t}
-            x1={pad.l}
-            x2={w - pad.r}
-            y1={y}
-            y2={y}
-            stroke="currentColor"
-            strokeOpacity={0.2}
-            strokeDasharray="4 4"
-          />
-        );
-      })}
-      {series.map((p, i) => {
-        const hBar = (p.orders / max) * innerH;
-        const x = pad.l + i * (barW + gap);
-        const y = pad.t + innerH - hBar;
-        return (
-          <g key={p.day}>
-            <rect
-              x={x}
-              y={y}
-              width={barW}
-              height={Math.max(hBar, 2)}
-              rx={4}
-              fill="var(--chart-1)"
-              className="opacity-90"
-            />
-            <text
-              x={x + barW / 2}
-              y={h - 6}
-              textAnchor="middle"
-              className="fill-muted-foreground text-[10px]"
-            >
-              {formatDayLabel(p.day)}
-            </text>
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-function RevenueAreaChart({ series }: { series: SeriesPoint[] }) {
-  const w = 320;
-  const h = 140;
-  const pad = { t: 12, r: 12, b: 24, l: 12 };
-  const innerW = w - pad.l - pad.r;
-  const innerH = h - pad.t - pad.b;
-  const max = Math.max(1, ...series.map((p) => p.revenue));
-  const n = series.length;
-  const step = n > 1 ? innerW / (n - 1) : innerW;
-
-  const points = series.map((p, i) => {
-    const x = pad.l + i * step;
-    const y = pad.t + innerH - (p.revenue / max) * innerH;
-    return { x, y, ...p };
-  });
-
-  const lineD = points
-    .map(
-      (pt, i) => `${i === 0 ? 'M' : 'L'} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}`
-    )
-    .join(' ');
-  const areaD =
-    points.length > 0
-      ? `${lineD} L ${points[points.length - 1]!.x.toFixed(1)} ${(pad.t + innerH).toFixed(1)} L ${points[0]!.x.toFixed(1)} ${(pad.t + innerH).toFixed(1)} Z`
-      : '';
-
-  return (
-    <svg
-      viewBox={`0 0 ${w} ${h}`}
-      className="w-full h-[180px] text-muted-foreground"
-      role="img"
-      aria-label="Revenue in the last seven days"
-    >
-      {[0, 0.5, 1].map((t) => {
-        const y = pad.t + innerH * t;
-        return (
-          <line
-            key={t}
-            x1={pad.l}
-            x2={w - pad.r}
-            y1={y}
-            y2={y}
-            stroke="currentColor"
-            strokeOpacity={0.2}
-            strokeDasharray="4 4"
-          />
-        );
-      })}
-      {areaD ? (
-        <path
-          d={areaD}
-          fill="var(--chart-2)"
-          fillOpacity={0.25}
-          stroke="none"
-        />
-      ) : null}
-      {lineD ? (
-        <path
-          d={lineD}
-          fill="none"
-          stroke="var(--chart-2)"
-          strokeWidth={2}
-          strokeLinejoin="round"
-          strokeLinecap="round"
-        />
-      ) : null}
-      {points.map((pt) => (
-        <circle key={pt.day} cx={pt.x} cy={pt.y} r={3} fill="var(--chart-2)" />
-      ))}
-      {points.length > 0 ? (
-        <>
-          <text
-            x={points[0]!.x}
-            y={h - 4}
-            textAnchor="start"
-            className="fill-muted-foreground text-[10px]"
-          >
-            {formatDayLabel(points[0]!.day)}
-          </text>
-          {points.length > 2 ? (
-            <text
-              x={points[Math.floor(points.length / 2)]!.x}
-              y={h - 4}
-              textAnchor="middle"
-              className="fill-muted-foreground text-[10px]"
-            >
-              {formatDayLabel(points[Math.floor(points.length / 2)]!.day)}
-            </text>
-          ) : null}
-          {points.length > 1 ? (
-            <text
-              x={points[points.length - 1]!.x}
-              y={h - 4}
-              textAnchor="end"
-              className="fill-muted-foreground text-[10px]"
-            >
-              {formatDayLabel(points[points.length - 1]!.day)}
-            </text>
-          ) : null}
-        </>
-      ) : null}
-    </svg>
-  );
-}
-
 function moduleMetric(
   key: DashboardModuleKey,
   data: AnalyticsPayload | null
 ): { value: string; hint: string } {
   if (!data) return { value: '—', hint: 'Loading…' };
   const c = data.counts;
-  const orders7d = data.series.reduce((s, p) => s + p.orders, 0);
+  const ordersWindow = data.series.reduce((s, p) => s + p.orders, 0);
 
   switch (key) {
     case 'dashboard':
-      return { value: String(orders7d), hint: 'Orders (7 days)' };
+      return {
+        value: String(ordersWindow),
+        hint: `Orders (${data.days ?? 7} days)`,
+      };
     case 'sales':
       return { value: String(c.orders), hint: 'Total orders' };
     case 'pos':
@@ -262,8 +136,9 @@ export default function DashboardAnalytics() {
   const [slug, setSlug] = useState<string | null>(null);
   const [permissionsLoaded, setPermissionsLoaded] = useState(false);
   const [planRecommendations, setPlanRecommendations] = useState(true);
+  const [selectedDays, setSelectedDays] = useState<7 | 14 | 30>(7);
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (days: 7 | 14 | 30) => {
     setError(null);
     setPermissionsLoaded(false);
     try {
@@ -272,7 +147,9 @@ export default function DashboardAnalytics() {
           permissions: string[];
           plan?: { recommendations?: boolean };
         }>('/api/me/dashboard-permissions'),
-        axios.get<AnalyticsPayload>('/api/restaurant/dashboard-analytics'),
+        axios.get<AnalyticsPayload>(
+          `/api/restaurant/dashboard-analytics?days=${days}`
+        ),
       ]);
       setPermissions(permRes.data.permissions ?? []);
       setPlanRecommendations(permRes.data.plan?.recommendations !== false);
@@ -288,8 +165,8 @@ export default function DashboardAnalytics() {
   }, []);
 
   useEffect(() => {
-    void load();
-  }, [load]);
+    void load(selectedDays);
+  }, [load, selectedDays]);
 
   useEffect(() => {
     let cancelled = false;
@@ -313,7 +190,8 @@ export default function DashboardAnalytics() {
     if (!permissionsLoaded || !permissions) return [];
     return DASHBOARD_MODULES.filter((m) => {
       if (m.moduleKey === 'dashboard') return false;
-      if (m.moduleKey === 'recommendations' && !planRecommendations) return false;
+      if (m.moduleKey === 'recommendations' && !planRecommendations)
+        return false;
       return canAccessDashboardModule(permissions, m.moduleKey);
     });
   }, [permissions, permissionsLoaded, planRecommendations]);
@@ -324,42 +202,66 @@ export default function DashboardAnalytics() {
     [permissions]
   );
 
+  const ordersPieData = useMemo(() => {
+    const t = analytics?.channelTotals?.orders;
+    return [
+      { name: 'Online', value: t?.online ?? 0, color: CHANNEL_COLORS.online },
+      { name: 'POS', value: t?.pos ?? 0, color: CHANNEL_COLORS.pos },
+      { name: 'Kiosk', value: t?.kiosk ?? 0, color: CHANNEL_COLORS.kiosk },
+    ];
+  }, [analytics?.channelTotals?.orders]);
+
+  const revenuePieData = useMemo(() => {
+    const t = analytics?.channelTotals?.revenue;
+    return [
+      { name: 'Online', value: t?.online ?? 0, color: CHANNEL_COLORS.online },
+      { name: 'POS', value: t?.pos ?? 0, color: CHANNEL_COLORS.pos },
+      { name: 'Kiosk', value: t?.kiosk ?? 0, color: CHANNEL_COLORS.kiosk },
+    ];
+  }, [analytics?.channelTotals?.revenue]);
+
+  const totalOrdersAll = useMemo(
+    () => ordersPieData.reduce((sum, r) => sum + r.value, 0),
+    [ordersPieData]
+  );
+  const totalRevenueAll = useMemo(
+    () => revenuePieData.reduce((sum, r) => sum + r.value, 0),
+    [revenuePieData]
+  );
+
   return (
     <div className="space-y-8 w-full">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Overview</h2>
           <p className="text-sm text-muted-foreground">
-            Live counts for each area of your restaurant. Open a module to work
-            there.
+            Online, POS, and kiosk performance with selectable day ranges.
           </p>
         </div>
-        <div>
-          {slug ? (
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button asChild size="sm">
-                <a
-                  href={`/web-app/${encodeURIComponent(slug)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Open website
-                  <IconExternalLink className="ml-2 h-4 w-4" aria-hidden />
-                </a>
-              </Button>
-              <Button asChild size="sm" variant="secondary">
-                <a
-                  href={`/kiosk/${encodeURIComponent(slug)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Open kiosk
-                  <IconExternalLink className="ml-2 h-4 w-4" aria-hidden />
-                </a>
-              </Button>
-            </div>
-          ) : null}
-        </div>
+        {slug ? (
+          <div className="flex flex-wrap gap-2">
+            <Button asChild size="sm">
+              <a
+                href={`/web-app/${encodeURIComponent(slug)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open website
+                <IconExternalLink className="ml-2 h-4 w-4" aria-hidden />
+              </a>
+            </Button>
+            <Button asChild size="sm" variant="secondary">
+              <a
+                href={`/kiosk/${encodeURIComponent(slug)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Open kiosk
+                <IconExternalLink className="ml-2 h-4 w-4" aria-hidden />
+              </a>
+            </Button>
+          </div>
+        ) : null}
       </div>
 
       {error ? (
@@ -372,53 +274,480 @@ export default function DashboardAnalytics() {
         <p className="text-sm text-muted-foreground">Checking module access…</p>
       ) : null}
 
-      {analytics?.analyticsTier === 'basic' ? (
-        <Card className="border-dashed">
-          <CardHeader>
-            <CardTitle className="text-base">Advanced analytics</CardTitle>
-            <CardDescription>
-              Seven-day order and revenue charts, POS mix, open KDS tickets, and
-              richer metrics are included on Growth and Scale.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button asChild variant="secondary" size="sm">
-              <Link href="/pricing">Compare plans</Link>
-            </Button>
-          </CardContent>
-        </Card>
-      ) : null}
+      {analytics ? (
+        <div className="space-y-4">
+          {analytics.analyticsTier === 'basic' ? (
+            <>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Total orders (last 7 days)
+                  </CardTitle>
+                  <CardDescription>
+                    Daily total orders for Starter plan.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="h-[340px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={analytics.series}>
+                        <defs>
+                          <linearGradient
+                            id="ordersTotalFill"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor={CHANNEL_COLORS.online}
+                              stopOpacity={0.45}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor={CHANNEL_COLORS.online}
+                              stopOpacity={0.03}
+                            />
+                          </linearGradient>
+                        </defs>
+                        <XAxis dataKey="day" tickFormatter={formatDayLabel} />
+                        <YAxis />
+                        <Tooltip
+                          cursor={false}
+                          contentStyle={{
+                            color: 'black',
+                            borderRadius: '8px',
+                            padding: '10px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                          }}
+                          formatter={(value: number) =>
+                            Number(value).toLocaleString()
+                          }
+                          labelFormatter={(label) => formatDayLabel(String(label))}
+                        />
+                        <Area
+                          type="monotone"
+                          dataKey="orders"
+                          name="Orders"
+                          stroke={CHANNEL_COLORS.online}
+                          fill="url(#ordersTotalFill)"
+                          strokeWidth={2.6}
+                        />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
 
-      {analytics && analytics.analyticsTier !== 'basic' ? (
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Orders (7 days)</CardTitle>
-              <CardDescription>Daily order volume</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <OrdersBarChart series={analytics?.series ?? []} />
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Revenue (7 days)</CardTitle>
-              <CardDescription>Daily sum of order totals</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-0">
-              <RevenueAreaChart series={analytics?.series ?? []} />
-              <p className="mt-2 text-center text-xs text-muted-foreground">
-                Totals use order <span className="font-medium">total</span> per
-                day (
-                {analytics
-                  ? formatMoney(
-                      analytics.series.reduce((s, p) => s + p.revenue, 0)
-                    )
-                  : '—'}{' '}
-                in window).
-              </p>
-            </CardContent>
-          </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Total revenue (last 7 days)
+                  </CardTitle>
+                  <CardDescription>
+                    Full-width daily revenue chart for Starter plan.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="h-[340px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analytics.series}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="gray"
+                          vertical={false}
+                        />
+                        <XAxis dataKey="day" tickFormatter={formatDayLabel} />
+                        <YAxis />
+                        <Tooltip
+                          formatter={(value: number) =>
+                            `€${formatMoney(Number(value))}`
+                          }
+                          labelFormatter={(label) =>
+                            formatDayLabel(String(label))
+                          }
+                        />
+                        <Bar
+                          dataKey="revenue"
+                          name="Revenue (€)"
+                          fill={CHANNEL_COLORS.pos}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <>
+              <Card>
+                <CardHeader className="gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <CardTitle className="text-base">
+                      Orders trend ({analytics.days ?? selectedDays} days)
+                    </CardTitle>
+                    <CardDescription>
+                      Full-width area chart by channel: Online, POS, and Kiosk.
+                    </CardDescription>
+                  </div>
+
+                  <div className="inline-flex rounded-md border p-1">
+                    {DAY_OPTIONS.map((d) => (
+                      <button
+                        key={d}
+                        type="button"
+                        className={cn(
+                          'rounded px-3 py-1 text-xs font-medium transition-colors',
+                          selectedDays === d
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground'
+                        )}
+                        onClick={() => setSelectedDays(d)}
+                      >
+                        {d}d
+                      </button>
+                    ))}
+                  </div>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="h-[340px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={analytics.series}>
+                    <defs>
+                      <linearGradient
+                        id="ordersOnlineFill"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={CHANNEL_COLORS.online}
+                          stopOpacity={0.45}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={CHANNEL_COLORS.online}
+                          stopOpacity={0.02}
+                        />
+                      </linearGradient>
+                      <linearGradient
+                        id="ordersPosFill"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={CHANNEL_COLORS.pos}
+                          stopOpacity={0.35}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={CHANNEL_COLORS.pos}
+                          stopOpacity={0.02}
+                        />
+                      </linearGradient>
+                      <linearGradient
+                        id="ordersKioskFill"
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                      >
+                        <stop
+                          offset="5%"
+                          stopColor={CHANNEL_COLORS.kiosk}
+                          stopOpacity={0.35}
+                        />
+                        <stop
+                          offset="95%"
+                          stopColor={CHANNEL_COLORS.kiosk}
+                          stopOpacity={0.02}
+                        />
+                      </linearGradient>
+                    </defs>
+
+                    <XAxis dataKey="day" tickFormatter={formatDayLabel} />
+                    <YAxis />
+                    <Tooltip
+                      cursor={false}
+                      contentStyle={{
+                        color: 'black',
+                        borderRadius: '8px',
+                        padding: '10px',
+                        fontSize: '12px',
+                        fontWeight: 'bold',
+                      }}
+                      formatter={(value: number) =>
+                        Number(value).toLocaleString()
+                      }
+                      labelFormatter={(label) => formatDayLabel(String(label))}
+                    />
+                    <Legend />
+                    <Area
+                      type="monotone"
+                      dataKey="onlineOrders"
+                      name="Online"
+                      stroke={CHANNEL_COLORS.online}
+                      fill="url(#ordersOnlineFill)"
+                      strokeWidth={2.5}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="posOrders"
+                      name="POS"
+                      stroke={CHANNEL_COLORS.pos}
+                      fill="url(#ordersPosFill)"
+                      strokeWidth={2.2}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="kioskOrders"
+                      name="Kiosk"
+                      stroke={CHANNEL_COLORS.kiosk}
+                      fill="url(#ordersKioskFill)"
+                      strokeWidth={2.2}
+                    />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Revenue by channel ({analytics.days ?? selectedDays} days)
+                  </CardTitle>
+                  <CardDescription>
+                    Multiple bar chart for Online, POS, and Kiosk totals per
+                    day.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="mb-3 grid grid-cols-3 overflow-hidden rounded-lg border text-xs">
+                    <div className="border-r px-3 py-2">
+                      <p className="text-muted-foreground">Online</p>
+                      <p className="text-sm font-semibold">
+                        €{formatMoney(revenuePieData[0]?.value ?? 0)}
+                      </p>
+                    </div>
+                    <div className="border-r px-3 py-2">
+                      <p className="text-muted-foreground">POS</p>
+                      <p className="text-sm font-semibold">
+                        €{formatMoney(revenuePieData[1]?.value ?? 0)}
+                      </p>
+                    </div>
+                    <div className="px-3 py-2">
+                      <p className="text-muted-foreground">Kiosk</p>
+                      <p className="text-sm font-semibold">
+                        €{formatMoney(revenuePieData[2]?.value ?? 0)}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="h-[320px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analytics.series}>
+                        <CartesianGrid
+                          strokeDasharray="3 3"
+                          stroke="gray"
+                          vertical={false}
+                        />
+                        <XAxis dataKey="day" tickFormatter={formatDayLabel} />
+                        <YAxis />
+                        <Tooltip
+                          contentStyle={{
+                            color: 'black',
+                            borderRadius: '8px',
+                            padding: '10px',
+                            fontSize: '12px',
+                            fontWeight: 'bold',
+                          }}
+                          formatter={(value: number) =>
+                            formatMoney(Number(value))
+                          }
+                          labelFormatter={(label) =>
+                            formatDayLabel(String(label))
+                          }
+                        />
+                        <Legend />
+                        <Bar
+                          dataKey="onlineRevenue"
+                          name="Online"
+                          fill={CHANNEL_COLORS.online}
+                        />
+                        <Bar
+                          dataKey="posRevenue"
+                          name="POS"
+                          fill={CHANNEL_COLORS.pos}
+                        />
+                        <Bar
+                          dataKey="kioskRevenue"
+                          name="Kiosk"
+                          fill={CHANNEL_COLORS.kiosk}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-base">
+                    Channel mix (orders & revenue)
+                  </CardTitle>
+                  <CardDescription>
+                    Donut charts for share of orders and revenue.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="pt-0">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="h-[280px] w-full">
+                      <p className="mb-2 text-sm font-medium">Orders split</p>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Tooltip
+                            contentStyle={{
+                              color: 'black',
+                              borderRadius: '8px',
+                              padding: '10px',
+                              fontSize: '12px',
+                              fontWeight: 'bold',
+                            }}
+                            formatter={(value: number) =>
+                              Number(value).toLocaleString()
+                            }
+                          />
+                          <Legend />
+                          <Pie
+                            data={ordersPieData}
+                            dataKey="value"
+                            nameKey="name"
+                            outerRadius={90}
+                            innerRadius={56}
+                            stroke="hsl(var(--background))"
+                            strokeWidth={2}
+                          >
+                            <Label
+                              position="center"
+                              content={({ viewBox }) => {
+                                if (
+                                  !viewBox ||
+                                  !('cx' in viewBox) ||
+                                  !('cy' in viewBox)
+                                )
+                                  return null;
+                                const cx = Number(viewBox.cx ?? 0);
+                                const cy = Number(viewBox.cy ?? 0);
+                                return (
+                                  <text
+                                    x={cx}
+                                    y={cy}
+                                    textAnchor="middle"
+                                    dominantBaseline="middle"
+                                  >
+                                    <tspan
+                                      x={cx}
+                                      y={cy - 2}
+                                      className="fill-foreground text-lg font-semibold"
+                                    >
+                                      {totalOrdersAll.toLocaleString()}
+                                    </tspan>
+                                    <tspan
+                                      x={cx}
+                                      y={cy + 14}
+                                      className="fill-muted-foreground text-xs"
+                                    >
+                                      orders
+                                    </tspan>
+                                  </text>
+                                );
+                              }}
+                            />
+                            {ordersPieData.map((entry) => (
+                              <Cell key={entry.name} fill={entry.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="h-[280px] w-full">
+                      <p className="mb-2 text-sm font-medium">
+                        Revenue(€) split
+                      </p>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Tooltip
+                            formatter={(value: number) =>
+                              formatMoney(Number(value))
+                            }
+                          />
+                          <Legend />
+                          <Pie
+                            data={revenuePieData}
+                            dataKey="value"
+                            nameKey="name"
+                            outerRadius={90}
+                            innerRadius={56}
+                            stroke="hsl(var(--background))"
+                            strokeWidth={2}
+                          >
+                            <Label
+                              position="center"
+                              content={({ viewBox }) => {
+                                if (
+                                  !viewBox ||
+                                  !('cx' in viewBox) ||
+                                  !('cy' in viewBox)
+                                )
+                                  return null;
+                                const cx = Number(viewBox.cx ?? 0);
+                                const cy = Number(viewBox.cy ?? 0);
+                                return (
+                                  <text
+                                    x={cx}
+                                    y={cy}
+                                    textAnchor="middle"
+                                    dominantBaseline="middle"
+                                  >
+                                    <tspan
+                                      x={cx}
+                                      y={cy - 2}
+                                      className="fill-foreground text-lg font-semibold"
+                                    >
+                                      €{formatMoney(totalRevenueAll)}
+                                    </tspan>
+                                    <tspan
+                                      x={cx}
+                                      y={cy + 14}
+                                      className="fill-muted-foreground text-xs"
+                                    >
+                                      revenue
+                                    </tspan>
+                                  </text>
+                                );
+                              }}
+                            />
+                            {revenuePieData.map((entry) => (
+                              <Cell key={entry.name} fill={entry.color} />
+                            ))}
+                          </Pie>
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+            </>
+          )}
         </div>
       ) : null}
 

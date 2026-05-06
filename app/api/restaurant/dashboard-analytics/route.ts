@@ -52,7 +52,11 @@ export async function GET(_req: NextRequest) {
 
     const { restaurantId } = auth;
     const planFeatures = await getRestaurantPlanFeatures(restaurantId);
-    const dayKeys = lastNDayKeys(7);
+    const url = new URL(_req.url);
+    const rawDays = Number(url.searchParams.get('days') ?? 7);
+    const requestedDays = rawDays === 14 || rawDays === 30 ? rawDays : 7;
+    const days = planFeatures.advancedAnalytics ? requestedDays : 7;
+    const dayKeys = lastNDayKeys(days);
     const from = new Date(`${dayKeys[0]}T00:00:00.000Z`);
 
     const [
@@ -85,25 +89,78 @@ export async function GET(_req: NextRequest) {
       db.employee.count({ where: { restaurantId } }),
       db.order.findMany({
         where: { restaurantId, createdAt: { gte: from } },
-        select: { createdAt: true, total: true },
+        select: { createdAt: true, total: true, sourceType: true },
       }),
     ]);
 
-    const byDay = new Map<string, { orders: number; revenue: number }>();
+    const byDay = new Map<
+      string,
+      {
+        orders: number;
+        revenue: number;
+        onlineOrders: number;
+        posOrders: number;
+        kioskOrders: number;
+        onlineRevenue: number;
+        posRevenue: number;
+        kioskRevenue: number;
+      }
+    >();
     for (const k of dayKeys) {
-      byDay.set(k, { orders: 0, revenue: 0 });
+      byDay.set(k, {
+        orders: 0,
+        revenue: 0,
+        onlineOrders: 0,
+        posOrders: 0,
+        kioskOrders: 0,
+        onlineRevenue: 0,
+        posRevenue: 0,
+        kioskRevenue: 0,
+      });
     }
+    const channelTotals = {
+      orders: { online: 0, pos: 0, kiosk: 0 },
+      revenue: { online: 0, pos: 0, kiosk: 0 },
+    };
     for (const row of ordersWindow) {
       const k = utcDayKey(new Date(row.createdAt));
       const bucket = byDay.get(k);
       if (!bucket) continue;
+      const total = Number(row.total) || 0;
       bucket.orders += 1;
-      bucket.revenue += Number(row.total) || 0;
+      bucket.revenue += total;
+      if (row.sourceType === 'ONLINE') {
+        bucket.onlineOrders += 1;
+        bucket.onlineRevenue += total;
+        channelTotals.orders.online += 1;
+        channelTotals.revenue.online += total;
+      } else if (row.sourceType === 'KIOSK') {
+        bucket.kioskOrders += 1;
+        bucket.kioskRevenue += total;
+        channelTotals.orders.kiosk += 1;
+        channelTotals.revenue.kiosk += total;
+      } else {
+        // Treat POS and other in-store sources as POS channel for analytics.
+        bucket.posOrders += 1;
+        bucket.posRevenue += total;
+        channelTotals.orders.pos += 1;
+        channelTotals.revenue.pos += total;
+      }
     }
 
     const series = dayKeys.map((day) => {
       const b = byDay.get(day)!;
-      return { day, orders: b.orders, revenue: b.revenue };
+      return {
+        day,
+        orders: b.orders,
+        revenue: b.revenue,
+        onlineOrders: b.onlineOrders,
+        posOrders: b.posOrders,
+        kioskOrders: b.kioskOrders,
+        onlineRevenue: b.onlineRevenue,
+        posRevenue: b.posRevenue,
+        kioskRevenue: b.kioskRevenue,
+      };
     });
 
     if (!planFeatures.advancedAnalytics) {
@@ -113,13 +170,18 @@ export async function GET(_req: NextRequest) {
           categories,
           menuItems,
           orders: ordersTotal,
-          posOrders: 0,
-          customers: 0,
+          posOrders,
+          customers,
           recommendations: 0,
-          kdsOpen: 0,
-          employees: 0,
+          kdsOpen,
+          employees,
         },
-        series: [],
+        series,
+        channelTotals: {
+          orders: { online: 0, pos: 0, kiosk: 0 },
+          revenue: { online: 0, pos: 0, kiosk: 0 },
+        },
+        days,
         analyticsTier: 'basic' as const,
       });
     }
@@ -137,6 +199,8 @@ export async function GET(_req: NextRequest) {
         employees,
       },
       series,
+      channelTotals,
+      days,
       analyticsTier: 'advanced' as const,
     });
   } catch (e) {
