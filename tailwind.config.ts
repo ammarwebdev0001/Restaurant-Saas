@@ -28,6 +28,19 @@ module.exports = {
     },
     extend: {
       colors: {
+        fire: {
+          50: '#FFF4ED',
+          100: '#FFE6D5',
+          200: '#FFC9AB',
+          300: '#FFA376',
+          400: '#FF7A3D',
+          500: '#F05A20',
+          600: '#E14411',
+          700: '#BB3110',
+          800: '#952915',
+          900: '#782314',
+          950: '#410E07',
+        },
         chartbody: '#0F0F0F',
         bodydark1: '#DEE4EE',
         body: '#64748B',

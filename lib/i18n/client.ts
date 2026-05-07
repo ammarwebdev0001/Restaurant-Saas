@@ -15,7 +15,21 @@ if (!i18n.isInitialized) {
     lng: detectLanguage(),
     fallbackLng: 'es',
     interpolation: { escapeValue: false },
+    returnNull: false,
   });
+}
+
+// Always (re)merge latest resources. This protects against dev HMR cases
+// where the i18next singleton was initialised with an older `resources`
+// object and never picks up newly added keys.
+for (const lang of Object.keys(resources) as UiLanguage[]) {
+  i18n.addResourceBundle(
+    lang,
+    'translation',
+    resources[lang].translation,
+    true,
+    true,
+  );
 }
 
 export function setUiLanguage(lang: UiLanguage) {
@@ -26,4 +40,3 @@ export function setUiLanguage(lang: UiLanguage) {
 }
 
 export { i18n };
-

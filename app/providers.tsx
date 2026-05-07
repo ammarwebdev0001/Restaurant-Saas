@@ -10,6 +10,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/lib/i18n/client";
 import { OfflineBootstrap } from "@/components/offline/offline-bootstrap";
+import { LanguageSwitcher } from "@/components/main/language-switcher";
 
 export default function Providers({
   children,
@@ -27,6 +28,7 @@ export default function Providers({
         <NextTopLoader showSpinner={false} />
         <OfflineBootstrap />
         {children}
+        <LanguageSwitcher />
         <ToastContainer
           position="top-right"
           autoClose={4000}

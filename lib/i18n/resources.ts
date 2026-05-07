@@ -113,6 +113,118 @@ export const resources = {
       time20to30Mins: 'time 20-30 mins.',
       remove: 'Remove',
       modify: 'Modify',
+      marketing: {
+        nav: {
+          demoRequest: 'Demo Request',
+          restaurantSignup: 'Restaurant Signup',
+          pricing: 'Pricing',
+          documentation: 'Documentation',
+          getStarted: 'Get Started',
+          openMenu: 'Open mobile navigation',
+        },
+        hero: {
+          badge: 'Trusted by 25+ restaurants worldwide',
+          headline: 'The smarter way to run',
+          headlineHighlight: 'Profitable Restaurants.',
+          subhead1: 'Replace your messy stack of POS, delivery, and ordering tools with',
+          subhead2: 'one platform',
+          subhead3:
+            'that takes orders, manages branches, and grows revenue — automatically.',
+          ctaPrimary: 'Start Free',
+          ctaSecondary: 'Book a Demo',
+          fineprint: 'Setup in under 15 minutes · 14-day free trial · Cancel anytime',
+          chip1: 'Grow Revenue 30%+',
+          chip2: 'Save 12+ Hours Weekly',
+          chip3: 'Delight Every Guest',
+          chip4: 'One Login. All Branches.',
+        },
+        features: {
+          titleA: 'Everything you need to',
+          titleHighlight1: 'outsell, outserve,',
+          titleAnd: 'and',
+          titleHighlight2: 'outgrow',
+          titleB: 'the competition.',
+          subtitle:
+            'One login replaces 6+ tools. Less chaos, lower costs, more revenue — from day one.',
+          findOutMore: 'Find out more',
+          card1Title: 'Your Own Branded App',
+          card1Body:
+            'Stop paying 30% to delivery aggregators. Launch your own ordering app, keep every customer, and turn one-time visitors into loyal regulars.',
+          card2Title: 'Scale to 100s of Branches',
+          card2Body:
+            'Manage every location from a single screen. Push menus, prices, and promotions to all branches in seconds — never out of sync again.',
+          card3Title: 'Dine-in, Delivery & Pickup',
+          card3Body:
+            'Capture every order channel without juggling tablets. Faster service, fewer mistakes, and happier customers leaving 5-star reviews.',
+          card4Title: 'Smart Menus that Sell More',
+          card4Body:
+            'Real-time stock, automatic upsells, and AI-powered combos that lift average order value by up to 22% — without lifting a finger.',
+        },
+        stats: {
+          stat1: '5-star reviews',
+          stat2: 'Restaurants powered',
+          stat3: 'Orders every month',
+          stat4: 'Avg. revenue lift',
+        },
+        contact: {
+          eyebrow: 'Talk to a specialist',
+          title: 'See exactly how much FoodLuk can save you.',
+          body1: "Book a free 20-minute walkthrough. We'll map your menu, connect your channels, and show you the ROI for",
+          bodyEmphasis: 'your',
+          body2: 'restaurant — no pitch, no pressure.',
+          directHeading: 'Prefer a direct line?',
+          businessHours: 'Monday to Friday — 9 AM to 6 PM (GMT)',
+          formTitle: 'Get your personalised demo',
+          formSubtitle: 'Most restaurants are live within 15 minutes of signing up.',
+          firstNameLabel: 'First Name',
+          firstNamePlaceholder: 'Enter Your First Name',
+          emailLabel: 'Email',
+          emailPlaceholder: 'Enter Email Address',
+          companyLabel: 'Company Name',
+          companyPlaceholder: 'Enter Company Name',
+          messageLabel: 'Message',
+          messagePlaceholder: 'Tell us about your project',
+          submit: 'Get My Free Demo',
+        },
+        recommendations: {
+          titleA: 'Loved by the brands',
+          titleHighlight: 'redefining',
+          titleB: 'hospitality.',
+          subtitle:
+            'From neighbourhood cafés to nationwide chains — restaurants choose FoodLuk because it pays for itself in weeks, not months.',
+          playLabel: 'Play {{name}} video',
+        },
+        footer: {
+          tagline:
+            'Foodluk helps you digitize your establishments with one comprehensive ordering and payment solution.',
+          orderPath: 'Order Path',
+          operations: 'Operational Management',
+          legal: 'Legal',
+          rights: '© {{year}} Foodluk — All rights reserved.',
+          orderPathItems: {
+            clickAndCollect: 'Click and Collect',
+            curbside: 'Curbside Pickup',
+            delivery: 'Customer-Facing Delivery',
+            tableOrders: 'Table Orders',
+            mobileOrdering: 'Mobile Ordering Application',
+          },
+          operationsItems: {
+            aggregator: 'Order Aggregator',
+            reviews: 'Reviews System (4.8/5)',
+            callCenter: 'Customer Call Center',
+          },
+          legalItems: {
+            esg: 'ESG',
+            legalInfo: 'Legal Information',
+            subscriptionReturns: 'Subscription Returns',
+          },
+        },
+        languageSwitcher: {
+          label: 'Language',
+          english: 'English',
+          spanish: 'Spanish',
+        },
+      },
     },
   },
   es: {
@@ -227,6 +339,122 @@ export const resources = {
       time20to30Mins: '20-30 min.',
       remove: 'Eliminar',
       modify: 'Modificar',
+      marketing: {
+        nav: {
+          demoRequest: 'Solicitar demo',
+          restaurantSignup: 'Registra tu restaurante',
+          pricing: 'Precios',
+          documentation: 'Documentación',
+          getStarted: 'Empezar gratis',
+          openMenu: 'Abrir menú móvil',
+        },
+        hero: {
+          badge: 'Más de 25 restaurantes confían en nosotros',
+          headline: 'La forma inteligente de gestionar',
+          headlineHighlight: 'Restaurantes Rentables.',
+          subhead1:
+            'Reemplaza tu caótica mezcla de TPV, reparto y aplicaciones de pedidos por',
+          subhead2: 'una sola plataforma',
+          subhead3:
+            'que toma pedidos, gestiona sucursales y aumenta tus ingresos — automáticamente.',
+          ctaPrimary: 'Empieza gratis',
+          ctaSecondary: 'Solicitar demo',
+          fineprint:
+            'Listo en menos de 15 minutos · 14 días de prueba gratis · Cancela cuando quieras',
+          chip1: 'Aumenta los ingresos +30 %',
+          chip2: 'Ahorra +12 horas a la semana',
+          chip3: 'Encanta a cada cliente',
+          chip4: 'Un solo acceso. Todas las sucursales.',
+        },
+        features: {
+          titleA: 'Todo lo que necesitas para',
+          titleHighlight1: 'vender más, atender mejor',
+          titleAnd: 'y',
+          titleHighlight2: 'crecer',
+          titleB: 'más que la competencia.',
+          subtitle:
+            'Un solo acceso reemplaza más de 6 herramientas. Menos caos, menos costes y más ingresos — desde el primer día.',
+          findOutMore: 'Saber más',
+          card1Title: 'Tu propia app de marca',
+          card1Body:
+            'Deja de pagar el 30 % a las apps de reparto. Lanza tu propia app de pedidos, retén a cada cliente y convierte visitas únicas en clientes fieles.',
+          card2Title: 'Crece a cientos de sucursales',
+          card2Body:
+            'Gestiona todas tus ubicaciones desde una sola pantalla. Actualiza menús, precios y promociones en segundos — siempre sincronizado.',
+          card3Title: 'En sala, reparto y para llevar',
+          card3Body:
+            'Captura cada canal de pedido sin malabares con tabletas. Servicio más rápido, menos errores y más reseñas de 5 estrellas.',
+          card4Title: 'Menús inteligentes que venden más',
+          card4Body:
+            'Stock en tiempo real, ventas cruzadas automáticas y combos con IA que aumentan el ticket medio hasta un 22 % — sin que muevas un dedo.',
+        },
+        stats: {
+          stat1: 'Reseñas de 5 estrellas',
+          stat2: 'Restaurantes activos',
+          stat3: 'Pedidos cada mes',
+          stat4: 'Aumento medio de ingresos',
+        },
+        contact: {
+          eyebrow: 'Habla con un especialista',
+          title: 'Descubre cuánto puedes ahorrar con FoodLuk.',
+          body1:
+            'Reserva una demo gratuita de 20 minutos. Configuramos tu menú, conectamos tus canales y te mostramos el retorno para',
+          bodyEmphasis: 'tu',
+          body2: 'restaurante — sin presión y sin compromiso.',
+          directHeading: '¿Prefieres contacto directo?',
+          businessHours: 'De lunes a viernes — 9:00 a 18:00 (GMT)',
+          formTitle: 'Recibe tu demo personalizada',
+          formSubtitle:
+            'La mayoría de los restaurantes empiezan a operar en menos de 15 minutos.',
+          firstNameLabel: 'Nombre',
+          firstNamePlaceholder: 'Escribe tu nombre',
+          emailLabel: 'Correo electrónico',
+          emailPlaceholder: 'Introduce tu correo',
+          companyLabel: 'Nombre de la empresa',
+          companyPlaceholder: 'Introduce el nombre de tu empresa',
+          messageLabel: 'Mensaje',
+          messagePlaceholder: 'Cuéntanos sobre tu proyecto',
+          submit: 'Quiero mi demo gratis',
+        },
+        recommendations: {
+          titleA: 'Las marcas que están',
+          titleHighlight: 'redefiniendo',
+          titleB: 'la hostelería confían en nosotros.',
+          subtitle:
+            'Desde cafeterías de barrio hasta cadenas nacionales — los restaurantes eligen FoodLuk porque se paga solo en semanas, no meses.',
+          playLabel: 'Reproducir vídeo de {{name}}',
+        },
+        footer: {
+          tagline:
+            'Foodluk te ayuda a digitalizar tus locales con una solución integral de pedidos y pagos.',
+          orderPath: 'Canales de pedido',
+          operations: 'Gestión operativa',
+          legal: 'Legal',
+          rights: '© {{year}} Foodluk — Todos los derechos reservados.',
+          orderPathItems: {
+            clickAndCollect: 'Click & Collect',
+            curbside: 'Recogida en coche',
+            delivery: 'Reparto propio',
+            tableOrders: 'Pedidos en mesa',
+            mobileOrdering: 'App de pedidos móviles',
+          },
+          operationsItems: {
+            aggregator: 'Agregador de pedidos',
+            reviews: 'Sistema de reseñas (4,8/5)',
+            callCenter: 'Centro de atención al cliente',
+          },
+          legalItems: {
+            esg: 'ESG',
+            legalInfo: 'Información legal',
+            subscriptionReturns: 'Devoluciones de suscripción',
+          },
+        },
+        languageSwitcher: {
+          label: 'Idioma',
+          english: 'Inglés',
+          spanish: 'Español',
+        },
+      },
     },
   },
 } as const;
