@@ -48,6 +48,8 @@ export async function GET(_req: NextRequest) {
       const rows = await db.$queryRaw<
         Array<{
           id: string;
+          shortOrderId: string | null;
+          ticketNumber: number | null;
           total: number;
           status: string;
           paymentStatus: string | null;
@@ -56,7 +58,7 @@ export async function GET(_req: NextRequest) {
           createdAt: Date;
         }>
       >(Prisma.sql`
-        SELECT o.id, o.total, o.status, o."sourceType"::text AS "sourceType", o."createdAt",
+        SELECT o.id, o."shortOrderId", o."ticketNumber", o.total, o.status, o."sourceType"::text AS "sourceType", o."createdAt",
           (
             SELECT p.status
             FROM "Payment" p
@@ -78,6 +80,8 @@ export async function GET(_req: NextRequest) {
       fromMenu = rows.map((o) => ({
         id: o.id,
         kind: 'menu_order',
+        trackingToken: o.shortOrderId ?? o.id,
+        ticketNumber: o.ticketNumber,
         sourceType: o.sourceType,
         total: o.total,
         status: o.status,
@@ -91,6 +95,8 @@ export async function GET(_req: NextRequest) {
           where: { restaurantId: restaurant.id },
           select: {
             id: true,
+            shortOrderId: true,
+            ticketNumber: true,
             total: true,
             status: true,
             createdAt: true,
@@ -106,6 +112,8 @@ export async function GET(_req: NextRequest) {
         fromMenu = menuOrders.map((o) => ({
           id: o.id,
           kind: 'menu_order',
+          trackingToken: o.shortOrderId ?? o.id,
+          ticketNumber: o.ticketNumber,
           sourceType: o.sourceType,
           total: o.total,
           status: o.status,
@@ -137,6 +145,8 @@ export async function GET(_req: NextRequest) {
       fromSales = trows.map((t) => ({
         id: t.id,
         kind: 'sale_transaction',
+        trackingToken: t.id,
+        ticketNumber: null,
         sourceType: t.sourceType,
         total:
           t.totalAmount != null ? Number(t.totalAmount as string | number) : null,
@@ -159,6 +169,8 @@ export async function GET(_req: NextRequest) {
         fromSales = saleTransactions.map((t) => ({
           id: t.id,
           kind: 'sale_transaction',
+          trackingToken: t.id,
+          ticketNumber: null,
           sourceType: 'WALK_IN',
           total: t.totalAmount != null ? Number(t.totalAmount) : null,
           status: t.isComplete ? 'Complete' : 'Open',

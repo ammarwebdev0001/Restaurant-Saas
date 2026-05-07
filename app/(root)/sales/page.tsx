@@ -4,7 +4,7 @@ import ErrorBoundary from '@/components/toaster/toaster';
 
 const page = () => {
   return (
-    <div className="h-full w-full">
+    <div className=" w-full ">
       <ErrorBoundary>
         <Orders />
       </ErrorBoundary>

@@ -14,7 +14,7 @@ export function Orders() {
   const tableRef = useRef<HTMLDivElement>(null);
 
   return (
-    <div ref={tableRef} className="w-full h-full">
+    <div ref={tableRef} className="w-full  h-full">
       <Card className="h-full w-full flex flex-col">
         <div className="relative">
           <CardHeader>
