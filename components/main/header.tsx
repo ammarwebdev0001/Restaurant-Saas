@@ -6,6 +6,7 @@ import { Menu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '../ui/button';
+import { LanguageSwitcher } from './language-switcher';
 import { ThemeToggle } from './theme-toggle';
 
 export default function Header() {
@@ -102,6 +103,9 @@ export default function Header() {
         </div>
         </div>
       </header>
+      <div className="fixed bottom-4 right-4 z-50">
+        <LanguageSwitcher />
+      </div>
     </>
   );
 }
