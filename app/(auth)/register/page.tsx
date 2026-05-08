@@ -10,6 +10,7 @@ import { toast } from 'react-toastify';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PublicAuthShell } from '@/components/marketing/public-auth-shell';
 import { REGISTER_ROLE_SLUG } from '@/lib/global-roles';
 
 type GoogleSignupRole = 'OWNER' | 'WORKER';
@@ -150,16 +151,11 @@ export default function RegisterPage() {
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-0px)] items-center justify-center bg-gray-200 px-4 py-10 dark:bg-black">
-      <div className="w-full max-w-md rounded-lg border bg-background p-6 shadow-sm">
-        <h1 className="mb-2 text-center text-2xl font-semibold">
-          Create account
-        </h1>
-        <p className="mb-6 text-center text-sm text-muted-foreground">
-          Signup with your official information
-        </p>
-
-        {/* <div className="flex flex-col gap-2">
+    <PublicAuthShell
+      title="Create account"
+      subtitle="Signup with your official information"
+    >
+      {/* <div className="flex flex-col gap-2">
           <Button
             onClick={() => handleGoogleSignup('OWNER')}
             disabled={loading}
@@ -176,33 +172,46 @@ export default function RegisterPage() {
           </Button>
         </div> */}
 
-        <div className="my-6 border-t" />
+      <div className="mb-6 rounded-xl border border-fire-500/30 bg-fire-500/10 px-3 py-2 text-center text-xs font-medium text-fire-200">
+        Set up your owner or worker access in one step
+      </div>
 
-        <form onSubmit={handleEmailSignup} className="flex flex-col gap-4">
+      <form onSubmit={handleEmailSignup} className="space-y-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="name">Full name</Label>
+            <Label htmlFor="name" className="text-zinc-800 dark:text-zinc-200">
+              Full name
+            </Label>
             <Input
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoComplete="name"
               required
+              className="h-11 border-zinc-300/80 bg-white/90 text-zinc-900 placeholder:text-zinc-500 focus-visible:border-fire-500 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-100"
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="username">Username</Label>
+            <Label htmlFor="username" className="text-zinc-800 dark:text-zinc-200">
+              Username
+            </Label>
             <Input
               id="username"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               autoComplete="username"
               required
+              className="h-11 border-zinc-300/80 bg-white/90 text-zinc-900 placeholder:text-zinc-500 focus-visible:border-fire-500 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-100"
             />
           </div>
+        </div>
 
+        <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="email" className="text-zinc-800 dark:text-zinc-200">
+              Email
+            </Label>
             <Input
               id="email"
               type="email"
@@ -210,11 +219,14 @@ export default function RegisterPage() {
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
               required
+              className="h-11 border-zinc-300/80 bg-white/90 text-zinc-900 placeholder:text-zinc-500 focus-visible:border-fire-500 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-100"
             />
           </div>
 
           <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password" className="text-zinc-800 dark:text-zinc-200">
+              Password
+            </Label>
             <Input
               id="password"
               type="password"
@@ -222,47 +234,55 @@ export default function RegisterPage() {
               onChange={(e) => setPassword(e.target.value)}
               autoComplete="new-password"
               required
+              className="h-11 border-zinc-300/80 bg-white/90 text-zinc-900 placeholder:text-zinc-500 focus-visible:border-fire-500 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-100"
             />
           </div>
+        </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="role">Role</Label>
-            <select
-              id="role"
-              value={roleId}
-              onChange={(e) => setRoleId(e.target.value)}
-              className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm shadow-sm"
-              required
-              disabled={rolesLoading || registerRoles.length === 0}
-            >
-              {registerRoles.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
-            {!rolesLoading && registerRoles.length === 0 ? (
-              <p className="text-xs text-muted-foreground">
-                No signup roles found. Ensure the database is seeded (Owner and
-                User global roles).
-              </p>
-            ) : null}
-          </div>
-
-          <Button
-            disabled={loading || rolesLoading || registerRoles.length === 0}
-            type="submit"
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="role" className="text-zinc-800 dark:text-zinc-200">
+            Role
+          </Label>
+          <select
+            id="role"
+            value={roleId}
+            onChange={(e) => setRoleId(e.target.value)}
+            className="h-11 w-full rounded-md border border-zinc-300/80 bg-white/90 px-3 text-sm text-zinc-900 shadow-sm outline-none ring-0 focus:border-fire-500 dark:border-zinc-700 dark:bg-zinc-900/80 dark:text-zinc-100"
+            required
+            disabled={rolesLoading || registerRoles.length === 0}
           >
-            {loading ? 'Creating...' : 'Sign up'}
-          </Button>
+            {registerRoles.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+              </option>
+            ))}
+          </select>
+          {!rolesLoading && registerRoles.length === 0 ? (
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">
+              No signup roles found. Ensure the database is seeded (Owner and
+              User global roles).
+            </p>
+          ) : null}
+        </div>
 
-          <div className="text-center text-sm">
-            <Link className="text-primary underline" href="/login">
-              Already have an account? Sign in
-            </Link>
-          </div>
-        </form>
-      </div>
-    </main>
+        <Button
+          disabled={loading || rolesLoading || registerRoles.length === 0}
+          type="submit"
+          className="h-11 w-full bg-gradient-to-r from-fire-500 via-fire-600 to-fire-500 text-white shadow-[0_16px_34px_-14px] shadow-fire-500/70 hover:from-fire-400 hover:to-fire-500"
+        >
+          {loading ? 'Creating...' : 'Sign up'}
+        </Button>
+
+        <div className="text-center text-sm text-zinc-600 dark:text-zinc-400">
+          Already have an account?{' '}
+          <Link
+            className="font-medium text-fire-600 underline decoration-fire-500/60 underline-offset-4 hover:text-fire-500 dark:text-fire-400"
+            href="/login"
+          >
+            Sign in
+          </Link>
+        </div>
+      </form>
+    </PublicAuthShell>
   );
 }

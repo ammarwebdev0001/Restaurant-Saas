@@ -28,8 +28,10 @@ export function middleware(req: NextRequest) {
   // No subdomain => marketing/auth/dashboard; short `/order` URLs map to web-app routes.
   // Do not match `/orders` — that path is reserved for the dashboard (see /sales list).
   if (!subdomain) {
+    // Match only `/order` and `/order/...` (not `/order-path`).
     const isWebAppOrderPath =
-      pathname.startsWith("/order") && !pathname.startsWith("/orders");
+      (pathname === "/order" || pathname.startsWith("/order/")) &&
+      !pathname.startsWith("/orders");
     if (isWebAppOrderPath) {
       url.pathname = `/web-app${pathname}`;
       return NextResponse.rewrite(url);

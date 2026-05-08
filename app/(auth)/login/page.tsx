@@ -13,6 +13,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { PublicAuthShell } from '@/components/marketing/public-auth-shell';
 import { IconBrandGoogleFilled } from '@tabler/icons-react';
 
 function safeCallbackUrl(raw: string | null): string {
@@ -145,12 +146,7 @@ function LoginForm() {
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-0px)] items-center justify-center bg-gray-200 px-4 py-10 dark:bg-black">
-      <div className="w-full max-w-md rounded-lg border bg-background p-6 shadow-sm">
-        <h1 className="mb-2 text-center text-2xl font-semibold">Sign in</h1>
-        <p className="mb-6 text-center text-sm text-muted-foreground">
-          Use Google or your email + password.
-        </p>
+    <PublicAuthShell title="Sign in" subtitle="Use Google or your email + password.">
 
         <div className="flex flex-col gap-2">
           <Button onClick={handleGoogle} disabled={loading} variant="secondary">
@@ -218,8 +214,7 @@ function LoginForm() {
             </Link>
           </div>
         </form>
-      </div>
-    </main>
+    </PublicAuthShell>
   );
 }
 
@@ -227,7 +222,7 @@ export default function LoginPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-[calc(100vh-0px)] items-center justify-center">
+        <main className="flex min-h-screen items-center justify-center bg-white dark:bg-black">
           <p className="text-sm text-muted-foreground">Loading…</p>
         </main>
       }

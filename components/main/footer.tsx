@@ -2,18 +2,17 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { Linkedin, Twitter } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export default function Footer() {
   const { t } = useTranslation();
 
   const orderPath = [
-    { label: t('marketing.footer.orderPathItems.clickAndCollect'), href: '/documentation' },
-    { label: t('marketing.footer.orderPathItems.curbside'), href: '/documentation' },
-    { label: t('marketing.footer.orderPathItems.delivery'), href: '/documentation' },
-    { label: t('marketing.footer.orderPathItems.tableOrders'), href: '/documentation' },
-    { label: t('marketing.footer.orderPathItems.mobileOrdering'), href: '/documentation' },
+    { label: t('marketing.footer.orderPathItems.clickAndCollect'), href: '/order-path/click-and-collect' },
+    { label: t('marketing.footer.orderPathItems.curbside'), href: '/order-path/curbside-pickup' },
+    { label: t('marketing.footer.orderPathItems.delivery'), href: '/order-path/customer-facing-delivery' },
+    { label: t('marketing.footer.orderPathItems.tableOrders'), href: '/order-path/table-orders' },
+    { label: t('marketing.footer.orderPathItems.mobileOrdering'), href: '/order-path/mobile-ordering-application' },
   ];
 
   const operations = [
@@ -24,8 +23,9 @@ export default function Footer() {
 
   const legal = [
     { label: t('marketing.footer.legalItems.esg'), href: '/policies' },
-    { label: t('marketing.footer.legalItems.legalInfo'), href: '/privacy' },
-    { label: t('marketing.footer.legalItems.subscriptionReturns'), href: '/subscription-returns' },
+    { label: t('marketing.footer.legalItems.legalInfo'), href: '/privacy-policy' },
+    { label: t('marketing.footer.legalItems.subscriptionReturns'), href: '/refund-policy' },
+    { label: t('marketing.footer.legalItems.sitemap'), href: '/sitemap' },
   ];
 
   return (
@@ -102,20 +102,15 @@ export default function Footer() {
 
         <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-zinc-200 pt-6 text-xs text-zinc-500 dark:border-zinc-900 sm:flex-row sm:items-center">
           <p>{t('marketing.footer.rights', { year: new Date().getFullYear() })}</p>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 text-xs">
+            <span>Launched by</span>
             <Link
-              href="#"
-              aria-label="Twitter"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-500 transition-colors hover:border-fire-500/40 hover:text-fire-500 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-fire-400"
+              href="https://aureliumsoft.com"
+              target="_blank"
+              rel="noreferrer"
+              className="font-semibold text-fire-600 underline decoration-fire-500/50 underline-offset-4 transition-colors hover:text-fire-500 dark:text-fire-400 dark:hover:text-fire-300"
             >
-              <Twitter className="h-4 w-4" />
-            </Link>
-            <Link
-              href="#"
-              aria-label="LinkedIn"
-              className="inline-flex h-8 w-8 items-center justify-center rounded-full border border-zinc-300 text-zinc-500 transition-colors hover:border-fire-500/40 hover:text-fire-500 dark:border-zinc-800 dark:text-zinc-400 dark:hover:text-fire-400"
-            >
-              <Linkedin className="h-4 w-4" />
+              Aurelium Soft
             </Link>
           </div>
         </div>

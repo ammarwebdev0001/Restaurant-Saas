@@ -404,7 +404,7 @@ function ContactSection() {
               aria-hidden="true"
             />
 
-            <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-br from-fire-500/25 via-fire-700/15 to-zinc-900/70 p-6 shadow-[0_30px_80px_-20px] shadow-fire-500/30 backdrop-blur-2xl dark:border-white/10 md:p-8">
+            <div className="relative overflow-hidden rounded-3xl border border-fire-200/70 bg-gradient-to-br from-white via-fire-50/50 to-zinc-50 p-6 shadow-[0_30px_80px_-20px] shadow-fire-500/20 backdrop-blur-2xl dark:border-white/10 dark:from-fire-500/25 dark:via-fire-700/15 dark:to-zinc-900/70 dark:shadow-fire-500/30 md:p-8">
               {/* Inner top-right highlight */}
               <div
                 className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-fire-500/40 blur-3xl"
@@ -416,10 +416,10 @@ function ContactSection() {
                 aria-hidden="true"
               />
 
-              <h3 className="relative text-2xl font-bold text-white md:text-3xl">
+              <h3 className="relative text-2xl font-bold text-zinc-900 dark:text-white md:text-3xl">
                 {t('marketing.contact.formTitle')}
               </h3>
-              <p className="relative mt-2 text-sm text-white/75">
+              <p className="relative mt-2 text-sm text-zinc-600 dark:text-white/75">
                 {t('marketing.contact.formSubtitle')}
               </p>
 
@@ -438,13 +438,13 @@ function ContactSection() {
                   placeholder={t('marketing.contact.companyPlaceholder')}
                 />
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-white">
+                  <label className="mb-2 block text-sm font-semibold text-zinc-900 dark:text-white">
                     {t('marketing.contact.messageLabel')}
                   </label>
                   <textarea
                     rows={3}
                     placeholder={t('marketing.contact.messagePlaceholder') as string}
-                    className="w-full resize-none border-0 border-b border-white/30 bg-transparent px-0 py-2 text-sm text-white placeholder:text-white/50 focus:border-fire-400 focus:outline-none focus:ring-0"
+                    className="w-full resize-none border-0 border-b border-zinc-300/80 bg-transparent px-0 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-fire-500 focus:outline-none focus:ring-0 dark:border-white/30 dark:text-white dark:placeholder:text-white/50 dark:focus:border-fire-400"
                   />
                 </div>
                 <Button
@@ -473,13 +473,13 @@ function FormField({
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-semibold text-white">
+      <label className="mb-2 block text-sm font-semibold text-zinc-900 dark:text-white">
         {label}
       </label>
       <Input
         type={type}
         placeholder={placeholder}
-        className="h-11 rounded-none border-0 border-b border-white/30 bg-transparent px-0 text-sm text-white shadow-none placeholder:text-white/50 focus-visible:border-fire-400 focus-visible:ring-0 focus-visible:ring-offset-0"
+        className="h-11 rounded-none border-0 border-b border-zinc-300/80 bg-transparent px-0 text-sm text-zinc-900 shadow-none placeholder:text-zinc-500 focus-visible:border-fire-500 focus-visible:ring-0 focus-visible:ring-offset-0 dark:border-white/30 dark:text-white dark:placeholder:text-white/50 dark:focus-visible:border-fire-400"
       />
     </div>
   );

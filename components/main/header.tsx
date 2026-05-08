@@ -19,8 +19,10 @@ export default function Header() {
   ];
 
   return (
-    <header className="sticky top-4 z-40 w-full px-3 sm:px-4">
-      <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/85 px-3 shadow-[0_10px_40px_-10px] shadow-black/10 backdrop-blur-md dark:border-zinc-800/80 dark:bg-black/80 dark:shadow-black/60 sm:px-4">
+    <>
+      <div className="h-[5.5rem]" aria-hidden="true" />
+      <header className="fixed inset-x-0 top-0 z-50 w-full bg-white/80 px-3 py-3 backdrop-blur-xl dark:bg-black/85 sm:px-4">
+        <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/85 px-3 shadow-[0_10px_40px_-10px] shadow-black/10 backdrop-blur-md dark:border-zinc-800/80 dark:bg-black/80 dark:shadow-black/60 sm:px-4">
         {/* Logo tile */}
         <Link
           href="/"
@@ -98,7 +100,8 @@ export default function Header() {
             </div>
           </details>
         </div>
-      </div>
-    </header>
+        </div>
+      </header>
+    </>
   );
 }

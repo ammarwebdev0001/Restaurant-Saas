@@ -69,18 +69,20 @@ export function PaymentCheckoutClient({
   }
 
   return (
-    <main className="min-h-screen bg-muted/30 px-4 py-12 sm:px-6 lg:px-8">
-      <div className="mx-auto grid max-w-5xl gap-8 lg:grid-cols-[1fr_380px]">
+    <main className="relative min-h-screen overflow-hidden bg-white px-4 py-12 text-zinc-900 dark:bg-black dark:text-white sm:px-6 lg:px-8">
+      <div className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-fire-500/20 blur-3xl dark:bg-fire-500/25" />
+      <div className="pointer-events-none absolute -bottom-24 right-0 h-72 w-72 rounded-full bg-fire-300/20 blur-3xl dark:bg-fire-700/20" />
+      <div className="relative mx-auto grid max-w-5xl gap-8 lg:grid-cols-[1fr_380px]">
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Checkout</h1>
-            <p className="mt-2 text-muted-foreground">
+            <p className="mt-2 text-zinc-600 dark:text-zinc-400">
               Secure payment powered by Stripe. Pay with card, Link, or PayPal (when enabled on
               your Stripe account).
             </p>
           </div>
 
-          <Card>
+          <Card className="border-zinc-200/80 bg-white/95 shadow-[0_20px_60px_-30px] shadow-black/20 dark:border-zinc-800/80 dark:bg-zinc-950/80 dark:shadow-black/60">
             <CardHeader>
               <CardTitle>What you get</CardTitle>
               <CardDescription>{description}</CardDescription>
@@ -97,7 +99,7 @@ export function PaymentCheckoutClient({
             </CardContent>
           </Card>
 
-          <div className="flex flex-wrap gap-4 rounded-lg border bg-card p-4 text-sm text-muted-foreground">
+          <div className="flex flex-wrap gap-4 rounded-xl border border-zinc-200/80 bg-zinc-50/80 p-4 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
             <div className="flex items-center gap-2">
               <Lock className="h-4 w-4 shrink-0 text-primary" />
               <span>256-bit TLS encryption</span>
@@ -116,7 +118,7 @@ export function PaymentCheckoutClient({
           ) : null}
         </div>
 
-        <Card className="h-fit shadow-md">
+        <Card className="h-fit border-zinc-200/80 bg-white/95 shadow-[0_20px_60px_-30px] shadow-black/20 dark:border-zinc-800/80 dark:bg-zinc-950/80 dark:shadow-black/60">
           <CardHeader>
             <CardTitle className="text-lg">Order summary</CardTitle>
             <CardDescription>Plan {planName}</CardDescription>

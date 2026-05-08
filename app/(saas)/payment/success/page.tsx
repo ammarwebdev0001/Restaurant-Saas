@@ -50,9 +50,11 @@ export default async function PaymentSuccessPage({ searchParams }: Props) {
   }
 
   return (
-    <main className="min-h-screen bg-muted/30 px-4 py-16">
-      <div className="mx-auto max-w-lg">
-        <Card className="shadow-md">
+    <main className="relative min-h-screen overflow-hidden bg-white px-4 py-16 text-zinc-900 dark:bg-black dark:text-white">
+      <div className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-fire-500/20 blur-3xl dark:bg-fire-500/25" />
+      <div className="pointer-events-none absolute -bottom-24 right-0 h-72 w-72 rounded-full bg-fire-300/20 blur-3xl dark:bg-fire-700/20" />
+      <div className="relative mx-auto max-w-lg">
+        <Card className="border-zinc-200/80 bg-white/95 shadow-[0_30px_80px_-30px] shadow-black/20 dark:border-zinc-800/80 dark:bg-zinc-950/80 dark:shadow-black/60">
           <CardHeader>
             <CardTitle className="text-2xl">
               {paid ? 'Payment successful' : 'Payment status'}

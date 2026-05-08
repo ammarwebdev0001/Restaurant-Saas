@@ -6,6 +6,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
+import { PublicAuthShell } from "@/components/marketing/public-auth-shell";
 
 type Role = "OWNER" | "WORKER";
 
@@ -80,7 +81,7 @@ function RolePage() {
 
   if (status === "loading" || loading) {
     return (
-      <main className="flex min-h-[calc(100vh-0px)] items-center justify-center bg-gray-200 px-4 py-10 dark:bg-black">
+      <main className="flex min-h-screen items-center justify-center bg-white px-4 py-10 dark:bg-black">
         <div className="text-center text-sm text-muted-foreground">
           Loading...
         </div>
@@ -89,12 +90,7 @@ function RolePage() {
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-0px)] items-center justify-center bg-gray-200 px-4 py-10 dark:bg-black">
-      <div className="w-full max-w-md rounded-lg border bg-background p-6 shadow-sm">
-        <h1 className="mb-2 text-center text-2xl font-semibold">Your role</h1>
-        <p className="mb-6 text-center text-sm text-muted-foreground">
-          Select a role to finish signup.
-        </p>
+    <PublicAuthShell title="Your role" subtitle="Select a role to finish signup.">
 
         {roleNeedsUpdate ? (
           <div className="flex flex-col gap-3">
@@ -110,8 +106,7 @@ function RolePage() {
             Redirecting...
           </div>
         )}
-      </div>
-    </main>
+    </PublicAuthShell>
   );
 }
 
@@ -119,7 +114,7 @@ export default function RolePageWithSuspense() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-[calc(100vh-0px)] items-center justify-center bg-gray-200 px-4 py-10 dark:bg-black">
+        <main className="flex min-h-screen items-center justify-center bg-white px-4 py-10 dark:bg-black">
           <div className="text-center text-sm text-muted-foreground">
             Loading…
           </div>

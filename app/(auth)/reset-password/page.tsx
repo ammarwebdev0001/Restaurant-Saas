@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PublicAuthShell } from "@/components/marketing/public-auth-shell";
 
 function ResetPasswordPage() {
   const router = useRouter();
@@ -83,14 +84,10 @@ function ResetPasswordPage() {
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-0px)] items-center justify-center bg-gray-200 px-4 py-10 dark:bg-black">
-      <div className="w-full max-w-md rounded-lg border bg-background p-6 shadow-sm">
-        <h1 className="mb-2 text-center text-2xl font-semibold">
-          Reset password
-        </h1>
-        <p className="mb-6 text-center text-sm text-muted-foreground">
-          Request a reset token, then set a new password.
-        </p>
+    <PublicAuthShell
+      title="Reset password"
+      subtitle="Request a reset token, then set a new password."
+    >
 
         {!isConfirmMode ? (
           <form onSubmit={requestReset} className="flex flex-col gap-4">
@@ -176,8 +173,7 @@ function ResetPasswordPage() {
             </div>
           </form>
         )}
-      </div>
-    </main>
+    </PublicAuthShell>
   );
 }
 
@@ -185,7 +181,7 @@ export default function ResetPasswordPageWithSuspense() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-[calc(100vh-0px)] items-center justify-center bg-gray-200 px-4 py-10 dark:bg-black">
+        <main className="flex min-h-screen items-center justify-center bg-white px-4 py-10 dark:bg-black">
           <div className="text-center text-sm text-muted-foreground">
             Loading…
           </div>

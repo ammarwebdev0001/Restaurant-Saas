@@ -217,6 +217,100 @@ export const resources = {
             esg: 'ESG',
             legalInfo: 'Legal Information',
             subscriptionReturns: 'Subscription Returns',
+            sitemap: 'Sitemap',
+          },
+        },
+        legalPages: {
+          privacy: {
+            title: 'Privacy Policy',
+            subtitle:
+              'This policy describes how Foodluk (“we”, “us”) handles information in connection with the Foodluk SaaS platform. It applies to restaurant operators and their staff who use our services.',
+            sections: {
+              collection: {
+                title: 'Information we collect',
+                body: 'We collect account and usage data needed to run the service, such as name, email, authentication identifiers, restaurant configuration, and technical logs for reliability and security.',
+              },
+              usage: {
+                title: 'How we use information',
+                body: 'We use this information to provide and improve the platform, authenticate users, protect accounts, and process subscriptions and service communication.',
+              },
+              sharing: {
+                title: 'Sharing and subprocessors',
+                body: 'We may use subprocessors (hosting, email, and payment providers) that process data on our behalf under contractual safeguards. We do not sell personal data.',
+              },
+              rights: {
+                title: 'Your rights',
+                body: 'Where required by law, you may request access, correction, export, or deletion of personal data, subject to legal and operational retention requirements.',
+              },
+              contact: {
+                title: 'Contact',
+                prefix: 'Questions about this policy can be submitted via',
+                link: 'demo request',
+              },
+            },
+          },
+          refund: {
+            title: 'Refund Policy',
+            subtitle:
+              'This policy explains how subscription cancellations, plan changes, and refund requests are handled for Foodluk SaaS plans.',
+            sections: {
+              cancellations: {
+                title: 'Cancellations',
+                body: 'You can cancel future renewals from available billing controls. Cancellation stops future charges and typically remains active through the end of your paid cycle.',
+              },
+              planChanges: {
+                title: 'Plan changes',
+                body: 'Upgrades may activate immediately or from the next billing cycle depending on your checkout flow. Downgrades usually take effect on renewal.',
+              },
+              refundEligibility: {
+                title: 'Refund eligibility',
+                body: 'SaaS subscriptions are generally not returned like physical goods. Refunds are reviewed case-by-case where legally required or explicitly offered in writing.',
+              },
+              billingDisputes: {
+                title: 'Billing disputes',
+                body: 'If you believe a charge is incorrect, contact support with payment or invoice details so we can investigate and correct verified errors.',
+              },
+              contact: {
+                title: 'Contact',
+                prefix: 'For billing help, use',
+                demoLink: 'demo request',
+                middle: 'or review your current options on',
+                pricingLink: 'pricing',
+              },
+            },
+          },
+          sitemap: {
+            title: 'Sitemap',
+            subtitle: 'Browse key pages across the public Foodluk website.',
+            sections: {
+              company: {
+                title: 'Company',
+                links: {
+                  home: 'Home',
+                  documentation: 'Documentation',
+                  pricing: 'Pricing',
+                  requestDemo: 'Request Demo',
+                },
+              },
+              legal: {
+                title: 'Legal',
+                links: {
+                  privacyPolicy: 'Privacy Policy',
+                  refundPolicy: 'Refund Policy',
+                  platformPolicies: 'Platform Policies',
+                  subscriptionReturns: 'Subscription Returns',
+                },
+              },
+              account: {
+                title: 'Account',
+                links: {
+                  register: 'Register',
+                  login: 'Login',
+                  resetPassword: 'Reset Password',
+                  restaurantSignup: 'Restaurant Signup',
+                },
+              },
+            },
           },
         },
         languageSwitcher: {
@@ -447,6 +541,100 @@ export const resources = {
             esg: 'ESG',
             legalInfo: 'Información legal',
             subscriptionReturns: 'Devoluciones de suscripción',
+            sitemap: 'Mapa del sitio',
+          },
+        },
+        legalPages: {
+          privacy: {
+            title: 'Política de privacidad',
+            subtitle:
+              'Esta política describe cómo Foodluk (“nosotros”) gestiona la información relacionada con la plataforma SaaS de Foodluk. Se aplica a operadores de restaurantes y su personal que usan nuestros servicios.',
+            sections: {
+              collection: {
+                title: 'Información que recopilamos',
+                body: 'Recopilamos datos de cuenta y uso necesarios para operar el servicio, como nombre, correo electrónico, identificadores de autenticación, configuración del restaurante y registros técnicos para seguridad y fiabilidad.',
+              },
+              usage: {
+                title: 'Cómo usamos la información',
+                body: 'Usamos esta información para prestar y mejorar la plataforma, autenticar usuarios, proteger cuentas y gestionar suscripciones y comunicaciones del servicio.',
+              },
+              sharing: {
+                title: 'Compartición y subprocesadores',
+                body: 'Podemos usar subprocesadores (hosting, correo y pagos) que tratan datos en nuestro nombre bajo salvaguardas contractuales. No vendemos datos personales.',
+              },
+              rights: {
+                title: 'Tus derechos',
+                body: 'Cuando la ley lo exija, puedes solicitar acceso, corrección, exportación o eliminación de datos personales, sujeto a obligaciones legales y operativas de retención.',
+              },
+              contact: {
+                title: 'Contacto',
+                prefix: 'Las consultas sobre esta política pueden enviarse mediante',
+                link: 'solicitud de demo',
+              },
+            },
+          },
+          refund: {
+            title: 'Política de reembolso',
+            subtitle:
+              'Esta política explica cómo se gestionan las cancelaciones de suscripción, cambios de plan y solicitudes de reembolso para los planes SaaS de Foodluk.',
+            sections: {
+              cancellations: {
+                title: 'Cancelaciones',
+                body: 'Puedes cancelar renovaciones futuras desde los controles de facturación disponibles. La cancelación detiene cargos futuros y normalmente se mantiene activa hasta el final del periodo pagado.',
+              },
+              planChanges: {
+                title: 'Cambios de plan',
+                body: 'Las mejoras pueden activarse de inmediato o en el siguiente ciclo de facturación según tu flujo de compra. Las bajadas de plan normalmente se aplican en la renovación.',
+              },
+              refundEligibility: {
+                title: 'Elegibilidad de reembolso',
+                body: 'Las suscripciones SaaS no se “devuelven” como bienes físicos. Los reembolsos se revisan caso por caso cuando la ley lo exige o cuando se ofrecen por escrito.',
+              },
+              billingDisputes: {
+                title: 'Disputas de facturación',
+                body: 'Si crees que un cargo es incorrecto, contacta con soporte con detalles del pago o factura para investigar y corregir errores verificados.',
+              },
+              contact: {
+                title: 'Contacto',
+                prefix: 'Para ayuda de facturación, usa',
+                demoLink: 'solicitud de demo',
+                middle: 'o revisa tus opciones actuales en',
+                pricingLink: 'precios',
+              },
+            },
+          },
+          sitemap: {
+            title: 'Mapa del sitio',
+            subtitle: 'Explora las páginas clave del sitio web público de Foodluk.',
+            sections: {
+              company: {
+                title: 'Compañía',
+                links: {
+                  home: 'Inicio',
+                  documentation: 'Documentación',
+                  pricing: 'Precios',
+                  requestDemo: 'Solicitar demo',
+                },
+              },
+              legal: {
+                title: 'Legal',
+                links: {
+                  privacyPolicy: 'Política de privacidad',
+                  refundPolicy: 'Política de reembolso',
+                  platformPolicies: 'Políticas de la plataforma',
+                  subscriptionReturns: 'Devoluciones de suscripción',
+                },
+              },
+              account: {
+                title: 'Cuenta',
+                links: {
+                  register: 'Registro',
+                  login: 'Iniciar sesión',
+                  resetPassword: 'Restablecer contraseña',
+                  restaurantSignup: 'Registro de restaurante',
+                },
+              },
+            },
           },
         },
         languageSwitcher: {
