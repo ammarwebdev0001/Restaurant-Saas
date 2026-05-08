@@ -632,7 +632,7 @@ export function KioskApp({ slug }: { slug: string }) {
     }
   };
 
-  const startStripePayment = async () => {
+  const startPayPalPayment = async () => {
     if (!fulfillment || cart.length === 0) return;
     if (typeof navigator !== 'undefined' && !navigator.onLine) {
       toast.error('Card payment requires an internet connection.');
@@ -658,7 +658,7 @@ export function KioskApp({ slug }: { slug: string }) {
         customerName: customerName.trim() || undefined,
         customerPhone: customerPhone.trim() || undefined,
         paymentStatus: 'pending' as const,
-        paymentMethod: 'Stripe (pending)',
+        paymentMethod: 'PayPal (pending)',
       };
       const idempotencyKey = crypto.randomUUID();
       const preOrderRes = await fetch('/api/kiosk/orders', {
@@ -723,7 +723,7 @@ export function KioskApp({ slug }: { slug: string }) {
       const err = e as { response?: { data?: { error?: unknown } } };
       const msg = err.response?.data?.error;
       toast.error(
-        typeof msg === 'string' ? msg : 'Could not start Stripe payment.'
+        typeof msg === 'string' ? msg : 'Could not start PayPal payment.'
       );
       setPlacing(false);
     }
@@ -1336,9 +1336,9 @@ export function KioskApp({ slug }: { slug: string }) {
                 type="button"
                 className="flex-1 bg-primary font-semibold text-primary-foreground hover:brightness-95"
                 disabled={placing || cart.length === 0}
-                onClick={() => void startStripePayment()}
+                onClick={() => void startPayPalPayment()}
               >
-                {placing ? 'Processing…' : 'Pay with Stripe'}
+                {placing ? 'Processing…' : 'Pay with PayPal'}
               </Button>
             </div>
           </div>

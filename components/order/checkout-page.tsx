@@ -222,7 +222,7 @@ export default function CheckoutPageClient({
     }
   };
 
-  const startStripePayment = async () => {
+  const startPayPalPayment = async () => {
     const slug = orderInfo?.restaurantSlug?.trim();
     if (!slug) {
       toast.error(
@@ -268,7 +268,7 @@ export default function CheckoutPageClient({
         cutlery,
         comment: comment.trim() || undefined,
         paymentStatus: 'pending' as const,
-        paymentMethod: 'Stripe (pending)',
+        paymentMethod: 'PayPal (pending)',
       };
       const idempotencyKey = crypto.randomUUID();
       const preOrderRes = await fetch('/api/customer/orders', {
@@ -330,7 +330,7 @@ export default function CheckoutPageClient({
       const err = e as { response?: { data?: { error?: unknown } } };
       const msg = err.response?.data?.error;
       toast.error(
-        typeof msg === 'string' ? msg : 'Could not start Stripe payment.'
+        typeof msg === 'string' ? msg : 'Could not start PayPal payment.'
       );
       setSubmitting(false);
     }
@@ -566,7 +566,7 @@ export default function CheckoutPageClient({
                 <div className="mt-4">
                   <Button
                     className="w-full"
-                    onClick={() => void startStripePayment()}
+                    onClick={() => void startPayPalPayment()}
                     type="button"
                     disabled={submitting}
                   >

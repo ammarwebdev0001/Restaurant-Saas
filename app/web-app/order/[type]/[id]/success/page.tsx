@@ -31,12 +31,14 @@ export default async function OnlineSuccessPage({ params, searchParams }: Props)
   const orderInfo = orderInfoFromSearchParams(resolved, mode);
   const trackingOrderId = pick(resolved, 'orderId').trim() || null;
   const sessionId = pick(resolved, 'session_id').trim() || null;
+  const token = pick(resolved, 'token').trim() || null;
 
   return (
     <OnlinePaymentSuccess
       flowOrderId={id}
       trackingOrderId={trackingOrderId}
       sessionId={sessionId}
+      token={token}
       orderType={mode}
       orderInfo={orderInfo}
     />

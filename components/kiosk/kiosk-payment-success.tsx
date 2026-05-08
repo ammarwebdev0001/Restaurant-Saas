@@ -12,6 +12,7 @@ type Props = {
   orderId: string | null;
   ticketFromQuery: number | null;
   sessionId: string | null;
+  token?: string | null;
 };
 
 export function KioskPaymentSuccess({
@@ -19,6 +20,7 @@ export function KioskPaymentSuccess({
   orderId,
   ticketFromQuery,
   sessionId,
+  token,
 }: Props) {
   const router = useRouter();
   const [ticket, setTicket] = useState<number | null>(ticketFromQuery);
@@ -35,12 +37,13 @@ export function KioskPaymentSuccess({
   }, [slug]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    const paymentToken = sessionId ?? token ?? null;
+    if (!paymentToken) return;
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch(
-          `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
+          `/api/stripe/verify-session?token=${encodeURIComponent(paymentToken)}`
         );
         const body = (await res.json().catch(() => ({}))) as {
           status?: string;
@@ -56,7 +59,7 @@ export function KioskPaymentSuccess({
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, token]);
 
   useEffect(() => {
     if (!orderId) return;
@@ -139,7 +142,7 @@ export function KioskPaymentSuccess({
       const subtotal = items.reduce((sum, it) => sum + it.price * it.quantity, 0);
       const total = details?.total ?? subtotal;
       const tax = Math.max(0, total - subtotal);
-      const paymentMethod = details?.payment?.method ?? 'Stripe';
+      const paymentMethod = details?.payment?.method ?? 'PayPal';
       const paymentState = details?.payment?.status ?? paymentStatus ?? 'pending';
       const paidAmount = details?.payment?.amount ?? total;
 

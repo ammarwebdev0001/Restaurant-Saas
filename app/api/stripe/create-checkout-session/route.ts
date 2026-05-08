@@ -5,16 +5,9 @@ import { SubscriptionPlan } from '@prisma/client';
 
 import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
+import { createPayPalOrder, getPayPalConfigError, isPayPalConfigured } from '@/lib/paypal-server';
 import { getRestaurantForUser } from '@/lib/restaurant-owner';
 import { getRequestOrigin } from '@/lib/request-origin';
-import {
-  checkoutPaymentMethodTypes,
-  getStripeConfigError,
-  getStripe,
-  getStripeCurrency,
-  isStripeConfigured,
-  toStripeUnitAmount,
-} from '@/lib/stripe-server';
 
 export const runtime = 'nodejs';
 
@@ -23,12 +16,12 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  if (!isStripeConfigured()) {
+  if (!isPayPalConfigured()) {
     return NextResponse.json(
       {
         error:
-          getStripeConfigError() ??
-          'Stripe is not configured. Set STRIPE_SECRET_KEY on the server.',
+          getPayPalConfigError() ??
+          'PayPal is not configured. Set PAYPAL_CLIENT_ID and PAYPAL_CLIENT_SECRET on the server.',
       },
       { status: 503 }
     );
@@ -53,9 +46,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unknown subscription plan' }, { status: 404 });
   }
 
-  const currency = getStripeCurrency();
-  const unitAmount = toStripeUnitAmount(catalog.price, currency);
-  if (unitAmount <= 0) {
+  const currency = 'EUR';
+  if (!Number.isFinite(catalog.price) || catalog.price <= 0) {
     return NextResponse.json({ error: 'Invalid plan price for checkout' }, { status: 400 });
   }
 
@@ -80,83 +72,23 @@ export async function POST(req: NextRequest) {
   }
 
   const origin = await getRequestOrigin();
-  const stripe = getStripe();
-
-  let paymentMethodTypes = checkoutPaymentMethodTypes();
-  const baseParams = {
-    mode: 'payment' as const,
-    success_url: `${origin}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/payment?plan=${encodeURIComponent(parsed.data.plan)}`,
-    ...(email ? { customer_email: email } : {}),
-    line_items: [
-      {
-        quantity: 1,
-        price_data: {
-          currency,
-          unit_amount: unitAmount,
-          product_data: {
-            name: catalog.name,
-            description: catalog.description.slice(0, 500),
-          },
-        },
-      },
-    ],
-    metadata: {
-      plan: parsed.data.plan,
-      ...(restaurantId ? { restaurantId } : {}),
-      ...(userId ? { userId } : {}),
-    },
-    payment_intent_data: {
+  try {
+    const checkout = await createPayPalOrder({
+      amount: catalog.price,
+      currency,
+      title: catalog.name,
+      returnUrl: `${origin}/payment/success?plan=${encodeURIComponent(parsed.data.plan)}`,
+      cancelUrl: `${origin}/payment?plan=${encodeURIComponent(parsed.data.plan)}`,
       metadata: {
         plan: parsed.data.plan,
         ...(restaurantId ? { restaurantId } : {}),
         ...(userId ? { userId } : {}),
+        ...(email ? { userEmail: email } : {}),
       },
-    },
-    allow_promotion_codes: true,
-    billing_address_collection: 'auto' as const,
-  };
-
-  let checkoutSession;
-  try {
-    checkoutSession = await stripe.checkout.sessions.create({
-      ...baseParams,
-      payment_method_types: paymentMethodTypes,
     });
-  } catch (e: unknown) {
-    const msg = e instanceof Error ? e.message : String(e);
-    if (paymentMethodTypes.includes('paypal') && /paypal/i.test(msg)) {
-      paymentMethodTypes = paymentMethodTypes.filter((t) => t !== 'paypal');
-      if (paymentMethodTypes.length === 0) paymentMethodTypes = ['card', 'link'];
-      checkoutSession = await stripe.checkout.sessions.create({
-        ...baseParams,
-        payment_method_types: paymentMethodTypes,
-      });
-    } else {
-      console.error('Stripe checkout create failed:', e);
-      const msg = e instanceof Error ? e.message : String(e);
-      if (/secret.*key.*required|publishable api key|pk_/i.test(msg)) {
-        return NextResponse.json(
-          {
-            error:
-              'Stripe key misconfiguration: use STRIPE_SECRET_KEY with sk_test_* or sk_live_*, not pk_*.',
-          },
-          { status: 503 }
-        );
-      }
-      return NextResponse.json(
-        { error: 'Could not start checkout. Check Stripe dashboard and currency support.' },
-        { status: 502 }
-      );
-    }
+    return NextResponse.json({ url: checkout.url, id: checkout.id }, { status: 200 });
+  } catch (e) {
+    console.error('PayPal checkout create failed:', e);
+    return NextResponse.json({ error: 'Could not start PayPal checkout.' }, { status: 502 });
   }
-
-  if (!checkoutSession.url) {
-    return NextResponse.json({ error: 'Stripe did not return a checkout URL' }, { status: 502 });
-  }
-
-  return NextResponse.json(
-    { url: checkoutSession.url, id: checkoutSession.id },
-    { status: 200 }
-  );
 }

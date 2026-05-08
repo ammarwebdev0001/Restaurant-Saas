@@ -18,6 +18,7 @@ export default async function KioskSuccessPage({ params, searchParams }: Props) 
   const sp = await searchParams;
   const orderId = pick(sp, 'orderId').trim() || null;
   const sessionId = pick(sp, 'session_id').trim() || null;
+  const token = pick(sp, 'token').trim() || null;
   const ticketRaw = pick(sp, 'ticket').trim();
   const ticketFromQuery = ticketRaw ? Number(ticketRaw) : null;
   return (
@@ -25,6 +26,7 @@ export default async function KioskSuccessPage({ params, searchParams }: Props) 
       slug={decodeURIComponent(slug)}
       orderId={orderId}
       sessionId={sessionId}
+      token={token}
       ticketFromQuery={Number.isFinite(ticketFromQuery) ? ticketFromQuery : null}
     />
   );

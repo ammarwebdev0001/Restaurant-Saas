@@ -288,7 +288,12 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { id: result.order.id, ticketNumber: result.ticketNumber, message: 'POS order saved' },
+      {
+        id: result.order.id,
+        shortOrderId: result.order.shortOrderId,
+        ticketNumber: result.ticketNumber,
+        message: 'POS order saved',
+      },
       { status: 201 }
     );
   } catch (e) {

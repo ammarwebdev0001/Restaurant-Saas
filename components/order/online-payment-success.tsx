@@ -12,6 +12,7 @@ type Props = {
   flowOrderId: string;
   trackingOrderId: string | null;
   sessionId: string | null;
+  token?: string | null;
   orderType: 'delivery' | 'pickUp';
   orderInfo?: OrderInfo;
 };
@@ -20,6 +21,7 @@ export function OnlinePaymentSuccess({
   flowOrderId,
   trackingOrderId,
   sessionId,
+  token,
   orderInfo,
 }: Props) {
   const router = useRouter();
@@ -36,12 +38,13 @@ export function OnlinePaymentSuccess({
   }, [flowOrderId]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    const paymentToken = sessionId ?? token ?? null;
+    if (!paymentToken) return;
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch(
-          `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
+          `/api/stripe/verify-session?token=${encodeURIComponent(paymentToken)}`
         );
         const body = (await res.json().catch(() => ({}))) as { paid?: boolean };
         if (!cancelled) setPaid(res.ok && body.paid === true);
@@ -52,7 +55,7 @@ export function OnlinePaymentSuccess({
     return () => {
       cancelled = true;
     };
-  }, [sessionId]);
+  }, [sessionId, token]);
 
   return (
     <div className="min-h-screen bg-background px-4 py-12">

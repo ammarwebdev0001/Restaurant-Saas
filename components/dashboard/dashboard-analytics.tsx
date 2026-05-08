@@ -240,7 +240,7 @@ export default function DashboardAnalytics() {
         </div>
         {slug ? (
           <div className="flex flex-wrap gap-2">
-            <Button asChild size="sm">
+            <Button asChild >
               <a
                 href={`/web-app/${encodeURIComponent(slug)}`}
                 target="_blank"
@@ -250,7 +250,7 @@ export default function DashboardAnalytics() {
                 <IconExternalLink className="ml-2 h-4 w-4" aria-hidden />
               </a>
             </Button>
-            <Button asChild size="sm" variant="secondary">
+            <Button asChild  variant="secondary">
               <a
                 href={`/kiosk/${encodeURIComponent(slug)}`}
                 target="_blank"

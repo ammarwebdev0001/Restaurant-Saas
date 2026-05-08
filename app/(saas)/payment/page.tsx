@@ -4,7 +4,7 @@ import { SubscriptionPlan } from '@prisma/client';
 import { PaymentCheckoutClient } from '@/components/saas/payment-checkout-client';
 import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getStripeConfigError, isStripeConfigured } from '@/lib/stripe-server';
+import { getPayPalConfigError, isPayPalConfigured } from '@/lib/paypal-server';
 
 type PaymentPageProps = {
   searchParams?: Promise<{ plan?: string }>;
@@ -37,8 +37,8 @@ export default async function PaymentPage({ searchParams }: PaymentPageProps) {
       priceLabel={catalog.priceLabel}
       description={catalog.description}
       features={catalog.features ?? []}
-      stripeReady={isStripeConfigured()}
-      stripeConfigError={getStripeConfigError()}
+      stripeReady={isPayPalConfigured()}
+      stripeConfigError={getPayPalConfigError()}
       signedIn={Boolean(userEmail)}
       userEmail={userEmail}
     />

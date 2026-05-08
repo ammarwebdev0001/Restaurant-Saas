@@ -1,20 +1,29 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { Check, Plus, Search, Minus, Trash2 } from 'lucide-react';
+import type { ComponentType } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  Check,
+  Plus,
+  Search,
+  Minus,
+  Trash2,
+  Clock,
+  UtensilsCrossed,
+  Table as TableIcon,
+  Truck,
+  ShoppingBag,
+  ArrowRight,
+  CreditCard,
+  Banknote,
+  X,
+  LayoutDashboard,
+  Archive,
+} from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -30,6 +39,23 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
   Table,
   TableBody,
   TableCell,
@@ -42,6 +68,8 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import eventBus from '@/lib/even';
 import { usePosCartGuard } from '@/components/pos/pos-cart-guard-context';
+import { ModeToggle } from '@/components/darkmode/darkmode';
+import UserMenu from '@/components/dashboard/UserMenu';
 
 export type OrderMode = 'new' | 'tables' | 'delivery' | 'takeaway' | 'queue';
 
@@ -112,6 +140,24 @@ type RestaurantBranding = {
   logoUrl: string | null;
 };
 
+type BranchOption = {
+  id: string;
+  name: string;
+};
+
+type ArchivedOrder = {
+  id: string;
+  createdAt: string;
+  orderMode: OrderMode;
+  lines: CartLine[];
+  subtotal: number;
+  taxPct: string;
+  taxAmount: number;
+  discountPct: string;
+  discountAmount: number;
+  total: number;
+};
+
 function formatMoney(n: number) {
   return n.toLocaleString('en-IE', {
     minimumFractionDigits: 2,
@@ -119,7 +165,10 @@ function formatMoney(n: number) {
   });
 }
 
+const POS_ARCHIVED_ORDERS_KEY = 'pos_archived_orders_v1';
+
 export function PosScreen() {
+  const router = useRouter();
   const { setPosCartHasItems } = usePosCartGuard();
   const [orderMode, setOrderMode] = useState<OrderMode>('tables');
   const [categoryId, setCategoryId] = useState<string>('all');
@@ -136,7 +185,8 @@ export function PosScreen() {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [orderAddress, setOrderAddress] = useState('');
-  const [branch] = useState('SIX BRANCH');
+  const [branches, setBranches] = useState<BranchOption[]>([]);
+  const [selectedBranchId, setSelectedBranchId] = useState('');
   const [branding, setBranding] = useState<RestaurantBranding>({
     name: 'Restaurant',
     logoUrl: null,
@@ -149,13 +199,18 @@ export function PosScreen() {
   const [paymentMode, setPaymentMode] = useState('cash');
   const [payment, setPayment] = useState('');
   const [kotNote, setKotNote] = useState('');
-  const [kdsPrint, setKdsPrint] = useState(false);
   const [savingOrder, setSavingOrder] = useState(false);
   const [terminalProcessing, setTerminalProcessing] = useState(false);
-  const [showSaveConfirm, setShowSaveConfirm] = useState(false);
   const [swatchDialogOpen, setSwatchDialogOpen] = useState(false);
   const [swatchProduct, setSwatchProduct] = useState<Product | null>(null);
   const [swatchId, setSwatchId] = useState<string>('');
+
+  const [now, setNow] = useState<Date>(() => new Date());
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [amountPaid, setAmountPaid] = useState('');
+  const [dashboardLeaveOpen, setDashboardLeaveOpen] = useState(false);
+  const [archivedOrdersOpen, setArchivedOrdersOpen] = useState(false);
+  const [archivedOrders, setArchivedOrders] = useState<ArchivedOrder[]>([]);
 
   useEffect(() => {
     let isMounted = true;
@@ -226,6 +281,35 @@ export function PosScreen() {
   }, []);
 
   useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      const raw = window.localStorage.getItem(POS_ARCHIVED_ORDERS_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as ArchivedOrder[];
+      if (Array.isArray(parsed)) setArchivedOrders(parsed);
+    } catch {
+      // ignore bad local cache
+    }
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    try {
+      window.localStorage.setItem(
+        POS_ARCHIVED_ORDERS_KEY,
+        JSON.stringify(archivedOrders)
+      );
+    } catch {
+      // ignore write errors
+    }
+  }, [archivedOrders]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
@@ -254,10 +338,39 @@ export function PosScreen() {
 
   useEffect(() => {
     let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch('/api/restaurant/branches', {
+          method: 'GET',
+          cache: 'no-store',
+        });
+        if (!res.ok) throw new Error('branches');
+        const json = (await res.json()) as { data?: BranchOption[] };
+        const list = Array.isArray(json?.data) ? json.data : [];
+        if (cancelled) return;
+        setBranches(list);
+        setSelectedBranchId((prev) => prev || list[0]?.id || '');
+      } catch {
+        if (!cancelled) {
+          setBranches([]);
+          setSelectedBranchId('');
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
     async function loadTables() {
       setTablesLoading(true);
       try {
-        const res = await fetch('/api/restaurant/tables', { method: 'GET', cache: 'no-store' });
+        const res = await fetch('/api/restaurant/tables', {
+          method: 'GET',
+          cache: 'no-store',
+        });
         if (!res.ok) throw new Error('tables');
         const json = (await res.json()) as { data?: DiningTableOption[] };
         const list = Array.isArray(json?.data) ? json.data : [];
@@ -284,13 +397,24 @@ export function PosScreen() {
 
   useEffect(() => {
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (cart.length === 0) return;
+      if (cart.length === 0 && archivedOrders.length === 0) return;
       e.preventDefault();
       e.returnValue = '';
     };
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [cart]);
+  }, [archivedOrders.length, cart.length]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    if (archivedOrders.length > 0) {
+      url.searchParams.set('archived', '1');
+    } else {
+      url.searchParams.delete('archived');
+    }
+    window.history.replaceState(window.history.state, '', url.toString());
+  }, [archivedOrders.length]);
 
   const filteredProducts = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -322,19 +446,18 @@ export function PosScreen() {
   const disAmount = subtotal * (dcPct / 100);
   const grandTotal = Math.max(0, afterSr + taxAmount - disAmount);
 
-  const paymentNum = Number(payment) || 0;
-  const cashBack =
-    paymentMode === 'cash' && paymentNum > grandTotal
-      ? paymentNum - grandTotal
-      : 0;
-
-  const paymentEntered =
-    paymentMode === 'card_terminal' ? grandTotal > 0 : payment.trim() !== '';
-  const canSaveOrder = cart.length > 0 && paymentEntered && !savingOrder;
   const isTableMode = orderMode === 'tables';
   const isDeliveryMode = orderMode === 'delivery';
+  const selectedBranchName =
+    branches.find((b) => b.id === selectedBranchId)?.name ??
+    'No branch selected';
+  const hasPendingPosData = cart.length > 0 || archivedOrders.length > 0;
 
-  function printOrderReceipt(orderRef: string, ticketNumber?: number | null) {
+  function printOrderReceipt(
+    orderRef: string,
+    ticketNumber?: number | null,
+    receiptPayment?: { mode: string; paid: number }
+  ) {
     if (typeof window === 'undefined') return;
 
     const rows = cart
@@ -367,15 +490,19 @@ export function PosScreen() {
       })
       .join('');
 
+    const receiptMode = receiptPayment?.mode ?? paymentMode;
     const paidAmount =
-      paymentMode === 'card_terminal'
+      receiptPayment?.paid ??
+      (receiptMode === 'card_terminal'
         ? grandTotal
-        : Math.max(0, Number(payment) || 0);
+        : Math.max(0, Number(payment) || 0));
+    const changeAmount =
+      receiptMode === 'cash' ? Math.max(0, paidAmount - grandTotal) : 0;
     const paymentMethodLabel =
-      paymentMode === 'card_terminal'
+      receiptMode === 'card_terminal'
         ? 'Card Terminal'
-        : paymentMode.charAt(0).toUpperCase() + paymentMode.slice(1);
-    const brandName = branding.name || branch || 'Restaurant';
+        : receiptMode.charAt(0).toUpperCase() + receiptMode.slice(1);
+    const brandName = branding.name || selectedBranchName || 'Restaurant';
     const logoHtml = branding.logoUrl
       ? `<img src="${branding.logoUrl}" alt="Logo" style="width:42px;height:42px;object-fit:cover;border-radius:999px;border:1px solid #ddd;" />`
       : '';
@@ -393,6 +520,7 @@ export function PosScreen() {
       .muted { color: #555; font-size: 9px; }
       .brand { display:flex; align-items:center; justify-content:center; gap: 6px; margin-bottom: 4px; }
       .name { font-size: 12px; font-weight: 700; line-height: 1.2; max-width: 1.35in; }
+      .branch { font-size: 9px; color: #555; margin-top: 1px; }
       .sep { border-top: 1px dashed #555; margin: 6px 0; }
       table { width: 100%; border-collapse: collapse; }
       th, td { padding: 2px 0; font-size: 9px; vertical-align: top; }
@@ -407,12 +535,15 @@ export function PosScreen() {
     <div class="r">
       <div class="brand">
         ${logoHtml}
-        <div class="name">${brandName}</div>
+        <div>
+          <div class="name">${brandName}</div>
+          <div class="branch">${selectedBranchName}</div>
+        </div>
       </div>
       <div class="center muted">${new Date().toLocaleString()}</div>
       <div class="sep"></div>
       ${ticketNumber != null ? `<div><strong>Ticket:</strong> #${ticketNumber}</div>` : ''}
-      <div><strong>Order:</strong> ${orderRef}</div>
+      <div><strong>Tracking ID:</strong> ${orderRef}</div>
       <div><strong>Mode:</strong> ${orderMode}</div>
       <div><strong>Payment:</strong> ${paymentMethodLabel}</div>
       <div><strong>Status:</strong> paid</div>
@@ -438,6 +569,7 @@ export function PosScreen() {
       <div><span>Tax</span><span>€${formatMoney(taxAmount)}</span></div>
       <div><span>Discount</span><span>€${formatMoney(disAmount)}</span></div>
       <div><span>Paid</span><span>€${formatMoney(paidAmount)}</span></div>
+      <div><span>Change</span><span>€${formatMoney(changeAmount)}</span></div>
       <div class="grand"><span>Total</span><span>€${formatMoney(grandTotal)}</span></div>
     </div>
     <div class="sep"></div>
@@ -481,7 +613,10 @@ export function PosScreen() {
     };
   }
 
-  function addProduct(p: Product, swatch?: { id: string; name: string; price: number } | null) {
+  function addProduct(
+    p: Product,
+    swatch?: { id: string; name: string; price: number } | null
+  ) {
     const productId = swatch ? `${p.id}::sw:${swatch.id}` : p.id;
     const unitPrice = swatch ? swatch.price : p.price;
     const displayName = swatch ? `${p.name} (${swatch.name})` : p.name;
@@ -543,12 +678,59 @@ export function PosScreen() {
     setCart([]);
   }
 
-  async function saveOrder() {
+  function requestDashboard() {
+    if (hasPendingPosData) {
+      setDashboardLeaveOpen(true);
+      return;
+    }
+    router.push('/dashboard');
+  }
+
+  function holdCurrentOrder() {
+    if (cart.length === 0) {
+      toast.info('Add products to cart before holding an order.');
+      return;
+    }
+    const archived: ArchivedOrder = {
+      id: `hold-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+      orderMode,
+      lines: cart,
+      subtotal,
+      taxPct,
+      taxAmount,
+      discountPct: disPct,
+      discountAmount: disAmount,
+      total: grandTotal,
+    };
+    setArchivedOrders((prev) => [archived, ...prev]);
+    clearCart();
+    setCheckoutOpen(false);
+    toast.success('Order archived to hold list.');
+  }
+
+  function restoreArchivedOrder(order: ArchivedOrder) {
+    setCart(order.lines);
+    setOrderMode(order.orderMode);
+    setTaxPct(order.taxPct || '0');
+    setDisPct(order.discountPct || '0');
+    setArchivedOrders((prev) => prev.filter((o) => o.id !== order.id));
+    setArchivedOrdersOpen(false);
+    toast.success('Archived order added to cart.');
+  }
+
+  function deleteArchivedOrder(orderId: string) {
+    setArchivedOrders((prev) => prev.filter((o) => o.id !== orderId));
+  }
+
+  async function saveOrder(opts?: { paymentMode?: string; payment?: string }) {
+    const effectivePaymentMode = opts?.paymentMode ?? paymentMode;
+    const effectivePayment = opts?.payment ?? payment;
     if (cart.length === 0) {
       toast.warn('Add at least one product to the cart.');
       return;
     }
-    if (!payment.trim()) {
+    if (!effectivePayment.trim()) {
       toast.warn('Enter the payment amount before saving.');
       return;
     }
@@ -572,35 +754,40 @@ export function PosScreen() {
     }
     setSavingOrder(true);
     try {
-      const isTerminal = paymentMode === 'card_terminal';
-      const paymentAmount = isTerminal ? grandTotal.toFixed(2) : payment.trim();
-      const res = await axios.post<{ id?: string; ticketNumber?: number | null }>(
-        '/api/restaurant/pos-order',
-        {
-          grandTotal,
-          payment: paymentAmount,
-          paymentMode,
-          paymentStatus: isTerminal ? 'pending' : 'completed',
-          address: addressTrim || undefined,
-          taxAmount,
-          discountAmount: disAmount,
-          customerName: nameTrim || undefined,
-          customerPhone: phoneTrim || undefined,
-          tableId: tableTrim || undefined,
-          orderMode,
-          items: cart.map((l) => ({
-            productId: l.productId,
-            name: l.name,
-            qty: l.qty,
-            unitPrice: l.unitPrice,
-            lineDiscPct: l.lineDiscPct,
-          })),
-        }
-      );
-      const orderRef = res.data?.id || `POS-${Date.now()}`;
+      const isTerminal = effectivePaymentMode === 'card_terminal';
+      const paymentAmount = isTerminal
+        ? grandTotal.toFixed(2)
+        : effectivePayment.trim();
+      const res = await axios.post<{
+        id?: string;
+        shortOrderId?: string;
+        ticketNumber?: number | null;
+      }>('/api/restaurant/pos-order', {
+        grandTotal,
+        payment: paymentAmount,
+        paymentMode: effectivePaymentMode,
+        paymentStatus: isTerminal ? 'pending' : 'completed',
+        address: addressTrim || undefined,
+        taxAmount,
+        discountAmount: disAmount,
+        customerName: nameTrim || undefined,
+        customerPhone: phoneTrim || undefined,
+        tableId: tableTrim || undefined,
+        orderMode,
+        items: cart.map((l) => ({
+          productId: l.productId,
+          name: l.name,
+          qty: l.qty,
+          unitPrice: l.unitPrice,
+          lineDiscPct: l.lineDiscPct,
+        })),
+      });
+      const dbOrderId = res.data?.id || `POS-${Date.now()}`;
+      const trackingId = res.data?.shortOrderId || dbOrderId;
       if (isTerminal) {
         const terminalBase =
-          process.env.NEXT_PUBLIC_POS_TERMINAL_API?.trim().replace(/\/$/, '') || '';
+          process.env.NEXT_PUBLIC_POS_TERMINAL_API?.trim().replace(/\/$/, '') ||
+          '';
         if (!terminalBase) {
           toast.error(
             'POS terminal API is not configured. Set NEXT_PUBLIC_POS_TERMINAL_API.'
@@ -621,7 +808,7 @@ export function PosScreen() {
           }>(
             `${terminalBase}/charge`,
             {
-              orderId: orderRef,
+              orderId: dbOrderId,
               amount: grandTotal,
               currency: 'EUR',
             },
@@ -631,7 +818,11 @@ export function PosScreen() {
           terminalTransactionId = terminalRes.data?.transactionId;
           terminalMessage = String(terminalRes.data?.message ?? '');
 
-          if (status === 'approved' || status === 'success' || status === 'completed') {
+          if (
+            status === 'approved' ||
+            status === 'success' ||
+            status === 'completed'
+          ) {
             finalStatus = 'completed';
           } else if (status === 'cancelled' || status === 'canceled') {
             finalStatus = 'cancelled';
@@ -641,36 +832,41 @@ export function PosScreen() {
         } catch {
           finalStatus = 'failed';
         } finally {
-          await axios.post(`/api/restaurant/pos-order/${encodeURIComponent(orderRef)}/terminal-payment`, {
-            status: finalStatus,
-            amount: grandTotal,
-            terminalTransactionId,
-          });
+          await axios.post(
+            `/api/restaurant/pos-order/${encodeURIComponent(dbOrderId)}/terminal-payment`,
+            {
+              status: finalStatus,
+              amount: grandTotal,
+              terminalTransactionId,
+            }
+          );
           setTerminalProcessing(false);
         }
 
         if (finalStatus !== 'completed') {
           toast.error(
-            terminalMessage || 'Card terminal payment was not approved. Order remains pending.'
+            terminalMessage ||
+              'Card terminal payment was not approved. Order remains pending.'
           );
-          setShowSaveConfirm(false);
           return;
         }
       }
       toast.success(
-        `Order saved — ${itemsCount} items · €${formatMoney(grandTotal)} · ${paymentMode}`
+        `Order saved — ${itemsCount} items · €${formatMoney(grandTotal)} · ${effectivePaymentMode}`
       );
-      if (kdsPrint) {
-        printOrderReceipt(orderRef, res.data?.ticketNumber ?? null);
-      }
+      printOrderReceipt(trackingId, res.data?.ticketNumber ?? null, {
+        mode: effectivePaymentMode,
+        paid: Number(paymentAmount) || 0,
+      });
       eventBus.emit('refreshSalesOrders');
       clearCart();
       setPayment('');
+      setAmountPaid('');
       setOrderAddress('');
       setCustomerName('');
       setCustomerPhone('');
       setTableId('');
-      setShowSaveConfirm(false);
+      setCheckoutOpen(false);
     } catch (e: unknown) {
       const msg =
         axios.isAxiosError(e) && e.response?.data?.error
@@ -682,83 +878,134 @@ export function PosScreen() {
     }
   }
 
-  const modeButtons: { id: OrderMode; label: string; suffix?: string }[] = [
-    { id: 'new', label: 'New Order', suffix: '+' },
-    { id: 'tables', label: 'Tables', suffix: '+' },
-    { id: 'delivery', label: 'Delivery', suffix: '+' },
-    { id: 'takeaway', label: 'Take Away', suffix: '+' },
+  const modeButtons: {
+    id: OrderMode;
+    label: string;
+    icon: ComponentType<{ className?: string }>;
+  }[] = [
+    { id: 'new', label: 'New', icon: UtensilsCrossed },
+    { id: 'tables', label: 'Table', icon: TableIcon },
+    { id: 'delivery', label: 'Delivery', icon: Truck },
+    { id: 'takeaway', label: 'Take-away', icon: ShoppingBag },
   ];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
-      {/* Top bar */}
-
-      <div className="flex flex-col flex-1 gap-3 py-3 px-3 border-b bg-muted/30">
-        <div className="flex justify-between flex-1 gap-3  px-3 sm:px-4">
-          <div className="relative w-full max-w-xl lg:max-w-2xl">
-            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder={
-                categoryId === 'all'
-                  ? 'Search all products…'
-                  : 'Search in this category…'
-              }
-              className="h-10 bg-background pl-9"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
+      {/* Header */}
+      <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 overflow-hidden rounded-full bg-muted ring-1 ring-border">
+            {branding.logoUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element -- POS accepts external image URLs
+              <img
+                src={branding.logoUrl}
+                alt={branding.name}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-primary text-sm font-bold text-primary-foreground">
+                {(branding.name || 'R').slice(0, 1).toUpperCase()}
+              </div>
+            )}
           </div>
-
-          <div className="flex flex-wrap gap-2">
-            {modeButtons.map((b) => {
-              const active = orderMode === b.id;
-              return (
-                <Button
-                  key={b.id}
-                  type="button"
-                  variant={active ? 'default' : 'outline'}
-                  size="sm"
-                  className={cn(
-                    'h-9 gap-2 w-fit rounded-lg',
-                    active && 'shadow-sm'
-                  )}
-                  onClick={() => setOrderMode(b.id)}
-                >
-                  {active && <Check className="h-3.5 w-3.5" aria-hidden />}
-                  {b.label}
-                  {b.suffix ? (
-                    <span className="text-xs opacity-80">{b.suffix}</span>
-                  ) : null}
-                </Button>
-              );
-            })}
+          <div className="min-w-0">
+            <div className="truncate text-sm font-semibold">
+              {branding.name || 'Restaurant'}
+            </div>
+            <div className="text-[11px] text-muted-foreground">
+              {selectedBranchName}
+            </div>
           </div>
         </div>
 
-        <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          {categories.map((c) => (
-            <Button
-              key={c.id}
-              type="button"
-              variant={categoryId === c.id ? 'secondary' : 'ghost'}
-              size="sm"
-              className={cn(
-                'shrink-0 rounded-full px-4 text-xs font-semibold',
-                categoryId === c.id &&
-                  'bg-primary/15 text-primary ring-1 ring-primary/30'
-              )}
-              onClick={() => setCategoryId(c.id)}
-            >
-              {c.label}
-            </Button>
-          ))}
+        <div className="relative ml-2 w-full max-w-2xl">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder={
+              categoryId === 'all'
+                ? 'Search all products…'
+                : 'Search in this category…'
+            }
+            className="h-10 bg-background pl-9"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            className="hidden h-10 gap-2 md:inline-flex"
+            onClick={requestDashboard}
+          >
+            <LayoutDashboard className="h-4 w-4" />
+            Dashboard
+          </Button>
+
+          <div className="hidden items-center gap-2 rounded-lg border bg-background px-3 py-2 text-xs text-muted-foreground md:flex">
+            <Clock className="h-4 w-4" />
+            <span className="tabular-nums">
+              {now.toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </span>
+          </div>
+          <ModeToggle />
+          <UserMenu className="h-10" />
         </div>
       </div>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[1fr_minmax(300px,380px)]">
+      <div className="grid min-h-0 flex-1 grid-cols-1 lg:grid-cols-[240px_1fr_minmax(320px,400px)]">
+        {/* Categories */}
+        <ScrollArea className="min-h-0 border-b bg-muted/10 lg:border-b-0 lg:border-r">
+          <div className="space-y-2 p-3">
+            <div className="text-sm font-semibold">Select Branch</div>
+            <div className="mb-2">
+              <Select
+                value={selectedBranchId}
+                onValueChange={setSelectedBranchId}
+              >
+                <SelectTrigger className="h-7 w-full text-xs">
+                  <SelectValue placeholder="Select branch" />
+                </SelectTrigger>
+                <SelectContent>
+                  {branches.map((b) => (
+                    <SelectItem key={b.id} value={b.id}>
+                      {b.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="text-sm font-semibold">Categories</div>
+            <div className="space-y-2">
+              {categories.map((c) => (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={cn(
+                    'flex w-full items-center justify-between rounded-xl border px-3 py-2 text-left text-sm transition',
+                    categoryId === c.id
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : 'bg-background hover:bg-muted/40'
+                  )}
+                  onClick={() => setCategoryId(c.id)}
+                >
+                  <span className="font-medium">{c.label}</span>
+                  {categoryId === c.id ? (
+                    <Check className="h-4 w-4" aria-hidden />
+                  ) : null}
+                </button>
+              ))}
+            </div>
+          </div>
+        </ScrollArea>
+
         {/* Products */}
         <ScrollArea className="min-h-0 border-b lg:border-b-0 lg:border-r">
-          <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-2 p-3 sm:grid-cols-3 md:grid-cols-4  2xl:grid-cols-6">
             {filteredProducts.map((p) => (
               <button
                 key={p.id}
@@ -804,188 +1051,99 @@ export function PosScreen() {
 
         {/* Checkout */}
         <div className="flex min-h-0 flex-col gap-3 border-t bg-muted/20 p-3 lg:border-t-0">
-          <div className="grid gap-2 sm:grid-cols-2">
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Branch</label>
-              <Input
-                readOnly
-                className="h-9 bg-muted/50 text-sm font-medium"
-                value={branch}
-              />
-            </div>
-            {isTableMode ? (
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">
-                  Select Table
-                </label>
-                <Select value={tableId} onValueChange={setTableId}>
-                  <SelectTrigger className="h-9 bg-background">
-                    <SelectValue
-                      placeholder={
-                        tablesLoading
-                          ? 'Loading tables…'
-                          : diningTables.length === 0
-                            ? 'No tables — add under Tables in the sidebar'
-                            : 'Select table'
-                      }
-                    />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {diningTables.map((t) => (
-                      <SelectItem key={t.id} value={t.id}>
-                        {t.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                {!tablesLoading && diningTables.length === 0 ? (
-                  <p className="text-[10px] text-muted-foreground">
-                    Add tables under the Tables page in the sidebar so staff can pick one here.
-                  </p>
-                ) : null}
-              </div>
-            ) : (
-              <div className="space-y-1">
-                <label className="text-xs text-muted-foreground">
-                  Order mode
-                </label>
-                <Input
-                  readOnly
-                  className="h-9 bg-muted/50 text-sm font-medium"
-                  value={orderMode.toUpperCase()}
-                />
-              </div>
-            )}
+          <div className="grid grid-cols-4 gap-2">
+            {modeButtons.map((b) => {
+              const active = orderMode === b.id;
+              const Icon = b.icon;
+              return (
+                <button
+                  key={b.id}
+                  type="button"
+                  className={cn(
+                    'flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border bg-background text-xs font-medium transition',
+                    active
+                      ? 'border-primary/40 bg-primary/10 text-primary'
+                      : 'hover:bg-muted/40'
+                  )}
+                  onClick={() => setOrderMode(b.id)}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{b.label}</span>
+                </button>
+              );
+            })}
           </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">
-              Customer name
-            </label>
-            <div className="flex gap-1">
-              <Input
-                className="h-9 flex-1 bg-background"
-                placeholder="Name (optional if no phone)"
-                value={customerName}
-                onChange={(e) => setCustomerName(e.target.value)}
-              />
-              <Button
-                type="button"
-                size="icon"
-                variant="secondary"
-                className="h-9 w-9 shrink-0 bg-primary/15 text-primary hover:bg-primary/25"
-                aria-label="Add customer"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            </div>
-          </div>
-          {(isDeliveryMode ||
-            customerPhone.trim() !== '' ||
-            customerName.trim() !== '') && (
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">
-                Customer phone
-              </label>
-              <Input
-                className="h-9 bg-background"
-                inputMode="tel"
-                autoComplete="tel"
-                placeholder={
-                  isDeliveryMode
-                    ? 'Phone (required for delivery)'
-                    : 'Phone (optional)'
-                }
-                value={customerPhone}
-                onChange={(e) => setCustomerPhone(e.target.value)}
-              />
-              <p className="text-[10px] text-muted-foreground">
-                Same phone for this restaurant reuses the customer; name updates
-                if you change it.
-              </p>
-            </div>
-          )}
 
-          {isDeliveryMode && (
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">
-                Delivery address
-              </label>
-              <textarea
-                className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
-                placeholder="Enter delivery address"
-                value={orderAddress}
-                onChange={(e) => setOrderAddress(e.target.value)}
-                rows={3}
-              />
+          <div className="rounded-xl border bg-background p-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-2xl font-semibold leading-none">
+                Order Ticket
+              </h3>
             </div>
-          )}
+            <p className="mt-1 text-xs text-muted-foreground">
+              {orderMode === 'tables'
+                ? 'Table order'
+                : orderMode === 'delivery'
+                  ? 'Delivery order'
+                  : orderMode === 'takeaway'
+                    ? 'Take-away order'
+                    : 'New order'}
+            </p>
 
-          <div className="min-h-[140px] flex-1 overflow-hidden rounded-lg border bg-background">
-            <Table>
-              <TableHeader>
-                <TableRow className="hover:bg-transparent">
-                  <TableHead className="w-[40%] text-xs">Items</TableHead>
-                  <TableHead className="text-center text-xs">Qty</TableHead>
-                  <TableHead className="text-center text-xs">Disc</TableHead>
-                  <TableHead className="text-right text-xs">Price</TableHead>
-                  <TableHead className="w-8 p-1" />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
+            <ScrollArea className="mt-3 h-[250px] border-y">
+              <div className="space-y-3 py-3">
                 {cart.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={5}
-                      className="h-24 text-center text-sm text-muted-foreground"
-                    >
-                      No Products in Cart!
-                    </TableCell>
-                  </TableRow>
+                  <p className="text-center text-sm text-muted-foreground">
+                    No Products in Cart!
+                  </p>
                 ) : (
                   cart.map((line) => {
                     const gross = line.unitPrice * line.qty;
                     const discAmt = gross * (line.lineDiscPct / 100);
                     const lineTotal = gross - discAmt;
                     return (
-                      <TableRow key={line.productId}>
-                        <TableCell className="max-w-[140px] truncate text-xs font-medium">
-                          {line.name}
-                        </TableCell>
-                        <TableCell className="text-center">
-                          <div className="inline-flex items-center gap-0.5">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() =>
-                                setQty(line.productId, line.qty - 1)
-                              }
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-6 text-center text-xs tabular-nums">
-                              {line.qty}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="icon"
-                              className="h-7 w-7"
-                              onClick={() =>
-                                setQty(line.productId, line.qty + 1)
-                              }
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
+                      <div
+                        key={line.productId}
+                        className="space-y-1 border-b px-1 pb-2 last:border-b-0"
+                      >
+                        <div className="flex items-start justify-between gap-2 text-sm">
+                          <div className="min-w-0">
+                            <p className="truncate font-medium">{line.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {line.qty}x
+                            </p>
                           </div>
-                        </TableCell>
-                        <TableCell className="p-1">
+                          <p className="tabular-nums">
+                            €{formatMoney(lineTotal)}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => setQty(line.productId, line.qty - 1)}
+                          >
+                            <Minus className="h-3 w-3" />
+                          </Button>
+                          <span className="w-5 text-center text-xs tabular-nums">
+                            {line.qty}
+                          </span>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="icon"
+                            className="h-6 w-6"
+                            onClick={() => setQty(line.productId, line.qty + 1)}
+                          >
+                            <Plus className="h-3 w-3" />
+                          </Button>
                           <Input
-                            className="h-7 px-1 text-center text-xs"
+                            className="ml-1 h-6 w-16 px-1 text-center text-xs"
                             inputMode="decimal"
                             value={line.lineDiscPct || ''}
-                            placeholder="0"
+                            placeholder="%"
                             onChange={(e) =>
                               setLineDisc(
                                 line.productId,
@@ -993,16 +1151,11 @@ export function PosScreen() {
                               )
                             }
                           />
-                        </TableCell>
-                        <TableCell className="text-right text-xs tabular-nums">
-                          {formatMoney(lineTotal)}
-                        </TableCell>
-                        <TableCell className="p-1">
                           <Button
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="h-7 w-7 text-destructive"
+                            className="ml-auto h-6 w-6 text-destructive"
                             onClick={() =>
                               setCart((prev) =>
                                 prev.filter(
@@ -1013,206 +1166,438 @@ export function PosScreen() {
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
-                        </TableCell>
-                      </TableRow>
+                        </div>
+                      </div>
                     );
                   })
                 )}
-              </TableBody>
-            </Table>
-          </div>
+              </div>
+            </ScrollArea>
 
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between text-muted-foreground">
-              <span>Items Count:</span>
-              <span className="tabular-nums text-foreground">{itemsCount}</span>
-            </div>
-            <div className="flex justify-between text-muted-foreground">
-              <span>Subtotal:</span>
-              <span className="tabular-nums text-foreground">
-                {formatMoney(subtotal)}
-              </span>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase text-muted-foreground">
-                  Tax %
-                </label>
-                <Input
-                  className="h-8 text-xs"
-                  value={taxPct}
-                  onChange={(e) => setTaxPct(e.target.value)}
-                />
+            <div className="mt-3 space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Subtotal</span>
+                <span className="tabular-nums">€{formatMoney(subtotal)}</span>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase text-muted-foreground">
-                  Tax
-                </label>
-                <Input
-                  className="h-8 text-xs"
-                  readOnly
-                  value={formatMoney(taxAmount)}
-                />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Tax ({taxPct || '0'}%)
+                </span>
+                <span className="tabular-nums">€{formatMoney(taxAmount)}</span>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase text-muted-foreground">
-                  Dis %
-                </label>
-                <Input
-                  className="h-8 text-xs"
-                  value={disPct}
-                  onChange={(e) => setDisPct(e.target.value)}
-                />
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">
+                  Discount ({disPct || '0'}%)
+                </span>
+                <span className="tabular-nums">€{formatMoney(disAmount)}</span>
               </div>
-              <div className="space-y-1">
-                <label className="text-[10px] uppercase text-muted-foreground">
-                  Dis
-                </label>
-                <Input
-                  className="h-8 text-xs"
-                  readOnly
-                  value={formatMoney(disAmount)}
-                />
+              <div className="mt-2 flex justify-between border-t pt-2 text-lg font-semibold">
+                <span>Total</span>
+                <span className="tabular-nums">€{formatMoney(grandTotal)}</span>
               </div>
             </div>
           </div>
 
-          <div className="flex items-center justify-between rounded-lg bg-primary px-4 py-3 text-primary-foreground shadow-md">
-            <span className="font-semibold">Grand Total</span>
-            <span className="text-lg font-bold tabular-nums">
-              €{formatMoney(grandTotal)}
-            </span>
-          </div>
-
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid grid-cols-2 gap-2 rounded-lg border bg-muted/10 p-2">
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">
-                Payment Mode
+              <label className="text-[10px] uppercase text-muted-foreground">
+                Tax %
               </label>
-              <Select value={paymentMode} onValueChange={setPaymentMode}>
-                <SelectTrigger className="h-9 bg-background">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="card">Card</SelectItem>
-                  <SelectItem value="card_terminal">Card Terminal (USB)</SelectItem>
-                  <SelectItem value="split">Split</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <label className="text-xs text-muted-foreground">Payment</label>
               <Input
-                className="h-9 bg-background"
-                inputMode="decimal"
-                placeholder="0.00"
-                value={payment}
-                readOnly={paymentMode === 'card_terminal'}
-                onChange={(e) => setPayment(e.target.value)}
+                className="h-8 text-xs"
+                value={taxPct}
+                onChange={(e) => setTaxPct(e.target.value)}
               />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] uppercase text-muted-foreground">
+                Discount %
+              </label>
+              <Input
+                className="h-8 text-xs"
+                value={disPct}
+                onChange={(e) => setDisPct(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="mt-auto space-y-2 pt-1">
+            <div className="grid grid-cols-2 gap-2">
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
-                className="h-8 w-full text-xs"
-                disabled={paymentMode === 'card_terminal'}
-                onClick={() => setPayment(grandTotal.toFixed(2))}
+                disabled={
+                  cart.length === 0 || savingOrder || terminalProcessing
+                }
+                onClick={clearCart}
               >
-                Full payment
+                Clear Cart
+              </Button>
+              <div className="flex items-center gap-2 justify-end">
+                <Button
+                  type="button"
+                  variant="default"
+                  className="w-full"
+                  disabled={
+                    cart.length === 0 || savingOrder || terminalProcessing
+                  }
+                  onClick={holdCurrentOrder}
+                >
+                  Hold Order
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setArchivedOrdersOpen(true)}
+                >
+                  <Archive className="h-5 w-5" />
+                  <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">{archivedOrders.length}</span>
+                </Button>
+              </div>
+            </div>
+            <div>
+              <Button
+                type="button"
+                variant="default"
+                className="w-full"
+                disabled={
+                  cart.length === 0 || savingOrder || terminalProcessing
+                }
+                onClick={() => {
+                  setAmountPaid('');
+                  setCheckoutOpen(true);
+                }}
+              >
+                Proceed Order
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
           </div>
-
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground">KOT Note</label>
-            <Input
-              className="h-9 bg-background"
-              placeholder="Kitchen note"
-              value={kotNote}
-              onChange={(e) => setKotNote(e.target.value)}
-            />
-          </div>
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm">
-              <span className="text-muted-foreground">Cash Back: </span>
-              <span className="font-medium tabular-nums">
-                €{formatMoney(cashBack)}
-              </span>
-            </div>
-            <div className="flex flex-wrap items-center gap-4">
-              <label className="flex cursor-pointer items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 rounded border-input accent-primary"
-                  checked={kdsPrint}
-                  onChange={(e) => setKdsPrint(e.target.checked)}
-                />
-                KDS Print
-              </label>
-            </div>
-          </div>
-
-          <div className="mt-auto flex w-full min-w-0 flex-wrap gap-2 pt-1">
-            <Button
-              type="button"
-              variant="default"
-              className="min-w-[min(100%,10rem)] flex-1"
-              disabled={!canSaveOrder}
-              title={
-                !paymentEntered
-                  ? 'Enter payment amount to save'
-                  : cart.length === 0
-                    ? 'Add items to the cart'
-                    : undefined
-              }
-              onClick={() => {
-                if (canSaveOrder) setShowSaveConfirm(true);
-              }}
-            >
-              {savingOrder ? 'Saving…' : 'Save'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="min-w-[min(100%,10rem)] flex-1"
-              onClick={clearCart}
-            >
-              Clear cart
-            </Button>
-          </div>
         </div>
       </div>
-      <AlertDialog open={showSaveConfirm} onOpenChange={setShowSaveConfirm}>
+      <AlertDialog
+        open={dashboardLeaveOpen}
+        onOpenChange={setDashboardLeaveOpen}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Save POS order?</AlertDialogTitle>
+            <AlertDialogTitle>Leave POS and discard cart?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will save the current cart as an order.
-              {kdsPrint ? ' Receipt print preview will open after save.' : ''}
-                {paymentMode === 'card_terminal'
-                  ? ' Payment will be requested on the attached card terminal.'
-                  : ''}
+              You have unsaved POS data (cart or archived holds). If you go to
+              dashboard now, current POS progress will be lost.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel type="button">Cancel</AlertDialogCancel>
+            <AlertDialogCancel type="button">Stay on POS</AlertDialogCancel>
             <AlertDialogAction
               type="button"
-              disabled={savingOrder || terminalProcessing}
-              onClick={() => void saveOrder()}
+              onClick={() => {
+                setDashboardLeaveOpen(false);
+                router.push('/dashboard');
+              }}
             >
-              {savingOrder
-                ? 'Saving…'
-                : terminalProcessing
-                  ? 'Waiting for terminal…'
-                  : 'Confirm Save'}
+              Go to dashboard
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Sheet open={archivedOrdersOpen} onOpenChange={setArchivedOrdersOpen}>
+        <SheetContent className="w-full sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Archived orders</SheetTitle>
+            <SheetDescription>
+              Held orders can be restored into the POS cart.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 space-y-3">
+            {archivedOrders.length === 0 ? (
+              <div className="rounded-lg border p-4 text-sm text-muted-foreground">
+                No archived orders yet.
+              </div>
+            ) : (
+              <ScrollArea className="h-[70vh] pr-2">
+                <div className="space-y-3">
+                  {archivedOrders.map((order) => (
+                    <div key={order.id} className="rounded-lg border p-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-semibold">
+                            {order.orderMode.toUpperCase()} -{' '}
+                            {new Date(order.createdAt).toLocaleString()}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {order.lines.reduce(
+                              (sum, line) => sum + line.qty,
+                              0
+                            )}{' '}
+                            items
+                          </p>
+                        </div>
+                        <p className="text-sm font-semibold tabular-nums">
+                          €{formatMoney(order.total)}
+                        </p>
+                      </div>
+                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {order.lines.map((line) => (
+                          <div
+                            key={`${order.id}-${line.productId}`}
+                            className="flex items-center justify-between gap-2"
+                          >
+                            <span className="truncate">
+                              {line.qty}x {line.name}
+                            </span>
+                            <span className="tabular-nums">
+                              €{formatMoney(line.unitPrice * line.qty)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="mt-3 grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          onClick={() => restoreArchivedOrder(order)}
+                        >
+                          Add to cart
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={() => deleteArchivedOrder(order.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+            )}
+          </div>
+        </SheetContent>
+      </Sheet>
+
+      <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Checkout</DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-4 md:grid-cols-[1fr_280px]">
+            <div className="rounded-lg border">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent">
+                    <TableHead className="text-xs">Item</TableHead>
+                    <TableHead className="text-center text-xs">Qty</TableHead>
+                    <TableHead className="text-right text-xs">Total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {cart.map((line) => {
+                    const gross = line.unitPrice * line.qty;
+                    const discAmt = gross * (line.lineDiscPct / 100);
+                    const lineTotal = gross - discAmt;
+                    return (
+                      <TableRow key={line.productId}>
+                        <TableCell className="text-xs font-medium">
+                          {line.name}
+                        </TableCell>
+                        <TableCell className="text-center text-xs tabular-nums">
+                          {line.qty}
+                        </TableCell>
+                        <TableCell className="text-right text-xs tabular-nums">
+                          €{formatMoney(lineTotal)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+
+            <div className="space-y-3">
+              <div className="rounded-lg border p-3">
+                <div className="text-sm font-medium">Order details</div>
+                <div className="mt-2 grid gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">
+                      Branch
+                    </label>
+                    <Input
+                      readOnly
+                      className="h-9 bg-muted/40 text-sm font-medium"
+                      value={selectedBranchName}
+                    />
+                  </div>
+                  {isTableMode ? (
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">
+                        Select table
+                      </label>
+                      <Select value={tableId} onValueChange={setTableId}>
+                        <SelectTrigger className="h-9 bg-background">
+                          <SelectValue
+                            placeholder={
+                              tablesLoading
+                                ? 'Loading tables…'
+                                : diningTables.length === 0
+                                  ? 'No tables available'
+                                  : 'Select table'
+                            }
+                          />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {diningTables.map((t) => (
+                            <SelectItem key={t.id} value={t.id}>
+                              {t.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+
+              <div className="rounded-lg border bg-muted/20 p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Total</span>
+                  <span className="font-semibold tabular-nums">
+                    €{formatMoney(grandTotal)}
+                  </span>
+                </div>
+                <div className="mt-2 grid gap-2">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">
+                      Payment method
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Button
+                        type="button"
+                        variant={paymentMode === 'cash' ? 'default' : 'outline'}
+                        className="justify-start gap-2"
+                        onClick={() => setPaymentMode('cash')}
+                      >
+                        <Banknote className="h-4 w-4" />
+                        Cash
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={paymentMode === 'card' ? 'default' : 'outline'}
+                        className="justify-start gap-2"
+                        onClick={() => setPaymentMode('card')}
+                      >
+                        <CreditCard className="h-4 w-4" />
+                        Card
+                      </Button>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">
+                      Total payment
+                    </label>
+                    <Input
+                      className="h-9 bg-background"
+                      inputMode="decimal"
+                      placeholder="0.00"
+                      value={amountPaid}
+                      onChange={(e) => setAmountPaid(e.target.value)}
+                    />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Change</span>
+                      <span className="tabular-nums text-foreground">
+                        €
+                        {formatMoney(
+                          Math.max(0, (Number(amountPaid) || 0) - grandTotal)
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {orderMode !== 'tables' ? (
+                <div className="rounded-lg border p-3">
+                  <div className="text-sm font-medium">Customer</div>
+                  <div className="mt-2 grid gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">
+                        Name
+                      </label>
+                      <Input
+                        className="h-9 bg-background"
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">
+                        Phone
+                      </label>
+                      <Input
+                        className="h-9 bg-background"
+                        inputMode="tel"
+                        value={customerPhone}
+                        onChange={(e) => setCustomerPhone(e.target.value)}
+                      />
+                    </div>
+                    {isDeliveryMode ? (
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">
+                          Delivery address
+                        </label>
+                        <textarea
+                          className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                          placeholder="Enter delivery address"
+                          value={orderAddress}
+                          onChange={(e) => setOrderAddress(e.target.value)}
+                          rows={3}
+                        />
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0 w-full">
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setCheckoutOpen(false)}
+            >
+              <X className="mr-2 h-4 w-4" />
+              Cancel
+            </Button>
+           
+            <Button
+              type="button"
+              className="w-full"
+              disabled={
+                cart.length === 0 ||
+                savingOrder ||
+                terminalProcessing ||
+                amountPaid.trim() === ''
+              }
+              onClick={() => {
+                const pm = paymentMode === 'card' ? 'card' : 'cash';
+                const pay = (Number(amountPaid) || 0).toFixed(2);
+                setPaymentMode(pm);
+                setPayment(pay);
+                void saveOrder({ paymentMode: pm, payment: pay });
+              }}
+            >
+              <Check className="mr-2 h-4 w-4" />
+              Place Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={swatchDialogOpen} onOpenChange={setSwatchDialogOpen}>
         <DialogContent>
@@ -1228,14 +1613,19 @@ export function PosScreen() {
               <SelectContent>
                 {(swatchProduct?.variations ?? []).map((v) => (
                   <SelectItem key={v.id} value={v.id}>
-                    {(v.name ?? v.title ?? 'Swatch') + ` - ${formatMoney(Number(v.priceDelta ?? 0))}`}
+                    {(v.name ?? v.title ?? 'Swatch') +
+                      ` - ${formatMoney(Number(v.priceDelta ?? 0))}`}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setSwatchDialogOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setSwatchDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -1243,7 +1633,9 @@ export function PosScreen() {
               disabled={!swatchId || !swatchProduct}
               onClick={() => {
                 if (!swatchProduct) return;
-                const picked = (swatchProduct.variations ?? []).find((v) => v.id === swatchId);
+                const picked = (swatchProduct.variations ?? []).find(
+                  (v) => v.id === swatchId
+                );
                 if (!picked) return;
                 addProduct(swatchProduct, {
                   id: picked.id,

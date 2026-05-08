@@ -3,15 +3,8 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
 import { db } from '@/lib/db';
+import { createPayPalOrder, getPayPalConfigError, isPayPalConfigured } from '@/lib/paypal-server';
 import { getRequestOrigin } from '@/lib/request-origin';
-import {
-  checkoutPaymentMethodTypes,
-  getStripe,
-  getStripeConfigError,
-  isStripeConfigured,
-  minimumCheckoutAmountMajor,
-  toStripeUnitAmount,
-} from '@/lib/stripe-server';
 
 export const runtime = 'nodejs';
 
@@ -29,9 +22,9 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  if (!isStripeConfigured()) {
+  if (!isPayPalConfigured()) {
     return NextResponse.json(
-      { error: getStripeConfigError() ?? 'Stripe is not configured' },
+      { error: getPayPalConfigError() ?? 'PayPal is not configured' },
       { status: 503 }
     );
   }
@@ -49,21 +42,12 @@ export async function POST(req: NextRequest) {
   }
 
   const origin = await getRequestOrigin();
-  const currency = (parsed.data.currency ?? 'eur').toLowerCase();
-  const minMajor = minimumCheckoutAmountMajor(currency);
-  if (parsed.data.amount < minMajor) {
+  const currency = (parsed.data.currency ?? 'EUR').toUpperCase();
+  if (parsed.data.amount <= 0) {
     return NextResponse.json(
-      {
-        error: `Minimum Stripe checkout amount is ${currency.toUpperCase()} ${minMajor.toFixed(
-          2
-        )}.`,
-      },
+      { error: 'Invalid amount' },
       { status: 400 }
     );
-  }
-  const unitAmount = toStripeUnitAmount(parsed.data.amount, currency);
-  if (unitAmount <= 0) {
-    return NextResponse.json({ error: 'Invalid amount' }, { status: 400 });
   }
 
   const successUrl = new URL(parsed.data.successPath, origin).toString();
@@ -76,7 +60,7 @@ export async function POST(req: NextRequest) {
         ? crypto.randomUUID()
         : `intent-${Date.now()}`;
     if (shouldStoreIntent) {
-      const intentKey = `stripe_order_intent:${intentId}`;
+      const intentKey = `paypal_order_intent:${intentId}`;
       await db.platformSetting.upsert({
         where: { key: intentKey },
         create: {
@@ -101,103 +85,23 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const stripe = getStripe();
-    let paymentMethodTypes = checkoutPaymentMethodTypes();
-    let checkout;
-    try {
-      checkout = await stripe.checkout.sessions.create({
-        mode: 'payment',
-        payment_method_types: paymentMethodTypes,
-        success_url: successUrl,
-        cancel_url: cancelUrl,
-        line_items: [
-          {
-            quantity: 1,
-            price_data: {
-              currency,
-              unit_amount: unitAmount,
-              product_data: {
-                name: parsed.data.title ?? 'Order payment',
-                description: parsed.data.description,
-              },
-            },
-          },
-        ],
-        metadata: {
-          ...(parsed.data.metadata ?? {}),
-          source: parsed.data.source,
-          ...(shouldStoreIntent ? { intentId } : {}),
-        },
-        payment_intent_data: {
-          metadata: {
-            ...(parsed.data.metadata ?? {}),
-            source: parsed.data.source,
-            ...(shouldStoreIntent ? { intentId } : {}),
-          },
-        },
-      });
-    } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : String(e);
-      if (paymentMethodTypes.includes('paypal') && /paypal/i.test(msg)) {
-        paymentMethodTypes = paymentMethodTypes.filter((t) => t !== 'paypal');
-        if (paymentMethodTypes.length === 0) paymentMethodTypes = ['card', 'link'];
-        checkout = await stripe.checkout.sessions.create({
-          mode: 'payment',
-          payment_method_types: paymentMethodTypes,
-          success_url: successUrl,
-          cancel_url: cancelUrl,
-          line_items: [
-            {
-              quantity: 1,
-              price_data: {
-                currency,
-                unit_amount: unitAmount,
-                product_data: {
-                  name: parsed.data.title ?? 'Order payment',
-                  description: parsed.data.description,
-                },
-              },
-            },
-          ],
-          metadata: {
-            ...(parsed.data.metadata ?? {}),
-            source: parsed.data.source,
-            ...(shouldStoreIntent ? { intentId } : {}),
-          },
-          payment_intent_data: {
-            metadata: {
-              ...(parsed.data.metadata ?? {}),
-              source: parsed.data.source,
-              ...(shouldStoreIntent ? { intentId } : {}),
-            },
-          },
-        });
-      } else {
-        throw e;
-      }
-    }
-
-    if (!checkout.url) {
-      return NextResponse.json(
-        { error: 'Stripe did not return checkout URL' },
-        { status: 502 }
-      );
-    }
+    const checkout = await createPayPalOrder({
+      amount: parsed.data.amount,
+      currency,
+      title: parsed.data.title ?? 'Order payment',
+      returnUrl: successUrl,
+      cancelUrl,
+      metadata: {
+        ...(parsed.data.metadata ?? {}),
+        source: parsed.data.source,
+        ...(shouldStoreIntent ? { intentId } : {}),
+      },
+    });
 
     return NextResponse.json({ url: checkout.url, id: checkout.id }, { status: 200 });
   } catch (e) {
     console.error('Create order checkout failed:', e);
-    const msg = e instanceof Error ? e.message : String(e);
-    if (/amount_too_small|at least 50 cents/i.test(msg)) {
-      return NextResponse.json(
-        {
-          error:
-            'Order total is too small for Stripe minimum charge. Add more items and try again.',
-        },
-        { status: 400 }
-      );
-    }
-    return NextResponse.json({ error: 'Could not start Stripe checkout' }, { status: 502 });
+    return NextResponse.json({ error: 'Could not start PayPal checkout' }, { status: 502 });
   }
 }
 
