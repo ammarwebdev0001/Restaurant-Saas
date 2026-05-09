@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { db } from "@/lib/db";
 import { createResetToken } from "@/lib/auth/resetToken";
+import { sendResetPasswordEmail } from "@/lib/email/reset-password";
 
 const requestSchema = z.object({
   email: z.string().email(),
@@ -19,24 +20,27 @@ export async function POST(req: Request) {
   }
 
   const { email } = parsed.data;
-
-  // Prevent account enumeration: always return success, only include token if user exists.
-  const user = await db.user.findUnique({ where: { email } });
+  const normalizedEmail = email.trim().toLowerCase();
+  const user = await db.user.findUnique({ where: { email: normalizedEmail } });
   if (!user) {
-    return NextResponse.json({
-      ok: true,
-      message:
-        "If an account exists, you'll receive reset instructions shortly.",
-    });
+    return NextResponse.json(
+      { error: "User not exist for this email." },
+      { status: 404 }
+    );
   }
 
-  const token = createResetToken(email);
+  const token = createResetToken(normalizedEmail);
+  const mail = await sendResetPasswordEmail({
+    to: normalizedEmail,
+    token,
+  });
+  if (!mail.ok) {
+    return NextResponse.json({ error: mail.error }, { status: 500 });
+  }
 
   return NextResponse.json({
     ok: true,
-    message:
-      "Reset token generated (dev mode). Use the token to set a new password.",
-    token,
+    message: "Reset link sent to your email.",
   });
 }
 

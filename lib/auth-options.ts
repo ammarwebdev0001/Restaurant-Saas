@@ -2,10 +2,10 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import type { NextAuthOptions } from "next-auth";
 import { z } from "zod";
-
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { legacyRoleFromAccountRole } from "@/lib/auth/account-role";
+import { jwtRoleFromAccount } from "@/lib/auth/admin";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -50,11 +50,12 @@ const providers = [
         return null;
       }
 
+      const legacy = legacyRoleFromAccountRole(user.accountRole ?? null);
       return {
         id: user.id,
         email: user.email,
         name: user.name,
-        role: legacyRoleFromAccountRole(user.accountRole ?? null),
+        role: jwtRoleFromAccount(user.email ?? null, legacy),
         roleName: user.accountRole?.name ?? null,
         roleId: user.roleId ?? null,
       };
@@ -146,12 +147,24 @@ export const authOptions: NextAuthOptions = {
         });
         if (existing) {
           token.id = existing.id;
-          token.role = legacyRoleFromAccountRole(existing.accountRole ?? null);
+          const legacy = legacyRoleFromAccountRole(existing.accountRole ?? null);
+          token.role = jwtRoleFromAccount(
+            existing.email ?? email,
+            legacy
+          );
           token.roleName = existing.accountRole?.name ?? null;
           token.roleId = existing.roleId ?? null;
           token.name = existing.name;
           if (existing.email) token.email = existing.email;
         }
+      }
+
+      if (token.email) {
+        const r =
+          typeof token.role === "string" && token.role !== ""
+            ? token.role
+            : "UNKNOW";
+        token.role = jwtRoleFromAccount(String(token.email), r);
       }
 
       if (token.id && !token.sub) token.sub = String(token.id);

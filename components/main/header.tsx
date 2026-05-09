@@ -5,12 +5,16 @@ import Link from 'next/link';
 import { Menu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '../ui/button';
-import { LanguageSwitcher } from './language-switcher';
+import LandingAuthActions from '@/components/marketing/LandingAuthActions';
+
 import { ThemeToggle } from './theme-toggle';
+import { LanguageSwitcher } from './language-switcher';
 
 export default function Header() {
   const { t } = useTranslation();
+
+  const authLoggedOutClass =
+    'rounded-lg bg-gradient-to-br from-fire-400 via-fire-500 to-fire-600 text-sm font-semibold text-white shadow-[0_10px_28px_-8px] shadow-fire-500/60 transition-all hover:from-fire-500 hover:to-fire-700 hover:shadow-fire-500/80';
 
   const navLinks = [
     { href: '/demo-request', label: t('marketing.nav.demoRequest') },
@@ -22,7 +26,7 @@ export default function Header() {
   return (
     <>
       <div className="h-[5.5rem]" aria-hidden="true" />
-      <header className="fixed inset-x-0 top-0 z-50 w-full bg-white/80 px-3 py-3 backdrop-blur-xl dark:bg-black/85 sm:px-4">
+      <header className="fixed inset-x-0 top-0 z-50 w-full px-3 py-3 backdrop-blur-xl bg-transparent sm:px-4">
         <div className="relative mx-auto flex h-16 max-w-6xl items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white/85 px-3 shadow-[0_10px_40px_-10px] shadow-black/10 backdrop-blur-md dark:border-zinc-800/80 dark:bg-black/80 dark:shadow-black/60 sm:px-4">
         {/* Logo tile */}
         <Link
@@ -59,12 +63,12 @@ export default function Header() {
         {/* Desktop actions */}
         <div className="hidden items-center gap-2 md:flex">
           <ThemeToggle />
-          <Button
-            asChild
-            className="h-10 shrink-0 rounded-lg bg-gradient-to-br from-fire-400 via-fire-500 to-fire-600 px-6 text-sm font-semibold text-white shadow-[0_10px_28px_-8px] shadow-fire-500/60 transition-all hover:from-fire-500 hover:to-fire-700 hover:shadow-fire-500/80"
-          >
-            <Link href="/register">{t('marketing.nav.getStarted')}</Link>
-          </Button>
+          <LandingAuthActions
+            loggedOutLabel={t('marketing.nav.getStarted')}
+            loggedOutClassName={`h-10 shrink-0 px-6 ${authLoggedOutClass}`}
+            loggedInTriggerClassName="h-10 w-10 shrink-0 rounded-lg border border-zinc-200 bg-white text-zinc-900 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+            loadingClassName="h-10 shrink-0"
+          />
         </div>
 
         {/* Mobile actions */}
@@ -79,7 +83,7 @@ export default function Header() {
               <Menu className="h-5 w-5" aria-hidden="true" />
             </summary>
 
-            <div className="absolute left-3 right-3 top-[calc(100%+0.75rem)] overflow-hidden rounded-xl border border-zinc-200 bg-white/95 p-3 shadow-[0_18px_50px_-20px] shadow-black/30 backdrop-blur-md dark:border-zinc-800 dark:bg-black/95 dark:shadow-black">
+            <div className="absolute left-3 right-3 top-[calc(100%+0.75rem)] overflow-visible rounded-xl border border-zinc-200 bg-white/95 p-3 shadow-[0_18px_50px_-20px] shadow-black/30 backdrop-blur-md dark:border-zinc-800 dark:bg-black/95 dark:shadow-black">
               <nav className="flex flex-col gap-1 text-sm font-medium text-zinc-800 dark:text-white">
                 {navLinks.map((link) => (
                   <Link
@@ -92,12 +96,13 @@ export default function Header() {
                 ))}
               </nav>
 
-              <Button
-                asChild
-                className="mt-3 h-11 w-full rounded-lg bg-gradient-to-br from-fire-400 via-fire-500 to-fire-600 text-sm font-semibold text-white shadow-[0_10px_28px_-8px] shadow-fire-500/60 transition-all hover:from-fire-500 hover:to-fire-700 hover:shadow-fire-500/80"
-              >
-                <Link href="/register">{t('marketing.nav.getStarted')}</Link>
-              </Button>
+              <LandingAuthActions
+                loggedOutLabel={t('marketing.nav.getStarted')}
+                loggedOutClassName={`mt-3 h-11 w-full ${authLoggedOutClass}`}
+                loggedInTriggerClassName="mt-3 h-11 w-full justify-center rounded-lg border border-zinc-200 bg-white text-zinc-900 shadow-sm hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white dark:hover:bg-zinc-800"
+                loadingClassName="mt-3 h-11 w-full"
+                menuClassName="bottom-full left-1/2 mb-2 top-auto right-auto w-44 max-w-[min(11rem,calc(100vw-2rem))] -translate-x-1/2 shadow-lg"
+              />
             </div>
           </details>
         </div>

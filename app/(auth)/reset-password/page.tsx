@@ -18,10 +18,9 @@ function ResetPasswordPage() {
   const [email, setEmail] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [generatedToken, setGeneratedToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const token = tokenFromUrl ?? generatedToken;
+  const token = tokenFromUrl;
   const isConfirmMode = !!token;
 
   async function requestReset(e: React.FormEvent) {
@@ -36,12 +35,15 @@ function ResetPasswordPage() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(data?.error ?? "Failed to request reset.");
+        toast.error(
+          res.status === 404
+            ? "User not exist for this email."
+            : data?.error ?? "Failed to request reset."
+        );
         return;
       }
 
-      toast.success("Reset requested. Use the token below to continue.");
-      if (data?.token) setGeneratedToken(String(data.token));
+      toast.success("Reset link sent. Check your email.");
     } catch (err: any) {
       toast.error(err?.message ?? "Failed to request reset.");
     } finally {
@@ -86,7 +88,7 @@ function ResetPasswordPage() {
   return (
     <PublicAuthShell
       title="Reset password"
-      subtitle="Request a reset token, then set a new password."
+      subtitle="Enter your email to receive a reset link."
     >
 
         {!isConfirmMode ? (
@@ -104,26 +106,8 @@ function ResetPasswordPage() {
             </div>
 
             <Button disabled={loading} type="submit">
-              {loading ? "Requesting..." : "Request reset token"}
+              {loading ? "Sending..." : "Send reset link"}
             </Button>
-
-            {generatedToken && (
-              <div className="rounded-md border bg-muted/30 p-3 text-xs">
-                <div className="mb-2 font-medium">Your reset token</div>
-                <div className="break-all font-mono">{generatedToken}</div>
-                <div className="mt-3 text-center">
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    onClick={() =>
-                      router.push(`/reset-password?token=${generatedToken}`)
-                    }
-                  >
-                    Use this token
-                  </Button>
-                </div>
-              </div>
-            )}
 
             <div className="text-center text-sm">
               <Link className="text-primary underline" href="/login">

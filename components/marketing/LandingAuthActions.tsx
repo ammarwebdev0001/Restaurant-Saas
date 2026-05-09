@@ -7,8 +7,24 @@ import { LayoutDashboard, LogOut, Shield, User } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { isPlatformAdmin } from '@/lib/auth/admin';
+import { cn } from '@/lib/utils';
 
-export default function LandingAuthActions() {
+export type LandingAuthActionsProps = {
+  loggedOutLabel?: string;
+  loggedOutClassName?: string;
+  loggedInTriggerClassName?: string;
+  loadingClassName?: string;
+  /** Panel position (e.g. open above trigger in tight mobile drawers). */
+  menuClassName?: string;
+};
+
+export default function LandingAuthActions({
+  loggedOutLabel = 'Get Started',
+  loggedOutClassName,
+  loggedInTriggerClassName,
+  loadingClassName,
+  menuClassName,
+}: LandingAuthActionsProps = {}) {
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
   const showAdmin =
@@ -28,7 +44,7 @@ export default function LandingAuthActions() {
 
   if (status === 'loading') {
     return (
-      <Button size="sm" disabled>
+      <Button size="sm" disabled className={loadingClassName}>
         Loading...
       </Button>
     );
@@ -36,8 +52,8 @@ export default function LandingAuthActions() {
 
   if (!session?.user) {
     return (
-      <Button size="sm" asChild>
-        <Link href="/register">Get Started</Link>
+      <Button size="sm" asChild className={loggedOutClassName}>
+        <Link href="/register">{loggedOutLabel}</Link>
       </Button>
     );
   }
@@ -47,7 +63,7 @@ export default function LandingAuthActions() {
       <Button
         size="sm"
         variant="default"
-        className="h-9 w-9 p-0"
+        className={cn('h-9 w-9 p-0', loggedInTriggerClassName)}
         onClick={() => setOpen((v) => !v)}
         aria-label="Open user menu"
       >
@@ -55,7 +71,12 @@ export default function LandingAuthActions() {
       </Button>
 
       {open && (
-        <div className="absolute right-0 z-[130] mt-2 w-44 rounded-md border bg-background p-1 shadow-md">
+        <div
+          className={cn(
+            'absolute right-0 z-[130] w-44 rounded-md border bg-background p-1 shadow-md',
+            menuClassName ?? 'mt-2 top-full'
+          )}
+        >
           {showAdmin ? (
             <Link
               href="/admin/dashboard"

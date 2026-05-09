@@ -1,5 +1,6 @@
 'use client';
 
+import React, { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -20,6 +21,7 @@ import {
   Star,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -349,6 +351,46 @@ function StatsSection() {
 
 function ContactSection() {
   const { t } = useTranslation();
+  const [firstName, setFirstName] = useState('');
+  const [email, setEmail] = useState('');
+  const [company, setCompany] = useState('');
+  const [message, setMessage] = useState('');
+  const [sending, setSending] = useState(false);
+
+  async function handleContactSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setSending(true);
+    try {
+      const res = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName,
+          email,
+          company,
+          message,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        toast.error(
+          typeof data?.error === 'string'
+            ? data.error
+            : 'Something went wrong. Please try again.',
+        );
+        return;
+      }
+      toast.success('Thanks — your message has been sent.');
+      setFirstName('');
+      setEmail('');
+      setCompany('');
+      setMessage('');
+    } catch {
+      toast.error('Network error. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  }
 
   return (
     <section className="relative bg-white py-20 dark:bg-black md:py-24">
@@ -423,35 +465,57 @@ function ContactSection() {
                 {t('marketing.contact.formSubtitle')}
               </p>
 
-              <form className="relative mt-8 space-y-6">
+              <form
+                className="relative mt-8 space-y-6"
+                onSubmit={handleContactSubmit}
+              >
                 <FormField
+                  id="contact-first-name"
                   label={t('marketing.contact.firstNameLabel')}
                   placeholder={t('marketing.contact.firstNamePlaceholder')}
+                  value={firstName}
+                  onChange={setFirstName}
+                  required
                 />
                 <FormField
+                  id="contact-email"
                   label={t('marketing.contact.emailLabel')}
                   placeholder={t('marketing.contact.emailPlaceholder')}
                   type="email"
+                  value={email}
+                  onChange={setEmail}
+                  required
                 />
                 <FormField
+                  id="contact-company"
                   label={t('marketing.contact.companyLabel')}
                   placeholder={t('marketing.contact.companyPlaceholder')}
+                  value={company}
+                  onChange={setCompany}
                 />
                 <div>
-                  <label className="mb-2 block text-sm font-semibold text-zinc-900 dark:text-white">
+                  <label
+                    htmlFor="contact-message"
+                    className="mb-2 block text-sm font-semibold text-zinc-900 dark:text-white"
+                  >
                     {t('marketing.contact.messageLabel')}
                   </label>
                   <textarea
+                    id="contact-message"
                     rows={3}
+                    required
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
                     placeholder={t('marketing.contact.messagePlaceholder') as string}
                     className="w-full resize-none border-0 border-b border-zinc-300/80 bg-transparent px-0 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-fire-500 focus:outline-none focus:ring-0 dark:border-white/30 dark:text-white dark:placeholder:text-white/50 dark:focus:border-fire-400"
                   />
                 </div>
                 <Button
                   type="submit"
-                  className="mt-4 h-12 w-full rounded-2xl bg-gradient-to-r from-fire-500 via-fire-600 to-fire-500 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_18px_40px_-12px] shadow-fire-500/60 transition-all hover:from-fire-400 hover:to-fire-500 hover:shadow-fire-500/80"
+                  disabled={sending}
+                  className="mt-4 h-12 w-full rounded-2xl bg-gradient-to-r from-fire-500 via-fire-600 to-fire-500 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_18px_40px_-12px] shadow-fire-500/60 transition-all hover:from-fire-400 hover:to-fire-500 hover:shadow-fire-500/80 disabled:opacity-60"
                 >
-                  {t('marketing.contact.submit')}
+                  {sending ? 'Sending…' : t('marketing.contact.submit')}
                 </Button>
               </form>
             </div>
@@ -463,22 +527,37 @@ function ContactSection() {
 }
 
 function FormField({
+  id,
   label,
   placeholder,
   type = 'text',
+  value,
+  onChange,
+  required,
 }: {
+  id: string;
   label: string;
   placeholder: string;
   type?: string;
+  value: string;
+  onChange: (v: string) => void;
+  required?: boolean;
 }) {
   return (
     <div>
-      <label className="mb-2 block text-sm font-semibold text-zinc-900 dark:text-white">
+      <label
+        htmlFor={id}
+        className="mb-2 block text-sm font-semibold text-zinc-900 dark:text-white"
+      >
         {label}
       </label>
       <Input
+        id={id}
         type={type}
         placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        required={required}
         className="h-11 rounded-none border-0 border-b border-zinc-300/80 bg-transparent px-0 text-sm text-zinc-900 shadow-none placeholder:text-zinc-500 focus-visible:border-fire-500 focus-visible:ring-0 focus-visible:ring-offset-0 dark:border-white/30 dark:text-white dark:placeholder:text-white/50 dark:focus-visible:border-fire-400"
       />
     </div>

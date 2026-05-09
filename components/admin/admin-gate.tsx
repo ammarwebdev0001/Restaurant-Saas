@@ -32,7 +32,8 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 p-6 text-center">
         <p className="font-medium">Access denied</p>
         <p className="max-w-md text-sm text-muted-foreground">
-          This area is for platform administrators only. Use user role <code className="rounded bg-muted px-1">ADMIN</code> or add your email to{' '}
+          This area is for platform administrators only. Use account role <code className="rounded bg-muted px-1">ADMIN</code> or set{' '}
+          <code className="rounded bg-muted px-1">ADMIN_EMAIL</code> /{' '}
           <code className="rounded bg-muted px-1">ADMIN_EMAILS</code> in the environment.
         </p>
         <Link href="/" className="mt-2 text-sm text-primary underline">

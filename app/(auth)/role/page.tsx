@@ -7,6 +7,7 @@ import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
 import { PublicAuthShell } from "@/components/marketing/public-auth-shell";
+import { isPlatformAdmin } from "@/lib/auth/admin";
 
 type Role = "OWNER" | "WORKER";
 
@@ -66,9 +67,13 @@ function RolePage() {
 
     if (status !== "authenticated") return;
 
-    // If they already have a role, send them to the app.
+    // If they already have a role, send them to the app (platform admin → SaaS admin).
     if (currentRole && currentRole !== "UNKNOW") {
-      router.replace("/dashboard");
+      router.replace(
+        isPlatformAdmin(session?.user?.email, currentRole)
+          ? "/admin/dashboard"
+          : "/dashboard"
+      );
       return;
     }
 

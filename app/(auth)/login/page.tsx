@@ -7,14 +7,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { getSession, useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
-
 import { Eye, EyeOff } from 'lucide-react';
-
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PublicAuthShell } from '@/components/marketing/public-auth-shell';
 import { IconBrandGoogleFilled } from '@tabler/icons-react';
+import { isPlatformAdmin } from '@/lib/auth/admin';
 
 function safeCallbackUrl(raw: string | null): string {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//')) {
@@ -24,21 +23,26 @@ function safeCallbackUrl(raw: string | null): string {
 }
 
 function roleDefaultPath(
+  email: string | null | undefined,
   roleName: string | null | undefined,
   legacyRole: string | null | undefined
 ): string {
+  if (isPlatformAdmin(email, legacyRole)) return '/admin/dashboard';
   const normalizedName = (roleName ?? '').trim().toLowerCase();
-  if (normalizedName === 'admin') return '/admin/dashboard';
   if (normalizedName === 'user') return '/';
-  if (legacyRole === 'ADMIN') return '/admin/dashboard';
   if (legacyRole === 'USER') return '/';
   return '/dashboard';
 }
 
-/** Users without a `roleId` have no dashboard role — send them to the marketing home page. */
+/**
+ * Where to send the user after sign-in.
+ * Platform admins (`ADMIN_EMAIL` / etc., or JWT `role === ADMIN`) go to SaaS admin even
+ * with no `roleId` yet (Google/new users allowed).
+ */
 function postLoginPath(
   user:
     | {
+        email?: string | null;
         roleId?: string | null;
         roleName?: string | null;
         role?: string | null;
@@ -47,10 +51,15 @@ function postLoginPath(
   hasExplicitCallback: boolean,
   callbackUrl: string
 ): string {
+  if (hasExplicitCallback) return callbackUrl;
+
+  const legacyRole = user?.role ?? undefined;
+  if (isPlatformAdmin(user?.email, legacyRole)) return '/admin/dashboard';
+
   const roleId = user?.roleId;
   if (roleId == null || roleId === '') return '/';
-  if (hasExplicitCallback) return callbackUrl;
-  return roleDefaultPath(user?.roleName, user?.role ?? undefined);
+
+  return roleDefaultPath(user?.email, user?.roleName, legacyRole);
 }
 
 function LoginForm() {
@@ -133,7 +142,7 @@ function LoginForm() {
       }
       const fresh = await getSession();
       const nextPath = postLoginPath(
-        fresh?.user,
+        fresh?.user, 
         hasExplicitCallback,
         callbackUrl
       );
