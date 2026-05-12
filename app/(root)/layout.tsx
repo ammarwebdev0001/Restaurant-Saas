@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import NextTopLoader from 'nextjs-toploader';
 import Link from 'next/link';
-import { Menu, PanelLeft, PanelLeftClose } from 'lucide-react';
+import { Loader, Loader2, Loader2Icon, Menu, PanelLeft, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet } from '@/components/ui/sheet';
 import { ModeToggle } from '@/components/darkmode/darkmode';
@@ -29,7 +29,9 @@ const DEFAULT_DOCUMENT_TITLE = 'Foodluk';
 function moduleKeyForPath(pathname: string): string | null {
   const exact = DASHBOARD_MODULES.find((m) => m.path === pathname);
   if (exact) return exact.moduleKey;
-  const nested = DASHBOARD_MODULES.find((m) => pathname.startsWith(`${m.path}/`));
+  const nested = DASHBOARD_MODULES.find((m) =>
+    pathname.startsWith(`${m.path}/`)
+  );
   return nested?.moduleKey ?? null;
 }
 
@@ -38,13 +40,17 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   const pathname = usePathname();
   const [restaurantName, setRestaurantName] = useState<string>('Restaurant');
   const [restaurantSlug, setRestaurantSlug] = useState<string | null>(null);
-  const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(null);
+  const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(
+    null
+  );
   const [logoFailed, setLogoFailed] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [subscriptionChecked, setSubscriptionChecked] = useState(false);
   const [subscriptionAllowed, setSubscriptionAllowed] = useState(true);
-  const [subscriptionWarning, setSubscriptionWarning] = useState<string | null>(null);
+  const [subscriptionWarning, setSubscriptionWarning] = useState<string | null>(
+    null
+  );
   const [permissionsChecked, setPermissionsChecked] = useState(false);
   const [allowedModuleKeys, setAllowedModuleKeys] = useState<Set<string>>(
     () => new Set(DASHBOARD_MODULES.map((m) => m.moduleKey))
@@ -79,11 +85,15 @@ const RootLayout = ({ children }: RootLayoutProps) => {
         const allowed = Boolean(data?.allowed);
         setSubscriptionAllowed(allowed);
         setSubscriptionWarning(
-          typeof data?.warning === 'string' && data.warning.trim() !== '' ? data.warning : null
+          typeof data?.warning === 'string' && data.warning.trim() !== ''
+            ? data.warning
+            : null
         );
         setSubscriptionChecked(true);
         if (!allowed) {
-          toast.error('Your trial/plan is expired or not configured. Please choose a pricing plan.');
+          toast.error(
+            'Your trial/plan is expired or not configured. Please choose a pricing plan.'
+          );
           router.replace('/pricing');
         }
       } catch {
@@ -125,7 +135,9 @@ const RootLayout = ({ children }: RootLayoutProps) => {
       .catch(() => {
         if (!mounted) return;
         // Do not lock users out if permission API has transient errors.
-        setAllowedModuleKeys(new Set(DASHBOARD_MODULES.map((m) => m.moduleKey)));
+        setAllowedModuleKeys(
+          new Set(DASHBOARD_MODULES.map((m) => m.moduleKey))
+        );
       })
       .finally(() => {
         if (!mounted) return;
@@ -147,7 +159,10 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   }, [allowedModuleKeys, pathname, permissionsChecked, router]);
 
   const toggleNav = () => {
-    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+    if (
+      typeof window !== 'undefined' &&
+      window.matchMedia('(min-width: 768px)').matches
+    ) {
       setSidebarOpen((o) => !o);
     } else {
       setMobileNavOpen((o) => !o);
@@ -210,7 +225,9 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   useEffect(() => {
     return () => {
       document.title = DEFAULT_DOCUMENT_TITLE;
-      const link = document.querySelector('link[rel="icon"]') as HTMLLinkElement | null;
+      const link = document.querySelector(
+        'link[rel="icon"]'
+      ) as HTMLLinkElement | null;
       if (link) link.href = '/favicon.ico';
     };
   }, []);
@@ -218,7 +235,7 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   if (!subscriptionChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-300 text-sm text-muted-foreground dark:bg-black">
-        Checking subscription…
+        <Loader2Icon className="animate-spin text-primary h-10 w-10 mx-auto" />
       </div>
     );
   }
@@ -230,7 +247,7 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   if (!permissionsChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-300 text-sm text-muted-foreground dark:bg-black">
-        Checking access…
+        <Loader2Icon className="animate-spin text-primary h-10 w-10 mx-auto" />
       </div>
     );
   }
@@ -329,12 +346,19 @@ const RootLayout = ({ children }: RootLayoutProps) => {
                     <span>{restaurantName.charAt(0)}</span>
                   )}
                 </div>
-                <span className="truncate text-sm font-semibold">{restaurantName}</span>
+                <span className="truncate text-sm font-semibold">
+                  {restaurantName}
+                </span>
               </div>
 
               <Bread />
               <ModeToggle />
-              <div className={cn('ml-auto flex items-center gap-2', sidebarOpen && 'md:hidden')}>
+              <div
+                className={cn(
+                  'ml-auto flex items-center gap-2',
+                  sidebarOpen && 'md:hidden'
+                )}
+              >
                 <UserMenu />
               </div>
             </header>

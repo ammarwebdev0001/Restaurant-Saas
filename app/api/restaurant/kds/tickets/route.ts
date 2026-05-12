@@ -27,6 +27,11 @@ type TicketRow = {
   sourceType: string;
   orderTotal: number;
   customerName: string | null;
+  // Daily token number + 6-char tracking id (`Order.ticketNumber` /
+  // `Order.shortOrderId`). Surfaced on the kitchen screen so the cook and
+  // the customer-facing display reference the same identifiers.
+  shortOrderId: string | null;
+  ticketNumber: number | null;
 };
 
 type TicketItemRow = {
@@ -70,6 +75,8 @@ export async function GET(req: NextRequest) {
           kt."createdAt",
           o."sourceType"::text AS "sourceType",
           o."total" AS "orderTotal",
+          o."shortOrderId",
+          o."ticketNumber",
           c."name" AS "customerName"
         FROM "KitchenTicket" kt
         JOIN "Order" o ON o."id" = kt."orderId"

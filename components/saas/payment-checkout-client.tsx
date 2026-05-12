@@ -1,72 +1,50 @@
 'use client';
 
-import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Loader2, Lock, ShieldCheck } from 'lucide-react';
+import { Lock, ShieldCheck } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
+import { PayPalCheckoutButtons } from '@/components/payments/paypal-checkout-buttons';
 
 type Props = {
   plan: string;
   planName: string;
   priceLabel: string;
+  priceMajor?: number | null;
   description: string;
   features: string[];
   stripeReady: boolean;
   stripeConfigError?: string | null;
   signedIn: boolean;
   userEmail: string | null;
+  restaurantId?: string | null;
 };
 
 export function PaymentCheckoutClient({
   plan,
   planName,
   priceLabel,
+  priceMajor,
   description,
   features,
   stripeReady,
   stripeConfigError,
   signedIn,
   userEmail,
+  restaurantId,
 }: Props) {
-  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
-  async function startCheckout() {
-    if (!stripeReady) {
-      toast.error('Payments are not configured yet.');
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await fetch('/api/stripe/create-checkout-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ plan }),
-      });
-      const data = (await res.json().catch(() => ({}))) as { url?: string; error?: unknown };
-      if (!res.ok) {
-        const msg =
-          typeof data.error === 'string'
-            ? data.error
-            : 'Could not start checkout. Try again or contact support.';
-        toast.error(msg);
-        return;
-      }
-      if (typeof data.url === 'string' && data.url.startsWith('http')) {
-        window.location.assign(data.url);
-        return;
-      }
-      toast.error('Invalid checkout response.');
-    } catch {
-      toast.error('Network error starting checkout.');
-    } finally {
-      setLoading(false);
-    }
-  }
+  const amount = (() => {
+    if (typeof priceMajor === 'number' && priceMajor > 0) return priceMajor;
+    const match = priceLabel.match(/[\d]+(?:[\.,][\d]+)?/);
+    if (!match) return 0;
+    return Number(match[0].replace(',', '.'));
+  })();
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-white px-4 py-12 text-zinc-900 dark:bg-black dark:text-white sm:px-6 lg:px-8">
@@ -77,8 +55,8 @@ export function PaymentCheckoutClient({
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Checkout</h1>
             <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-              Secure payment powered by Stripe. Pay with card, Link, or PayPal (when enabled on
-              your Stripe account).
+              Secure payment powered by PayPal. Pay with your PayPal account
+              or with Visa / Mastercard / Amex through PayPal Guest Checkout.
             </p>
           </div>
 
@@ -106,14 +84,15 @@ export function PaymentCheckoutClient({
             </div>
             <div className="flex items-center gap-2">
               <ShieldCheck className="h-4 w-4 shrink-0 text-primary" />
-              <span>PCI-compliant checkout (Stripe)</span>
+              <span>PCI-compliant checkout (PayPal)</span>
             </div>
           </div>
 
           {!stripeReady ? (
             <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-              {stripeConfigError ?? 'Stripe is not configured on this server.'} Add{' '}
-              <code className="rounded bg-muted px-1">STRIPE_SECRET_KEY</code> to enable payments.
+              {stripeConfigError ?? 'PayPal is not configured on this server.'} Set{' '}
+              <code className="rounded bg-muted px-1">PAYPAL_CLIENT_ID</code> and{' '}
+              <code className="rounded bg-muted px-1">PAYPAL_CLIENT_SECRET</code> to enable payments.
             </p>
           ) : null}
         </div>
@@ -131,39 +110,54 @@ export function PaymentCheckoutClient({
             <Separator />
             <div className="text-xs text-muted-foreground">
               <p>
-                Billing uses the price from your catalog for plan <strong>{plan}</strong>. Card,
-                Link, and other methods you enable in Stripe (including PayPal where available)
-                appear on the next screen.
+                Billing uses the price from your catalog for plan <strong>{plan}</strong>. Choose
+                PayPal or a card; both options appear below.
               </p>
             </div>
             {signedIn && userEmail ? (
               <p className="text-xs text-muted-foreground">
                 Signed in as <span className="font-medium text-foreground">{userEmail}</span>.
-                After payment, your restaurant subscription will update automatically when the
-                webhook is configured.
+                After payment, your restaurant subscription will update automatically.
               </p>
             ) : (
               <p className="text-xs text-muted-foreground">
-                You are not signed in. You can still pay; to attach this payment to your restaurant
-                automatically, sign in first then return to this page.
+                You are not signed in. Sign in first to attach this payment to your restaurant.
               </p>
             )}
-            <Button
-              type="button"
-              className="w-full"
-              size="lg"
-              disabled={loading || !stripeReady}
-              onClick={() => void startCheckout()}
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Redirecting…
-                </>
-              ) : (
-                'Continue to secure payment'
-              )}
-            </Button>
+            {stripeReady && amount > 0 && restaurantId ? (
+              <PayPalCheckoutButtons
+                amount={amount}
+                title={`${planName} subscription`}
+                source="subscription"
+                metadata={{
+                  plan,
+                  restaurantId,
+                  ...(userEmail ? { userEmail } : {}),
+                }}
+                onApproved={({ capture }) => {
+                  if (capture.planSynced) {
+                    toast.success('Subscription updated. Welcome to Dashboard!');
+                    router.replace('/dashboard');
+                    router.refresh();
+                    return;
+                  }
+                  toast.error(
+                    'Payment captured but subscription could not be created. Contact support.'
+                  );
+                }}
+                onError={(msg) => toast.error(msg)}
+              />
+            ) : stripeReady && amount > 0 && !restaurantId ? (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                Sign in with a restaurant owner account before paying so the
+                subscription can be attached automatically.
+              </p>
+            ) : (
+              <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                Plan price could not be read. Update the subscription catalog
+                price for this plan.
+              </p>
+            )}
             <div className="flex flex-wrap gap-2">
               <Button variant="outline" className="flex-1" asChild type="button">
                 <Link href="/pricing">Back to pricing</Link>

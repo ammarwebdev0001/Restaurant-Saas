@@ -18,8 +18,27 @@ type Ticket = {
   sourceType: string;
   orderTotal: number;
   customerName: string | null;
+  /** Daily token number (resets per restaurant per day). */
+  ticketNumber: number | null;
+  /** 6-char public tracking id from the order. */
+  shortOrderId: string | null;
   items: { id: string; productName: string; quantity: number }[];
 };
+
+function tokenLabel(t: {
+  ticketNumber: number | null;
+  shortOrderId: string | null;
+  orderId: string;
+}): string {
+  if (typeof t.ticketNumber === 'number' && t.ticketNumber > 0) {
+    return String(t.ticketNumber).padStart(2, '0');
+  }
+  return (t.shortOrderId ?? t.orderId.slice(0, 6)).toUpperCase();
+}
+
+function trackingLabel(t: { shortOrderId: string | null; orderId: string }): string {
+  return (t.shortOrderId ?? t.orderId.slice(0, 6)).toUpperCase();
+}
 
 type BoardLikeLines = {
   main: { name: string; quantity: number } | null;
@@ -347,10 +366,26 @@ export function KdsKitchenScreen() {
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
                     <div className="space-y-3">
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-mono text-xs">
-                            {t.orderId.slice(0, 10)}
-                          </p>
+                        <div className="min-w-0 space-y-1">
+                          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                Token
+                              </span>
+                              <span className="font-mono text-3xl font-extrabold leading-none tabular-nums">
+                                {tokenLabel(t)}
+                              </span>
+                            </div>
+                            <span className="hidden h-5 w-px bg-border sm:inline-block" />
+                            <div className="flex items-baseline gap-2">
+                              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                                Tracking
+                              </span>
+                              <span className="font-mono text-sm font-semibold uppercase tracking-wider">
+                                {trackingLabel(t)}
+                              </span>
+                            </div>
+                          </div>
                           <p className="text-sm font-medium">
                             {t.customerName || 'Walk-in'}
                           </p>

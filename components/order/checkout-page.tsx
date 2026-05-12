@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import axios from 'axios';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
 import { ArrowLeft } from 'lucide-react';
@@ -12,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { OrderInfo } from '@/components/order/order-types';
 import { orderPathWithQuery } from '@/lib/order-search-params';
 import { submitCustomerOrder } from '@/lib/offline/submit-order';
+import { PayPalCheckoutButtons } from '@/components/payments/paypal-checkout-buttons';
 
 function formatOrderApiError(body: unknown): string {
   if (!body || typeof body !== 'object') {
@@ -222,118 +222,39 @@ export default function CheckoutPageClient({
     }
   };
 
-  const startPayPalPayment = async () => {
+  const buildPaypalPayload = () => {
     const slug = orderInfo?.restaurantSlug?.trim();
-    if (!slug) {
-      toast.error(
-        'Missing store link. Open the menu from your restaurant page, then checkout again.'
-      );
-      return;
-    }
-    if (cart.length === 0) {
-      toast.error('Cart is empty.');
-      return;
-    }
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      toast.error('Card payment requires an internet connection.');
-      return;
-    }
-    setSubmitting(true);
-    try {
-      const orderPayload = {
+    if (!slug) return null;
+    return {
+      restaurantSlug: slug,
+      orderType,
+      orderInfo: {
+        mode: orderType,
+        restaurantName: orderInfo?.restaurantName,
+        storeId: orderInfo?.storeId,
+        storeName: orderInfo?.storeName,
+        storeAddress: orderInfo?.storeAddress,
+        address: orderInfo?.address,
+        apartment: orderInfo?.apartment,
+        gateCode: orderInfo?.gateCode,
+        addressName: orderInfo?.addressName,
+        customerPhone: orderInfo?.customerPhone,
         restaurantSlug: slug,
-        orderType,
-        orderInfo: {
-          mode: orderType,
-          restaurantName: orderInfo?.restaurantName,
-          storeId: orderInfo?.storeId,
-          storeName: orderInfo?.storeName,
-          storeAddress: orderInfo?.storeAddress,
-          address: orderInfo?.address,
-          apartment: orderInfo?.apartment,
-          gateCode: orderInfo?.gateCode,
-          addressName: orderInfo?.addressName,
-          customerPhone: orderInfo?.customerPhone,
-          restaurantSlug: slug,
-        },
-        lines: cart.map((line) => ({
-          menuItemId: line.menuItemId,
-          quantity: line.quantity,
-          unitPrice: lineUnitTotal(line),
-          productName: line.productName,
-          modifiers: line.modifiers,
-        })),
-        subtotal: total,
-        total: grandTotal,
-        cutlery,
-        comment: comment.trim() || undefined,
-        paymentStatus: 'pending' as const,
-        paymentMethod: 'PayPal (pending)',
-      };
-      const idempotencyKey = crypto.randomUUID();
-      const preOrderRes = await fetch('/api/customer/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify(orderPayload),
-      });
-      const preJson: unknown = await preOrderRes.json().catch(() => null);
-      if (!preOrderRes.ok) {
-        toast.error(formatOrderApiError(preJson));
-        setSubmitting(false);
-        return;
-      }
-      const preData = preJson as {
-        data?: { orderId?: string; shortOrderId?: string };
-      };
-      const createdOrderId = preData?.data?.orderId;
-      const createdShortOrderId =
-        preData?.data?.shortOrderId ?? createdOrderId;
-      if (!createdOrderId) {
-        toast.error('Could not create order before payment.');
-        setSubmitting(false);
-        return;
-      }
-      const successPath = `/web-app/order/${orderType}/${orderId}/success?orderId=${encodeURIComponent(
-        createdShortOrderId ?? createdOrderId
-      )}&restaurantSlug=${encodeURIComponent(slug)}&session_id={CHECKOUT_SESSION_ID}`;
-      const cancelPath = orderPathWithQuery(
-        `/order/${orderType}/${orderId}/checkout`,
-        orderInfo
-      );
-      const res = await axios.post<{ url: string }>(
-        '/api/stripe/create-order-checkout-session',
-        {
-          amount: grandTotal,
-          currency: 'eur',
-          source: 'online',
-          successPath,
-          cancelPath,
-          title: `Online order (${orderType === 'delivery' ? 'Delivery' : 'Pick-up'})`,
-          description: `Order ${createdOrderId} · ${slug}`,
-          metadata: {
-            source: 'online',
-            restaurantSlug: slug,
-            orderType,
-            orderId: createdOrderId,
-          },
-        }
-      );
-      if (!res.data?.url) {
-        toast.error('Could not start payment checkout.');
-        return;
-      }
-      window.location.assign(res.data.url);
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: unknown } } };
-      const msg = err.response?.data?.error;
-      toast.error(
-        typeof msg === 'string' ? msg : 'Could not start PayPal payment.'
-      );
-      setSubmitting(false);
-    }
+      },
+      lines: cart.map((line) => ({
+        menuItemId: line.menuItemId,
+        quantity: line.quantity,
+        unitPrice: lineUnitTotal(line),
+        productName: line.productName,
+        modifiers: line.modifiers,
+      })),
+      subtotal: total,
+      total: grandTotal,
+      cutlery,
+      comment: comment.trim() || undefined,
+      paymentStatus: 'completed' as const,
+      paymentMethod: 'PayPal',
+    };
   };
 
   if (!cartHydrated) {
@@ -563,17 +484,52 @@ export default function CheckoutPageClient({
                   </div>
                 </div>
 
-                <div className="mt-4">
-                  <Button
-                    className="w-full"
-                    onClick={() => void startPayPalPayment()}
-                    type="button"
-                    disabled={submitting}
-                  >
-                    {submitting
-                      ? t('processing')
-                      : t('payWithStripe', { amount: grandTotal.toFixed(2) })}
-                  </Button>
+                <div className="mt-4 space-y-2">
+                  {orderInfo?.restaurantSlug ? (
+                    <PayPalCheckoutButtons
+                      amount={grandTotal}
+                      title={`Online order (${
+                        orderType === 'delivery' ? 'Delivery' : 'Pick-up'
+                      })`}
+                      source="online"
+                      endpoint="/api/customer/orders"
+                      payload={buildPaypalPayload()}
+                      metadata={{
+                        source: 'online',
+                        restaurantSlug: orderInfo.restaurantSlug,
+                        orderType,
+                      }}
+                      disabled={submitting}
+                      onApproved={({ capture }) => {
+                        const slug = orderInfo?.restaurantSlug ?? '';
+                        const ref =
+                          capture.shortOrderId ?? capture.orderId ?? '';
+                        localStorage.removeItem(`cart-${orderId}`);
+                        if (!ref) {
+                          toast.warn(
+                            'Payment captured but order reference missing. Contact support.'
+                          );
+                          return;
+                        }
+                        toast.success('Payment received. Order placed.');
+                        const qs = new URLSearchParams({
+                          orderId: ref,
+                          ...(slug ? { restaurantSlug: slug } : {}),
+                        });
+                        router.push(
+                          `/order/${orderType}/${encodeURIComponent(
+                            orderId
+                          )}/success?${qs.toString()}`
+                        );
+                      }}
+                      onError={(msg) => toast.error(msg)}
+                      onCancel={() => toast.info('Payment cancelled.')}
+                    />
+                  ) : (
+                    <p className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                      Missing store link. Reopen the menu from your restaurant page.
+                    </p>
+                  )}
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
                   {t('confirmOrderHint')}

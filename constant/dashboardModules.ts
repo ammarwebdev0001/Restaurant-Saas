@@ -4,6 +4,11 @@ export const DASHBOARD_MODULES = [
   { moduleKey: 'sales', title: 'Sales', path: '/sales' },
   { moduleKey: 'pos', title: 'POS', path: '/pos' },
   { moduleKey: 'kds', title: 'KDS', path: '/kds' },
+  {
+    moduleKey: 'order-display',
+    title: 'Order Display',
+    path: '/order-display',
+  },
   { moduleKey: 'branched', title: 'Branched', path: '/branched' },
   { moduleKey: 'categories', title: 'Categories', path: '/categories' },
   { moduleKey: 'product', title: 'Products', path: '/product' },

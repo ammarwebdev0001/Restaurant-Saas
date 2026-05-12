@@ -37,6 +37,7 @@ import { canAccessDashboardModule } from '@/lib/restaurant-roles';
 import { cn } from '@/lib/utils';
 import { IconExternalLink } from '@tabler/icons-react';
 import { TooltipContent } from '../ui/tooltip';
+import { Loader, Loader2Icon } from 'lucide-react';
 
 type AnalyticsCounts = {
   branches: number;
@@ -240,7 +241,7 @@ export default function DashboardAnalytics() {
         </div>
         {slug ? (
           <div className="flex flex-wrap gap-2">
-            <Button asChild >
+            <Button asChild>
               <a
                 href={`/web-app/${encodeURIComponent(slug)}`}
                 target="_blank"
@@ -250,7 +251,7 @@ export default function DashboardAnalytics() {
                 <IconExternalLink className="ml-2 h-4 w-4" aria-hidden />
               </a>
             </Button>
-            <Button asChild  variant="secondary">
+            <Button asChild variant="secondary">
               <a
                 href={`/kiosk/${encodeURIComponent(slug)}`}
                 target="_blank"
@@ -271,7 +272,9 @@ export default function DashboardAnalytics() {
       ) : null}
 
       {!permissionsLoaded ? (
-        <p className="text-sm text-muted-foreground">Checking module access…</p>
+        <p className="text-sm text-muted-foreground">
+          <Loader2Icon className="animate-spin text-primary mx-auto" />
+        </p>
       ) : null}
 
       {analytics ? (
@@ -325,7 +328,9 @@ export default function DashboardAnalytics() {
                           formatter={(value: number) =>
                             Number(value).toLocaleString()
                           }
-                          labelFormatter={(label) => formatDayLabel(String(label))}
+                          labelFormatter={(label) =>
+                            formatDayLabel(String(label))
+                          }
                         />
                         <Area
                           type="monotone"
@@ -415,153 +420,67 @@ export default function DashboardAnalytics() {
                   <div className="h-[340px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={analytics.series}>
-                    <defs>
-                      <linearGradient
-                        id="ordersOnlineFill"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={CHANNEL_COLORS.online}
-                          stopOpacity={0.45}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={CHANNEL_COLORS.online}
-                          stopOpacity={0.02}
-                        />
-                      </linearGradient>
-                      <linearGradient
-                        id="ordersPosFill"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={CHANNEL_COLORS.pos}
-                          stopOpacity={0.35}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={CHANNEL_COLORS.pos}
-                          stopOpacity={0.02}
-                        />
-                      </linearGradient>
-                      <linearGradient
-                        id="ordersKioskFill"
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                      >
-                        <stop
-                          offset="5%"
-                          stopColor={CHANNEL_COLORS.kiosk}
-                          stopOpacity={0.35}
-                        />
-                        <stop
-                          offset="95%"
-                          stopColor={CHANNEL_COLORS.kiosk}
-                          stopOpacity={0.02}
-                        />
-                      </linearGradient>
-                    </defs>
+                        <defs>
+                          <linearGradient
+                            id="ordersOnlineFill"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor={CHANNEL_COLORS.online}
+                              stopOpacity={0.45}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor={CHANNEL_COLORS.online}
+                              stopOpacity={0.02}
+                            />
+                          </linearGradient>
+                          <linearGradient
+                            id="ordersPosFill"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor={CHANNEL_COLORS.pos}
+                              stopOpacity={0.35}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor={CHANNEL_COLORS.pos}
+                              stopOpacity={0.02}
+                            />
+                          </linearGradient>
+                          <linearGradient
+                            id="ordersKioskFill"
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                          >
+                            <stop
+                              offset="5%"
+                              stopColor={CHANNEL_COLORS.kiosk}
+                              stopOpacity={0.35}
+                            />
+                            <stop
+                              offset="95%"
+                              stopColor={CHANNEL_COLORS.kiosk}
+                              stopOpacity={0.02}
+                            />
+                          </linearGradient>
+                        </defs>
 
-                    <XAxis dataKey="day" tickFormatter={formatDayLabel} />
-                    <YAxis />
-                    <Tooltip
-                      cursor={false}
-                      contentStyle={{
-                        color: 'black',
-                        borderRadius: '8px',
-                        padding: '10px',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                      }}
-                      formatter={(value: number) =>
-                        Number(value).toLocaleString()
-                      }
-                      labelFormatter={(label) => formatDayLabel(String(label))}
-                    />
-                    <Legend />
-                    <Area
-                      type="monotone"
-                      dataKey="onlineOrders"
-                      name="Online"
-                      stroke={CHANNEL_COLORS.online}
-                      fill="url(#ordersOnlineFill)"
-                      strokeWidth={2.5}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="posOrders"
-                      name="POS"
-                      stroke={CHANNEL_COLORS.pos}
-                      fill="url(#ordersPosFill)"
-                      strokeWidth={2.2}
-                    />
-                    <Area
-                      type="monotone"
-                      dataKey="kioskOrders"
-                      name="Kiosk"
-                      stroke={CHANNEL_COLORS.kiosk}
-                      fill="url(#ordersKioskFill)"
-                      strokeWidth={2.2}
-                    />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <div className="grid gap-4 lg:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Revenue by channel ({analytics.days ?? selectedDays} days)
-                  </CardTitle>
-                  <CardDescription>
-                    Multiple bar chart for Online, POS, and Kiosk totals per
-                    day.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="mb-3 grid grid-cols-3 overflow-hidden rounded-lg border text-xs">
-                    <div className="border-r px-3 py-2">
-                      <p className="text-muted-foreground">Online</p>
-                      <p className="text-sm font-semibold">
-                        €{formatMoney(revenuePieData[0]?.value ?? 0)}
-                      </p>
-                    </div>
-                    <div className="border-r px-3 py-2">
-                      <p className="text-muted-foreground">POS</p>
-                      <p className="text-sm font-semibold">
-                        €{formatMoney(revenuePieData[1]?.value ?? 0)}
-                      </p>
-                    </div>
-                    <div className="px-3 py-2">
-                      <p className="text-muted-foreground">Kiosk</p>
-                      <p className="text-sm font-semibold">
-                        €{formatMoney(revenuePieData[2]?.value ?? 0)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="h-[320px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analytics.series}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke="gray"
-                          vertical={false}
-                        />
                         <XAxis dataKey="day" tickFormatter={formatDayLabel} />
                         <YAxis />
                         <Tooltip
+                          cursor={false}
                           contentStyle={{
                             color: 'black',
                             borderRadius: '8px',
@@ -570,49 +489,85 @@ export default function DashboardAnalytics() {
                             fontWeight: 'bold',
                           }}
                           formatter={(value: number) =>
-                            formatMoney(Number(value))
+                            Number(value).toLocaleString()
                           }
                           labelFormatter={(label) =>
                             formatDayLabel(String(label))
                           }
                         />
                         <Legend />
-                        <Bar
-                          dataKey="onlineRevenue"
+                        <Area
+                          type="monotone"
+                          dataKey="onlineOrders"
                           name="Online"
-                          fill={CHANNEL_COLORS.online}
+                          stroke={CHANNEL_COLORS.online}
+                          fill="url(#ordersOnlineFill)"
+                          strokeWidth={2.5}
                         />
-                        <Bar
-                          dataKey="posRevenue"
+                        <Area
+                          type="monotone"
+                          dataKey="posOrders"
                           name="POS"
-                          fill={CHANNEL_COLORS.pos}
+                          stroke={CHANNEL_COLORS.pos}
+                          fill="url(#ordersPosFill)"
+                          strokeWidth={2.2}
                         />
-                        <Bar
-                          dataKey="kioskRevenue"
+                        <Area
+                          type="monotone"
+                          dataKey="kioskOrders"
                           name="Kiosk"
-                          fill={CHANNEL_COLORS.kiosk}
+                          stroke={CHANNEL_COLORS.kiosk}
+                          fill="url(#ordersKioskFill)"
+                          strokeWidth={2.2}
                         />
-                      </BarChart>
+                      </AreaChart>
                     </ResponsiveContainer>
                   </div>
                 </CardContent>
               </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-base">
-                    Channel mix (orders & revenue)
-                  </CardTitle>
-                  <CardDescription>
-                    Donut charts for share of orders and revenue.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="h-[280px] w-full">
-                      <p className="mb-2 text-sm font-medium">Orders split</p>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      Revenue by channel ({analytics.days ?? selectedDays} days)
+                    </CardTitle>
+                    <CardDescription>
+                      Multiple bar chart for Online, POS, and Kiosk totals per
+                      day.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="mb-3 grid grid-cols-3 overflow-hidden rounded-lg border text-xs">
+                      <div className="border-r px-3 py-2">
+                        <p className="text-muted-foreground">Online</p>
+                        <p className="text-sm font-semibold">
+                          €{formatMoney(revenuePieData[0]?.value ?? 0)}
+                        </p>
+                      </div>
+                      <div className="border-r px-3 py-2">
+                        <p className="text-muted-foreground">POS</p>
+                        <p className="text-sm font-semibold">
+                          €{formatMoney(revenuePieData[1]?.value ?? 0)}
+                        </p>
+                      </div>
+                      <div className="px-3 py-2">
+                        <p className="text-muted-foreground">Kiosk</p>
+                        <p className="text-sm font-semibold">
+                          €{formatMoney(revenuePieData[2]?.value ?? 0)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="h-[320px] w-full">
                       <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
+                        <BarChart data={analytics.series}>
+                          <CartesianGrid
+                            strokeDasharray="3 3"
+                            stroke="gray"
+                            vertical={false}
+                          />
+                          <XAxis dataKey="day" tickFormatter={formatDayLabel} />
+                          <YAxis />
                           <Tooltip
                             contentStyle={{
                               color: 'black',
@@ -622,130 +577,182 @@ export default function DashboardAnalytics() {
                               fontWeight: 'bold',
                             }}
                             formatter={(value: number) =>
-                              Number(value).toLocaleString()
-                            }
-                          />
-                          <Legend />
-                          <Pie
-                            data={ordersPieData}
-                            dataKey="value"
-                            nameKey="name"
-                            outerRadius={90}
-                            innerRadius={56}
-                            stroke="hsl(var(--background))"
-                            strokeWidth={2}
-                          >
-                            <Label
-                              position="center"
-                              content={({ viewBox }) => {
-                                if (
-                                  !viewBox ||
-                                  !('cx' in viewBox) ||
-                                  !('cy' in viewBox)
-                                )
-                                  return null;
-                                const cx = Number(viewBox.cx ?? 0);
-                                const cy = Number(viewBox.cy ?? 0);
-                                return (
-                                  <text
-                                    x={cx}
-                                    y={cy}
-                                    textAnchor="middle"
-                                    dominantBaseline="middle"
-                                  >
-                                    <tspan
-                                      x={cx}
-                                      y={cy - 2}
-                                      className="fill-foreground text-lg font-semibold"
-                                    >
-                                      {totalOrdersAll.toLocaleString()}
-                                    </tspan>
-                                    <tspan
-                                      x={cx}
-                                      y={cy + 14}
-                                      className="fill-muted-foreground text-xs"
-                                    >
-                                      orders
-                                    </tspan>
-                                  </text>
-                                );
-                              }}
-                            />
-                            {ordersPieData.map((entry) => (
-                              <Cell key={entry.name} fill={entry.color} />
-                            ))}
-                          </Pie>
-                        </PieChart>
-                      </ResponsiveContainer>
-                    </div>
-                    <div className="h-[280px] w-full">
-                      <p className="mb-2 text-sm font-medium">
-                        Revenue(€) split
-                      </p>
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Tooltip
-                            formatter={(value: number) =>
                               formatMoney(Number(value))
                             }
+                            labelFormatter={(label) =>
+                              formatDayLabel(String(label))
+                            }
                           />
                           <Legend />
-                          <Pie
-                            data={revenuePieData}
-                            dataKey="value"
-                            nameKey="name"
-                            outerRadius={90}
-                            innerRadius={56}
-                            stroke="hsl(var(--background))"
-                            strokeWidth={2}
-                          >
-                            <Label
-                              position="center"
-                              content={({ viewBox }) => {
-                                if (
-                                  !viewBox ||
-                                  !('cx' in viewBox) ||
-                                  !('cy' in viewBox)
-                                )
-                                  return null;
-                                const cx = Number(viewBox.cx ?? 0);
-                                const cy = Number(viewBox.cy ?? 0);
-                                return (
-                                  <text
-                                    x={cx}
-                                    y={cy}
-                                    textAnchor="middle"
-                                    dominantBaseline="middle"
-                                  >
-                                    <tspan
-                                      x={cx}
-                                      y={cy - 2}
-                                      className="fill-foreground text-lg font-semibold"
-                                    >
-                                      €{formatMoney(totalRevenueAll)}
-                                    </tspan>
-                                    <tspan
-                                      x={cx}
-                                      y={cy + 14}
-                                      className="fill-muted-foreground text-xs"
-                                    >
-                                      revenue
-                                    </tspan>
-                                  </text>
-                                );
-                              }}
-                            />
-                            {revenuePieData.map((entry) => (
-                              <Cell key={entry.name} fill={entry.color} />
-                            ))}
-                          </Pie>
-                        </PieChart>
+                          <Bar
+                            dataKey="onlineRevenue"
+                            name="Online"
+                            fill={CHANNEL_COLORS.online}
+                          />
+                          <Bar
+                            dataKey="posRevenue"
+                            name="POS"
+                            fill={CHANNEL_COLORS.pos}
+                          />
+                          <Bar
+                            dataKey="kioskRevenue"
+                            name="Kiosk"
+                            fill={CHANNEL_COLORS.kiosk}
+                          />
+                        </BarChart>
                       </ResponsiveContainer>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-base">
+                      Channel mix (orders & revenue)
+                    </CardTitle>
+                    <CardDescription>
+                      Donut charts for share of orders and revenue.
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <div className="grid gap-4 md:grid-cols-2">
+                      <div className="h-[280px] w-full">
+                        <p className="mb-2 text-sm font-medium">Orders split</p>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Tooltip
+                              contentStyle={{
+                                color: 'black',
+                                borderRadius: '8px',
+                                padding: '10px',
+                                fontSize: '12px',
+                                fontWeight: 'bold',
+                              }}
+                              formatter={(value: number) =>
+                                Number(value).toLocaleString()
+                              }
+                            />
+                            <Legend />
+                            <Pie
+                              data={ordersPieData}
+                              dataKey="value"
+                              nameKey="name"
+                              outerRadius={90}
+                              innerRadius={56}
+                              stroke="hsl(var(--background))"
+                              strokeWidth={2}
+                            >
+                              <Label
+                                position="center"
+                                content={({ viewBox }) => {
+                                  if (
+                                    !viewBox ||
+                                    !('cx' in viewBox) ||
+                                    !('cy' in viewBox)
+                                  )
+                                    return null;
+                                  const cx = Number(viewBox.cx ?? 0);
+                                  const cy = Number(viewBox.cy ?? 0);
+                                  return (
+                                    <text
+                                      x={cx}
+                                      y={cy}
+                                      textAnchor="middle"
+                                      dominantBaseline="middle"
+                                    >
+                                      <tspan
+                                        x={cx}
+                                        y={cy - 2}
+                                        className="fill-foreground text-lg font-semibold"
+                                      >
+                                        {totalOrdersAll.toLocaleString()}
+                                      </tspan>
+                                      <tspan
+                                        x={cx}
+                                        y={cy + 14}
+                                        className="fill-muted-foreground text-xs"
+                                      >
+                                        orders
+                                      </tspan>
+                                    </text>
+                                  );
+                                }}
+                              />
+                              {ordersPieData.map((entry) => (
+                                <Cell key={entry.name} fill={entry.color} />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="h-[280px] w-full">
+                        <p className="mb-2 text-sm font-medium">
+                          Revenue(€) split
+                        </p>
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Tooltip
+                              formatter={(value: number) =>
+                                formatMoney(Number(value))
+                              }
+                            />
+                            <Legend />
+                            <Pie
+                              data={revenuePieData}
+                              dataKey="value"
+                              nameKey="name"
+                              outerRadius={90}
+                              innerRadius={56}
+                              stroke="hsl(var(--background))"
+                              strokeWidth={2}
+                            >
+                              <Label
+                                position="center"
+                                content={({ viewBox }) => {
+                                  if (
+                                    !viewBox ||
+                                    !('cx' in viewBox) ||
+                                    !('cy' in viewBox)
+                                  )
+                                    return null;
+                                  const cx = Number(viewBox.cx ?? 0);
+                                  const cy = Number(viewBox.cy ?? 0);
+                                  return (
+                                    <text
+                                      x={cx}
+                                      y={cy}
+                                      textAnchor="middle"
+                                      dominantBaseline="middle"
+                                    >
+                                      <tspan
+                                        x={cx}
+                                        y={cy - 2}
+                                        className="fill-foreground text-lg font-semibold"
+                                      >
+                                        €{formatMoney(totalRevenueAll)}
+                                      </tspan>
+                                      <tspan
+                                        x={cx}
+                                        y={cy + 14}
+                                        className="fill-muted-foreground text-xs"
+                                      >
+                                        revenue
+                                      </tspan>
+                                    </text>
+                                  );
+                                }}
+                              />
+                              {revenuePieData.map((entry) => (
+                                <Cell key={entry.name} fill={entry.color} />
+                              ))}
+                            </Pie>
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
             </>
           )}
         </div>

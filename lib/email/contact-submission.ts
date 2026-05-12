@@ -1,30 +1,5 @@
-import { Resend } from "resend";
-
 import { getAppBaseUrl } from "@/lib/app-base-url";
-
-function normalizeEnv(value: string | undefined): string {
-  if (value == null || value === "") return "";
-  let v = value.trim();
-  if (
-    (v.startsWith('"') && v.endsWith('"')) ||
-    (v.startsWith("'") && v.endsWith("'"))
-  ) {
-    v = v.slice(1, -1).trim();
-  }
-  if (v.charCodeAt(0) === 0xfeff) {
-    v = v.slice(1);
-  }
-  return v;
-}
-
-function getResendApiKey(): string {
-  return normalizeEnv(process.env.RESEND_API_KEY);
-}
-
-function getFromAddress(): string {
-  const raw = normalizeEnv(process.env.RESEND_FROM_EMAIL);
-  return raw || "onboarding@resend.dev";
-}
+import { sendMail } from "@/lib/email/smtp";
 
 function escapeHtml(s: string): string {
   return s
@@ -46,19 +21,11 @@ export async function sendContactSubmissionEmail(opts: {
     return { ok: false, error: "No recipient addresses configured." };
   }
 
-  const apiKey = getResendApiKey();
-  if (!apiKey) {
-    return {
-      ok: false,
-      error: "RESEND_API_KEY is missing. Please configure it in .env.",
-    };
-  }
-
-  const from = getFromAddress();
-  const resend = new Resend(apiKey);
   const safeName =
     firstName.length > 80 ? `${firstName.slice(0, 80)}…` : firstName;
-  const subject = `Website contact: ${safeName}`;
+  // "Foodluk" leads the subject so the brand is visible even when a mail
+  // client overrides the From display name with a saved contact's name.
+  const subject = `Foodluk — Contact form: ${safeName}`;
   const site = getAppBaseUrl();
   const html = `
     <p>New message from the Foodluk marketing contact form.</p>
@@ -72,45 +39,24 @@ export async function sendContactSubmissionEmail(opts: {
     <pre style="white-space:pre-wrap;font-family:inherit;font-size:14px;margin:0">${escapeHtml(message)}</pre>
   `.trim();
 
-  // One Resend call per admin: with Resend’s test domain, a single `to: [a,b]`
-  // can fail entirely if any address isn’t allowed; separate sends still surface
-  // per-recipient errors but at least one valid inbox can succeed.
-  const errors: string[] = [];
-  let anyOk = false;
+  // Single SMTP message addressed to all admins — Gmail will deliver one
+  // email to each recipient on the To line.
+  const result = await sendMail({
+    to,
+    subject,
+    html,
+    replyTo: email,
+    // Force the From display name to "Foodluk" — overrides whatever
+    // SMTP_FROM_EMAIL was set to so the brand always shows in the inbox.
+    fromName: "Foodluk",
+  });
 
-  for (const recipient of to) {
-    const { data, error } = await resend.emails.send({
-      from,
-      to: [recipient],
-      replyTo: email,
-      subject,
-      html,
+  if (!result.ok) {
+    console.error("[contact-submission] SMTP error", {
+      to,
+      message: result.error,
     });
-
-    if (error) {
-      const msg = error.message ?? "Failed to send email.";
-      errors.push(`${recipient}: ${msg}`);
-      console.error("[contact-submission] Resend error", {
-        to: recipient,
-        message: msg,
-      });
-      continue;
-    }
-    if (data?.id) {
-      anyOk = true;
-    } else {
-      errors.push(`${recipient}: empty response from provider`);
-    }
-  }
-
-  if (!anyOk) {
-    return {
-      ok: false,
-      error:
-        errors.length > 0
-          ? errors.join(" ")
-          : "Failed to send email.",
-    };
+    return { ok: false, error: result.error };
   }
 
   return { ok: true };

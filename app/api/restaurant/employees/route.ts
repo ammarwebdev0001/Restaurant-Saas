@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
         emailDelivered: false,
         manualInviteUrl: acceptUrl,
         message:
-          'Invite saved. Add RESEND_API_KEY to .env and restart to send email, or copy the invite link to the user.',
+          'Invite saved. Configure SMTP_* env vars and restart to send email, or copy the invite link to the user.',
       });
     }
 
@@ -326,7 +326,7 @@ export async function POST(req: NextRequest) {
       emailDelivered: false,
       emailError: welcomeResult.error,
       message:
-        'Account created. Welcome email failed—user can still sign in with the password you set. Check Resend logs and RESEND_FROM_EMAIL.',
+        'Account created. Welcome email failed—user can still sign in with the password you set. Check the dev server logs and SMTP_FROM_EMAIL.',
     });
   }
 
@@ -336,7 +336,7 @@ export async function POST(req: NextRequest) {
       flow: 'user_created',
       emailDelivered: false,
       message:
-        'Account created. Add RESEND_API_KEY to send welcome emails; user can sign in with the password you set.',
+        'Account created. Configure SMTP_* env vars to send welcome emails; user can sign in with the password you set.',
     });
   }
 

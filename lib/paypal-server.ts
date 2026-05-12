@@ -208,4 +208,3 @@ export async function getPayPalOrder(orderId: string) {
 export function parsePayPalCustomId(raw: string | null | undefined) {
   return customIdToMetadata(raw);
 }
-

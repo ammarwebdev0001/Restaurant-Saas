@@ -491,10 +491,20 @@ export default function RestaurantUsersCard({
         )}
 
         <p className="text-xs text-muted-foreground">
-          Set <code className="rounded bg-muted px-1">RESEND_API_KEY</code> in{' '}
-          <code className="rounded bg-muted px-1">.env</code> and restart the dev
-          server. With <code className="rounded bg-muted px-1">onboarding@resend.dev</code>, Resend may only deliver to
-          your Resend account email until you verify a sending domain.
+          Set the <code className="rounded bg-muted px-1">SMTP_*</code> variables in{' '}
+          <code className="rounded bg-muted px-1">.env</code> and restart the dev server.
+          For Gmail, use an{' '}
+          <a
+            href="https://myaccount.google.com/apppasswords"
+            target="_blank"
+            rel="noreferrer"
+            className="underline"
+          >
+            App Password
+          </a>{' '}
+          as <code className="rounded bg-muted px-1">SMTP_PASSWORD</code>, and make sure{' '}
+          <code className="rounded bg-muted px-1">SMTP_FROM_EMAIL</code> matches{' '}
+          <code className="rounded bg-muted px-1">SMTP_USER</code> or a verified alias.
         </p>
       </CardContent>
       <CardFooter className="border-t px-6 py-4">

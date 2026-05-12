@@ -1,6 +1,5 @@
 'use client';
 
-import axios from 'axios';
 import {
   CheckCircle,
   Minus,
@@ -11,6 +10,7 @@ import {
   Trash2,
   UtensilsCrossed,
 } from 'lucide-react';
+import { PayPalCheckoutButtons } from '@/components/payments/paypal-checkout-buttons';
 import {
   useCallback,
   useEffect,
@@ -632,101 +632,29 @@ export function KioskApp({ slug }: { slug: string }) {
     }
   };
 
-  const startPayPalPayment = async () => {
-    if (!fulfillment || cart.length === 0) return;
-    if (typeof navigator !== 'undefined' && !navigator.onLine) {
-      toast.error('Card payment requires an internet connection.');
-      return;
-    }
-    setPlacing(true);
-    try {
-      const lines = cart.map((line) => ({
-        menuItemId: line.menuItemId,
-        quantity: line.quantity,
-        unitPrice: lineUnitTotal(line),
-        productName: cartLineDisplayName(line),
-        modifiers: line.modifiers,
-      }));
-      const orderPayload = {
-        restaurantSlug: slug,
-        fulfillment,
-        tableId: fulfillment === 'dine_in' ? selectedTableId || undefined : undefined,
-        lines,
-        subtotal: cartSubtotal,
-        total: cartSubtotal,
-        cookingNote: cookingNote.trim() || undefined,
-        customerName: customerName.trim() || undefined,
-        customerPhone: customerPhone.trim() || undefined,
-        paymentStatus: 'pending' as const,
-        paymentMethod: 'PayPal (pending)',
-      };
-      const idempotencyKey = crypto.randomUUID();
-      const preOrderRes = await fetch('/api/kiosk/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Idempotency-Key': idempotencyKey,
-        },
-        body: JSON.stringify(orderPayload),
-      });
-      const preJson: unknown = await preOrderRes.json().catch(() => null);
-      if (!preOrderRes.ok) {
-        toast.error(formatKioskOrderApiError(preJson));
-        setPlacing(false);
-        return;
-      }
-      const preData = preJson as {
-        data?: {
-          orderId?: string;
-          shortOrderId?: string;
-          ticketNumber?: number | null;
-        };
-      };
-      const createdOrderId = preData?.data?.orderId;
-      const createdShortOrderId =
-        preData?.data?.shortOrderId ?? createdOrderId;
-      const createdTicketNumber = preData?.data?.ticketNumber ?? null;
-      if (!createdOrderId) {
-        toast.error('Could not create order before payment.');
-        setPlacing(false);
-        return;
-      }
-      const successPath = `/kiosk/${encodeURIComponent(slug)}/success?orderId=${encodeURIComponent(
-        createdShortOrderId ?? createdOrderId
-      )}${createdTicketNumber != null ? `&ticket=${encodeURIComponent(String(createdTicketNumber))}` : ''}&session_id={CHECKOUT_SESSION_ID}`;
-      const cancelPath = `/kiosk/${encodeURIComponent(slug)}?step=checkout`;
-      const res = await axios.post<{ url: string }>(
-        '/api/stripe/create-order-checkout-session',
-        {
-          amount: cartSubtotal,
-          currency: 'eur',
-          source: 'kiosk',
-          successPath,
-          cancelPath,
-          title: 'Kiosk order payment',
-          description: `${createdOrderId} · ${slug} · ${fulfillment}`,
-          metadata: {
-            source: 'kiosk',
-            restaurantSlug: slug,
-            fulfillment,
-            orderId: createdOrderId,
-          },
-        }
-      );
-      if (!res.data?.url) {
-        toast.error('Could not start payment checkout.');
-        setPlacing(false);
-        return;
-      }
-      window.location.assign(res.data.url);
-    } catch (e: unknown) {
-      const err = e as { response?: { data?: { error?: unknown } } };
-      const msg = err.response?.data?.error;
-      toast.error(
-        typeof msg === 'string' ? msg : 'Could not start PayPal payment.'
-      );
-      setPlacing(false);
-    }
+  const buildKioskOrderPayload = () => {
+    if (!fulfillment) return null;
+    const lines = cart.map((line) => ({
+      menuItemId: line.menuItemId,
+      quantity: line.quantity,
+      unitPrice: lineUnitTotal(line),
+      productName: cartLineDisplayName(line),
+      modifiers: line.modifiers,
+    }));
+    return {
+      restaurantSlug: slug,
+      fulfillment,
+      tableId:
+        fulfillment === 'dine_in' ? selectedTableId || undefined : undefined,
+      lines,
+      subtotal: cartSubtotal,
+      total: cartSubtotal,
+      cookingNote: cookingNote.trim() || undefined,
+      customerName: customerName.trim() || undefined,
+      customerPhone: customerPhone.trim() || undefined,
+      paymentStatus: 'completed' as const,
+      paymentMethod: 'PayPal',
+    };
   };
 
   const startOver = () => {
@@ -1323,22 +1251,67 @@ export function KioskApp({ slug }: { slug: string }) {
                 <span>€{formatMoney(cartSubtotal)}</span>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="space-y-3">
+              {cart.length > 0 ? (
+                <PayPalCheckoutButtons
+                  amount={cartSubtotal}
+                  title="Kiosk order payment"
+                  source="kiosk"
+                  endpoint="/api/kiosk/orders"
+                  payload={buildKioskOrderPayload()}
+                  metadata={{
+                    source: 'kiosk',
+                    restaurantSlug: slug,
+                    fulfillment: fulfillment ?? '',
+                  }}
+                  disabled={placing}
+                  onApproved={({ capture }) => {
+                    const placedId =
+                      capture.shortOrderId ?? capture.orderId ?? '';
+                    const ticket = capture.ticketNumber;
+                    try {
+                      localStorage.removeItem(`kiosk-cart-${slug}`);
+                      localStorage.removeItem(`kiosk-checkout-draft-${slug}`);
+                    } catch {
+                      // ignore storage errors
+                    }
+                    clearCart();
+                    setCookingNote('');
+                    setCustomerName('');
+                    setCustomerPhone('');
+                    if (!placedId) {
+                      toast.warn(
+                        'Payment received but order id is missing. Contact staff.'
+                      );
+                      return;
+                    }
+                    toast.success('Payment received. Order sent to kitchen.');
+                    const qs = new URLSearchParams({
+                      orderId: placedId,
+                    });
+                    if (typeof ticket === 'number' && Number.isFinite(ticket)) {
+                      qs.set('ticket', String(ticket));
+                    }
+                    window.location.assign(
+                      `/kiosk/${encodeURIComponent(slug)}/success?${qs.toString()}`
+                    );
+                  }}
+                  onError={(msg) => {
+                    toast.error(msg);
+                    setPlacing(false);
+                  }}
+                  onCancel={() => {
+                    toast.info('Payment cancelled.');
+                  }}
+                />
+              ) : null}
               <Button
                 type="button"
                 variant="outline"
-                className="flex-1 border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
+                className="w-full border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
                 onClick={() => setStep('cart')}
               >
                 Back
-              </Button>
-              <Button
-                type="button"
-                className="flex-1 bg-primary font-semibold text-primary-foreground hover:brightness-95"
-                disabled={placing || cart.length === 0}
-                onClick={() => void startPayPalPayment()}
-              >
-                {placing ? 'Processing…' : 'Pay with PayPal'}
               </Button>
             </div>
           </div>

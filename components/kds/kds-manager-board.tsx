@@ -12,6 +12,10 @@ import { toast } from 'react-toastify';
 
 type PendingOrder = {
   id: string;
+  /** Daily token number (resets per restaurant per day). */
+  ticketNumber: number | null;
+  /** 6-char public-facing tracking id. */
+  shortOrderId: string | null;
   status: string;
   total: number;
   sourceType: string;
@@ -24,6 +28,26 @@ type PendingOrder = {
     modifiers: { name: string; quantity: number }[];
   }[];
 };
+
+function tokenLabel(o: {
+  ticketNumber: number | null;
+  shortOrderId: string | null;
+  id: string;
+}): string {
+  if (typeof o.ticketNumber === 'number' && o.ticketNumber > 0) {
+    return String(o.ticketNumber).padStart(2, '0');
+  }
+  // Fallback for legacy orders without a token: use the short id so the
+  // staff still has a recognisable identifier to call out.
+  return (o.shortOrderId ?? o.id.slice(0, 6)).toUpperCase();
+}
+
+function trackingLabel(o: {
+  shortOrderId: string | null;
+  id: string;
+}): string {
+  return (o.shortOrderId ?? o.id.slice(0, 6)).toUpperCase();
+}
 
 function normalizeLineName(rawName: string, rawQty: number) {
   const trimmed = String(rawName || '').trim();
@@ -219,8 +243,26 @@ export function KdsManagerBoard() {
           {orders.map((o) => (
             <Card key={o.id}>
               <CardHeader className="pb-3">
-                <CardTitle className="flex items-center justify-between text-sm">
-                  <span className="font-mono">{o.id.slice(0, 10)}</span>
+                <CardTitle className="flex flex-wrap items-center justify-between gap-3 text-sm">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        Token
+                      </span>
+                      <span className="font-mono text-2xl font-extrabold leading-none tabular-nums">
+                        {tokenLabel(o)}
+                      </span>
+                    </div>
+                    <span className="hidden h-5 w-px bg-border sm:inline-block" />
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                        Tracking
+                      </span>
+                      <span className="font-mono text-sm font-semibold uppercase tracking-wider">
+                        {trackingLabel(o)}
+                      </span>
+                    </div>
+                  </div>
                   <Badge variant="secondary">{o.sourceType}</Badge>
                 </CardTitle>
               </CardHeader>

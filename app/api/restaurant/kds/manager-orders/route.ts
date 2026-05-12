@@ -31,6 +31,9 @@ export async function GET(_req: NextRequest) {
       take: 100,
       select: {
         id: true,
+        // Daily token number + 6-char tracking id used by KDS / customer display.
+        ticketNumber: true,
+        shortOrderId: true,
         status: true,
         total: true,
         sourceType: true,

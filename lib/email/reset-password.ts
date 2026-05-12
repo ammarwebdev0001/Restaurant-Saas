@@ -1,31 +1,5 @@
-import { Resend } from "resend";
-
 import { getAppBaseUrl } from "@/lib/app-base-url";
-
-/** Strip common .env mistakes: surrounding quotes and BOM. */
-function normalizeEnv(value: string | undefined): string {
-  if (value == null || value === "") return "";
-  let v = value.trim();
-  if (
-    (v.startsWith('"') && v.endsWith('"')) ||
-    (v.startsWith("'") && v.endsWith("'"))
-  ) {
-    v = v.slice(1, -1).trim();
-  }
-  if (v.charCodeAt(0) === 0xfeff) {
-    v = v.slice(1);
-  }
-  return v;
-}
-
-function getResendApiKey(): string {
-  return normalizeEnv(process.env.RESEND_API_KEY);
-}
-
-function getFromAddress(): string {
-  const raw = normalizeEnv(process.env.RESEND_FROM_EMAIL);
-  return raw || "onboarding@resend.dev";
-}
+import { sendMail } from "@/lib/email/smtp";
 
 function escapeHtml(s: string): string {
   return s
@@ -44,39 +18,56 @@ export async function sendResetPasswordEmail(opts: {
   token: string;
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const { to, token } = opts;
-  const apiKey = getResendApiKey();
-  if (!apiKey) {
-    return {
-      ok: false,
-      error: "RESEND_API_KEY is missing. Please configure it in .env.",
-    };
+  const resetUrl = buildResetPasswordUrl(token);
+
+  // Localhost links almost always trigger spam filters (Gmail in particular
+  // silent-drops messages containing http://localhost or 127.0.0.1). Log the
+  // URL so you can always reset by pasting it into the browser in dev.
+  const isLocalLink = /^https?:\/\/(localhost|127\.0\.0\.1|0\.0\.0\.0)/i.test(
+    resetUrl
+  );
+  if (isLocalLink) {
+    console.warn(
+      `[reset-password] dev reset link (localhost — Gmail may silently drop the email):\n  ${resetUrl}`
+    );
   }
 
-  const resetUrl = buildResetPasswordUrl(token);
-  const from = getFromAddress();
-  const resend = new Resend(apiKey);
-  const subject = "Reset your password";
+  // "Foodluk" leads the subject so the email is easy to find in busy inboxes
+  // and so search/filter rules can target it reliably.
+  const subject = "Foodluk — Reset your password";
   const html = `
-    <p>We received a request to reset your password.</p>
-    <p><a href="${resetUrl}">Reset password</a></p>
-    <p>If the button does not work, paste this link in your browser:</p>
-    <p>${escapeHtml(resetUrl)}</p>
-    <p>If you did not request this, you can ignore this email.</p>
+    <p>Hello,</p>
+    <p>We received a request to reset your <strong>Foodluk</strong> password.</p>
+    <p>Click the link below to set a new password:</p>
+    <p><a href="${resetUrl}">${escapeHtml(resetUrl)}</a></p>
+    <p>If you did not request this, you can safely ignore this email — your password will stay the same.</p>
+    <p>— The Foodluk team</p>
   `.trim();
 
-  const { data, error } = await resend.emails.send({
-    from,
-    to: [to],
+  const text = [
+    "Hello,",
+    "",
+    "We received a request to reset your Foodluk password.",
+    "Open this link in your browser to set a new password:",
+    "",
+    resetUrl,
+    "",
+    "If you did not request this, you can ignore this email — your password will stay the same.",
+    "",
+    "— The Foodluk team",
+  ].join("\n");
+
+  const result = await sendMail({
+    to,
     subject,
     html,
+    text,
+    fromName: "Foodluk",
   });
-
-  if (error) {
-    return { ok: false, error: error.message ?? "Failed to send reset email." };
+  if (!result.ok) {
+    console.error("[reset-password] SMTP error", { to, error: result.error });
+    return { ok: false, error: result.error };
   }
-  if (!data?.id) {
-    return { ok: false, error: "Email provider returned empty response." };
-  }
-
+  console.info(`[reset-password] sent to=${to} id=${result.messageId}`);
   return { ok: true };
 }

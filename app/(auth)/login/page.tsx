@@ -155,16 +155,15 @@ function LoginForm() {
   }
 
   return (
-    <PublicAuthShell title="Sign in" subtitle="Use Google or your email + password.">
+    <PublicAuthShell title="Sign in" subtitle="Use your email + password to SignIn.">
 
         <div className="flex flex-col gap-2">
-          <Button onClick={handleGoogle} disabled={loading} variant="secondary">
+          {/* <Button onClick={handleGoogle} disabled={loading} variant="secondary">
             <IconBrandGoogleFilled className="mr-1 h-4 w-4" /> Continue with Google
-          </Button>
-          
+          </Button> */}
         </div>
 
-        <div className="my-6 border-t" />
+        {/* <div className="my-6 border-t" /> */}
 
         <form onSubmit={handleCredentials} className="flex flex-col gap-4">
           <div className="flex flex-col gap-2">

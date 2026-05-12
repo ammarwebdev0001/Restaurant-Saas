@@ -356,10 +356,16 @@ function ContactSection() {
   const [company, setCompany] = useState('');
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [status, setStatus] = useState<
+    | { kind: 'success'; text: string }
+    | { kind: 'error'; text: string }
+    | null
+  >(null);
 
   async function handleContactSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSending(true);
+    setStatus(null);
     try {
       const res = await fetch('/api/contact', {
         method: 'POST',
@@ -373,20 +379,25 @@ function ContactSection() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        toast.error(
+        const text =
           typeof data?.error === 'string'
             ? data.error
-            : 'Something went wrong. Please try again.',
-        );
+            : 'Something went wrong. Please try again.';
+        toast.error(text);
+        setStatus({ kind: 'error', text });
         return;
       }
-      toast.success('Thanks — your message has been sent.');
+      const successText = 'Thanks — your message has been sent.';
+      toast.success(successText);
+      setStatus({ kind: 'success', text: successText });
       setFirstName('');
       setEmail('');
       setCompany('');
       setMessage('');
     } catch {
-      toast.error('Network error. Please try again.');
+      const text = 'Network error. Please try again.';
+      toast.error(text);
+      setStatus({ kind: 'error', text });
     } finally {
       setSending(false);
     }
@@ -517,6 +528,19 @@ function ContactSection() {
                 >
                   {sending ? 'Sending…' : t('marketing.contact.submit')}
                 </Button>
+                {status && (
+                  <div
+                    role="status"
+                    aria-live="polite"
+                    className={
+                      status.kind === 'success'
+                        ? 'rounded-2xl border border-emerald-500/40 bg-emerald-500/10 px-4 py-3 text-sm font-medium text-emerald-700 dark:text-emerald-300'
+                        : 'rounded-2xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-sm font-medium text-rose-700 dark:text-rose-300'
+                    }
+                  >
+                    {status.text}
+                  </div>
+                )}
               </form>
             </div>
           </div>

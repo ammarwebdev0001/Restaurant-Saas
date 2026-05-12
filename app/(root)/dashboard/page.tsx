@@ -1,6 +1,5 @@
 import React from 'react';
 
-import { BentoGridHome } from '@/components/bento/bentodemo';
 import DashboardAnalytics from '@/components/dashboard/dashboard-analytics';
 import ErrorBoundary from '@/components/toaster/toaster';
 

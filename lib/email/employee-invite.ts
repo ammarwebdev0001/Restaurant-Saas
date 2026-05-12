@@ -1,40 +1,24 @@
-import { Resend } from 'resend';
-
 import { getAppBaseUrl } from '@/lib/app-base-url';
-
-/** Strip common .env mistakes: surrounding quotes and BOM. */
-function normalizeEnv(value: string | undefined): string {
-  if (value == null || value === '') return '';
-  let v = value.trim();
-  if ((v.startsWith('"') && v.endsWith('"')) || (v.startsWith("'") && v.endsWith("'"))) {
-    v = v.slice(1, -1).trim();
-  }
-  if (v.charCodeAt(0) === 0xfeff) {
-    v = v.slice(1);
-  }
-  return v;
-}
+import {
+  getSmtpConfigError,
+  isSmtpConfigured,
+  sendMail,
+} from '@/lib/email/smtp';
 
 export type EmailSendResult =
-  | { ok: true; channel: 'resend'; messageId: string }
-  | { ok: true; channel: 'none'; reason: 'missing_resend_api_key' }
-  | { ok: false; channel: 'resend'; error: string };
-
-function getResendApiKey(): string {
-  return normalizeEnv(process.env.RESEND_API_KEY);
-}
-
-function getFromAddress(): string {
-  const raw = normalizeEnv(process.env.RESEND_FROM_EMAIL);
-  return raw || 'onboarding@resend.dev';
-}
+  | { ok: true; channel: 'smtp'; messageId: string }
+  | { ok: true; channel: 'none'; reason: 'missing_smtp_config'; detail: string }
+  | { ok: false; channel: 'smtp'; error: string };
 
 /**
- * Resend (server-side only):
- * - `RESEND_API_KEY` — from https://resend.com/api-keys
- * - `RESEND_FROM_EMAIL` — must be allowed by Resend (verified domain or onboarding@resend.dev for testing)
+ * Send a transactional HTML email via SMTP (Gmail / Workspace / any SMTP host).
  *
- * Testing with `onboarding@resend.dev`: Resend often only delivers to the **account owner** email until you verify a domain.
+ * Required env vars (see `lib/email/smtp.ts` and `.env.example`):
+ *   - SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM_EMAIL
+ *
+ * When SMTP is not configured we don't fail — we return `channel: 'none'`
+ * so callers can still respond "saved, but email skipped" and show the
+ * recipient a manual link instead.
  */
 async function sendHtmlEmail(opts: {
   to: string;
@@ -43,46 +27,32 @@ async function sendHtmlEmail(opts: {
   logTag: string;
   devDetail: string;
 }): Promise<EmailSendResult> {
-  const apiKey = getResendApiKey();
-  const from = getFromAddress();
-
-  if (!apiKey) {
+  if (!isSmtpConfigured()) {
+    const detail = getSmtpConfigError() ?? 'SMTP is not configured';
     console.warn(
-      `[${opts.logTag}] RESEND_API_KEY missing — email not sent. Set it in .env and restart the dev server.\n  ${opts.devDetail}`
+      `[${opts.logTag}] ${detail} — email not sent. Set SMTP_* vars in .env and restart.\n  ${opts.devDetail}`
     );
-    return { ok: true, channel: 'none', reason: 'missing_resend_api_key' };
+    return {
+      ok: true,
+      channel: 'none',
+      reason: 'missing_smtp_config',
+      detail,
+    };
   }
 
-  const resend = new Resend(apiKey);
-
-  const { data, error } = await resend.emails.send({
-    from,
-    to: [opts.to],
+  const result = await sendMail({
+    to: opts.to,
     subject: opts.subject,
     html: opts.html,
   });
 
-  if (error) {
-    const detail = error.message ?? String(error.name ?? 'Resend error');
-    console.error(`[Resend:${opts.logTag}]`, detail, error);
-    return {
-      ok: false,
-      channel: 'resend',
-      error: `${detail} (from: ${from}). With the test sender, you may only send to your Resend account email until a domain is verified.`,
-    };
+  if (!result.ok) {
+    console.error(`[SMTP:${opts.logTag}]`, result.error);
+    return { ok: false, channel: 'smtp', error: result.error };
   }
 
-  if (!data?.id) {
-    console.error(`[Resend:${opts.logTag}] unexpected empty response`);
-    return {
-      ok: false,
-      channel: 'resend',
-      error: 'Resend returned no message id.',
-    };
-  }
-
-  console.info(`[Resend:${opts.logTag}] sent id=${data.id} to=${opts.to}`);
-  return { ok: true, channel: 'resend', messageId: data.id };
+  console.info(`[SMTP:${opts.logTag}] sent id=${result.messageId} to=${opts.to}`);
+  return { ok: true, channel: 'smtp', messageId: result.messageId };
 }
 
 export async function sendEmployeeInviteEmail(opts: {
