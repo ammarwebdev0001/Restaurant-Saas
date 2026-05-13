@@ -231,9 +231,12 @@ export function KioskPaymentSuccess({
       frame.setAttribute('aria-hidden', 'true');
       document.body.appendChild(frame);
 
+      let cleaned = false;
       const cleanup = () => {
+        if (cleaned) return;
+        cleaned = true;
         window.setTimeout(() => {
-          if (frame.parentNode) frame.parentNode.removeChild(frame);
+          frame.remove();
         }, 300);
       };
 

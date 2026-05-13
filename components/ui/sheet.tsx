@@ -6,6 +6,7 @@ import { Cross2Icon } from "@radix-ui/react-icons";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
+import { isRadixPortaledLayerTarget } from "@/lib/radix-portal-hit";
 
 const Sheet = SheetPrimitive.Root;
 
@@ -56,18 +57,43 @@ interface SheetContentProps
 const SheetContent = React.forwardRef<
   React.ElementRef<typeof SheetPrimitive.Content>,
   SheetContentProps
->(({ side = "right", className, children, ...props }, ref) => (
-  <SheetPortal>
-    <SheetOverlay />
-    <SheetPrimitive.Content
-      ref={ref}
-      className={cn(sheetVariants({ side }), className)}
-      {...props}
-    >
-      {children}
-    </SheetPrimitive.Content>
-  </SheetPortal>
-));
+>(
+  (
+    {
+      side = "right",
+      className,
+      children,
+      onInteractOutside,
+      onPointerDownOutside,
+      onFocusOutside,
+      ...props
+    },
+    ref
+  ) => (
+    <SheetPortal>
+      <SheetOverlay />
+      <SheetPrimitive.Content
+        ref={ref}
+        className={cn(sheetVariants({ side }), className)}
+        {...props}
+        onInteractOutside={(e) => {
+          if (isRadixPortaledLayerTarget(e.target)) e.preventDefault();
+          onInteractOutside?.(e);
+        }}
+        onPointerDownOutside={(e) => {
+          if (isRadixPortaledLayerTarget(e.target)) e.preventDefault();
+          onPointerDownOutside?.(e);
+        }}
+        onFocusOutside={(e) => {
+          if (isRadixPortaledLayerTarget(e.target)) e.preventDefault();
+          onFocusOutside?.(e);
+        }}
+      >
+        {children}
+      </SheetPrimitive.Content>
+    </SheetPortal>
+  )
+);
 SheetContent.displayName = SheetPrimitive.Content.displayName;
 
 const SheetHeader = ({

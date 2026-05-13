@@ -314,7 +314,7 @@ function ProductCard({
             ) : null}
             €{display.toFixed(2)}
           </span>
-          <Button size="sm" onClick={onAdd} type="button">
+          <Button  onClick={onAdd} type="button">
             {showCustomizeIndicator ? t('customizePlus') : t('addPlus')}
           </Button>
         </div>
@@ -703,16 +703,13 @@ export default function OrderPageClient({
             <Button
               type="button"
               variant="default"
-              size="sm"
               onClick={() => router.push(storefrontPath)}
             >
               <IconShoppingCart className="w-4 h-4 mr-2" />
               {t('switchOrderTypeNewOrder')}
             </Button>
           </div>
-          <div className="text-xs text-muted-foreground">
-            {t('theme')}: {resolvedTheme || theme}
-          </div>
+         
         </div>
 
         <OfferSlider
@@ -950,8 +947,8 @@ export default function OrderPageClient({
                           ) : null}
                           <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
                             <Button
-                              size="sm"
                               variant="outline"
+                              size="sm"
                               onClick={() => adjustQuantity(line.lineId, -1)}
                               disabled={line.quantity <= 1}
                               type="button"
@@ -960,16 +957,17 @@ export default function OrderPageClient({
                             </Button>
                             <span>{line.quantity}</span>
                             <Button
-                              size="sm"
                               variant="outline"
+                              size="sm"
                               onClick={() => adjustQuantity(line.lineId, 1)}
                               type="button"
                             >
                               +
                             </Button>
                             <Button
-                              size="sm"
                               variant="destructive"
+                              size="sm"
+
                               onClick={() => removeFromCart(line.lineId)}
                               type="button"
                             >
@@ -977,7 +975,6 @@ export default function OrderPageClient({
                             </Button>
                             {isCustomized ? (
                               <Button
-                                size="sm"
                                 variant="secondary"
                                 onClick={() => openModifyForLine(line)}
                                 type="button"
@@ -1001,7 +998,6 @@ export default function OrderPageClient({
                 <span>€{total.toFixed(2)}</span>
               </div>
               <Button
-                size="sm"
                 className="mt-2 w-full"
                 onClick={() =>
                   router.push(

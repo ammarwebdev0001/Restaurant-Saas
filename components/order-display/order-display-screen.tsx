@@ -86,6 +86,21 @@ function tokenLabel(t: OrderDisplayTicket): string {
   return trackingId(t);
 }
 
+/** Format API YYYY-MM-DD using the numeric parts (avoids UTC shift bugs). */
+function formatFilterDateLabel(isoYmd: string): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(isoYmd.trim());
+  if (!m) return isoYmd;
+  const y = Number(m[1]);
+  const mo = Number(m[2]);
+  const d = Number(m[3]);
+  return new Date(y, mo - 1, d).toLocaleDateString(undefined, {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 export function OrderDisplayScreen() {
   const [completed, setCompleted] = useState<OrderDisplayTicket[]>([]);
   const [inProgress, setInProgress] = useState<OrderDisplayTicket[]>([]);
@@ -93,6 +108,8 @@ export function OrderDisplayScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [filterDate, setFilterDate] = useState<string>('');
+  const [filterTimezone, setFilterTimezone] = useState<string>('UTC');
 
   // Track which completed tickets we've already shown so we can briefly
   // pulse new ones when they first appear.
@@ -149,6 +166,8 @@ export function OrderDisplayScreen() {
       const next = res.data.data;
       setCompleted(next.completed);
       setInProgress(next.inProgress);
+      setFilterDate(next.filterDate ?? '');
+      setFilterTimezone(next.filterTimezone ?? 'UTC');
       setError(null);
       setLastUpdated(new Date());
 
@@ -223,6 +242,20 @@ export function OrderDisplayScreen() {
             Order Status
           </h1>
           <p className="text-xs text-muted-foreground md:text-sm">
+            Today&apos;s orders
+            {filterDate ? (
+              <>
+                {' '}
+                · {formatFilterDateLabel(filterDate)}
+                {filterTimezone && filterTimezone !== 'UTC' ? (
+                  <span className="text-muted-foreground/80">
+                    {' '}
+                    ({filterTimezone})
+                  </span>
+                ) : null}
+              </>
+            ) : null}
+            {' · '}
             Live · refreshes every {REFRESH_INTERVAL_MS / 1000}s · last sync{' '}
             {lastUpdatedText}
           </p>

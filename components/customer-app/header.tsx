@@ -144,8 +144,7 @@ export function Header() {
               <Button
                 type="button"
                 variant="secondary"
-                size="sm"
-                className="rounded-full border border-primary/20 bg-white text-primary hover:bg-white/95"
+                className="border border-primary/20 bg-white text-primary hover:bg-white/95"
               >
                 {t('language')}: {uiLang.toUpperCase()}
               </Button>
@@ -179,7 +178,6 @@ export function Header() {
           <Button
             type="button"
             variant="secondary"
-            size="sm"
             className="rounded-full border border-primary/20 bg-white text-primary hover:bg-white/95"
           >
             <IconMenu2 className="h-4 w-4" />

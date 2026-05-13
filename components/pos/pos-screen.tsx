@@ -587,15 +587,10 @@ export function PosScreen() {
     frame.setAttribute('aria-hidden', 'true');
     document.body.appendChild(frame);
 
-    const cleanup = () => {
-      window.setTimeout(() => {
-        if (frame.parentNode) frame.parentNode.removeChild(frame);
-      }, 300);
-    };
+   
 
     const doc = frame.contentWindow?.document;
     if (!doc || !frame.contentWindow) {
-      cleanup();
       toast.error('Could not open print preview.');
       return;
     }
@@ -608,7 +603,6 @@ export function PosScreen() {
         frame.contentWindow?.focus();
         frame.contentWindow?.print();
       } finally {
-        cleanup();
       }
     };
   }
@@ -961,7 +955,7 @@ export function PosScreen() {
         {/* Categories */}
         <ScrollArea className="min-h-0 border-b bg-muted/10 lg:border-b-0 lg:border-r">
           <div className="space-y-2 p-3">
-            <div className="text-sm font-semibold">Select Branch</div>
+             <div className="text-sm font-semibold">Select Branch</div>
             <div className="mb-2">
               <Select
                 value={selectedBranchId}
@@ -1379,13 +1373,19 @@ export function PosScreen() {
       </Sheet>
 
       <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent
+          className={cn(
+            'max-w-2xl flex max-h-[min(90dvh,42rem)] flex-col gap-0 overflow-hidden p-6',
+            'sm:max-h-[min(92dvh,44rem)]'
+          )}
+        >
+          <DialogHeader className="shrink-0 space-y-1.5 pb-2 text-left">
             <DialogTitle>Checkout</DialogTitle>
           </DialogHeader>
 
-          <div className="grid gap-4 md:grid-cols-[1fr_280px]">
-            <div className="rounded-lg border">
+          <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-1 [-webkit-overflow-scrolling:touch]">
+            <div className="grid gap-4 pb-1 md:grid-cols-[1fr_280px]">
+              <div className="rounded-lg border">
               <Table>
                 <TableHeader>
                   <TableRow className="hover:bg-transparent">
@@ -1562,9 +1562,10 @@ export function PosScreen() {
                 </div>
               ) : null}
             </div>
+            </div>
           </div>
 
-          <DialogFooter className="gap-2 sm:gap-0 w-full">
+          <DialogFooter className="mt-3 shrink-0 gap-2 border-t border-border/60 bg-background pt-4 sm:gap-0 w-full">
             <Button
               type="button"
               variant="outline"

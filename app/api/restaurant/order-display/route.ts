@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
 import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getOrderDisplayTimezone } from '@/lib/order-display-timezone';
 
 export const runtime = 'nodejs';
 
@@ -43,6 +44,10 @@ export type OrderDisplayPayload = {
   data: {
     completed: OrderDisplayTicket[];
     inProgress: OrderDisplayTicket[];
+    /** YYYY-MM-DD — calendar date used for the "today" filter in {@link filterTimezone}. */
+    filterDate: string;
+    /** IANA zone used to compute "today" (from `ORDER_DISPLAY_TIMEZONE`, default UTC). */
+    filterTimezone: string;
   };
 };
 
@@ -50,8 +55,10 @@ export type OrderDisplayPayload = {
  * Customer-facing order display feed.
  *
  * Returns the most recent {@link COMPLETED_LIMIT} completed and
- * {@link IN_PROGRESS_LIMIT} in-progress kitchen tickets for the
- * restaurant the signed-in user is a member of.
+ * {@link IN_PROGRESS_LIMIT} in-progress kitchen tickets for **orders
+ * placed today** (calendar day of `Order.createdAt` in
+ * `ORDER_DISPLAY_TIMEZONE`, default UTC) so daily token numbers stay
+ * consistent on the wall display.
  *
  * Auth: signed-in restaurant staff only (no public access — the response
  * contains customer phone numbers).
@@ -70,10 +77,30 @@ export async function GET() {
     if (!user) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+
+    const tz = getOrderDisplayTimezone();
+    const [dateRow] = await db.$queryRaw<{ filterDate: Date | string }[]>(
+      Prisma.sql`
+        SELECT (timezone(${tz}::text, now()))::date AS "filterDate"
+      `
+    );
+    const rawFd = dateRow?.filterDate;
+    const filterDateStr =
+      typeof rawFd === 'string'
+        ? rawFd.slice(0, 10)
+        : rawFd instanceof Date && !Number.isNaN(rawFd.getTime())
+          ? rawFd.toISOString().slice(0, 10)
+          : '';
+
     const restaurant = await getRestaurantForUser(user.id);
     if (!restaurant) {
       const empty: OrderDisplayPayload = {
-        data: { completed: [], inProgress: [] },
+        data: {
+          completed: [],
+          inProgress: [],
+          filterDate: filterDateStr,
+          filterTimezone: tz,
+        },
       };
       return NextResponse.json(empty, { status: 200 });
     }
@@ -96,6 +123,8 @@ export async function GET() {
         LEFT JOIN "Customer" c ON c."id" = o."customerId"
         WHERE kt."restaurantId" = ${restaurant.id}
           AND lower(kt."status") = 'completed'
+          AND (timezone(${tz}::text, o."createdAt"))::date
+              = (timezone(${tz}::text, now()))::date
         ORDER BY kt."updatedAt" DESC
         LIMIT ${COMPLETED_LIMIT}
       `
@@ -119,6 +148,8 @@ export async function GET() {
         LEFT JOIN "Customer" c ON c."id" = o."customerId"
         WHERE kt."restaurantId" = ${restaurant.id}
           AND lower(kt."status") = 'making'
+          AND (timezone(${tz}::text, o."createdAt"))::date
+              = (timezone(${tz}::text, now()))::date
         ORDER BY kt."startedAt" ASC
         LIMIT ${IN_PROGRESS_LIMIT}
       `
@@ -144,6 +175,8 @@ export async function GET() {
       data: {
         completed: completedRows.map((r) => toTicket(r, 'completed')),
         inProgress: inProgressRows.map((r) => toTicket(r, 'making')),
+        filterDate: filterDateStr,
+        filterTimezone: tz,
       },
     };
 

@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
-import { LayoutDashboard, LogOut, Shield, User } from 'lucide-react';
+import { LayoutDashboard, LogOut, Shield, User, User2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { isPlatformAdmin } from '@/lib/auth/admin';
@@ -61,13 +61,12 @@ export default function LandingAuthActions({
   return (
     <div ref={rootRef} className="relative z-[120]">
       <Button
-        size="sm"
         variant="default"
-        className={cn('h-9 w-9 p-0', loggedInTriggerClassName)}
+        className={cn('h-9 w-9 p-0')}
         onClick={() => setOpen((v) => !v)}
         aria-label="Open user menu"
       >
-        <User className="h-4 w-4" />
+        <User2 className="h-4 w-4" />
       </Button>
 
       {open && (

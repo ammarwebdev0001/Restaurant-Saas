@@ -307,12 +307,12 @@ export function Sidebar({
                 onChange={(event) => setApartmentDoorNumber(event.target.value)}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
-              <Input
+              {/* <Input
                 placeholder={t('gateCodeIntercom')}
                 value={gateCode}
                 onChange={(event) => setGateCode(event.target.value)}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
-              />
+              /> */}
 
               <p className="text-xs text-[#64748b]">
                 {t('deliveryInfoHint')}

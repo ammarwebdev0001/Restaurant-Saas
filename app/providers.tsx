@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { SessionProvider } from "next-auth/react";
 import { ThemeProvider } from "@/components/theme-provider";
 import NextTopLoader from "nextjs-toploader";
@@ -10,6 +10,26 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/lib/i18n/client";
 import { OfflineBootstrap } from "@/components/offline/offline-bootstrap";
+
+/**
+ * Mount Vercel metrics after the first paint so they do not run in the same
+ * React commit as a layout swap (e.g. dashboard → /pos). That combination
+ * has triggered DOM/removeChild races with the App Router.
+ */
+function DeferredVercelMetrics() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  if (!ready) return null;
+  return (
+    <>
+      <Analytics />
+      <SpeedInsights />
+    </>
+  );
+}
 
 export default function Providers({
   children,
@@ -36,8 +56,7 @@ export default function Providers({
           draggable
           style={{ zIndex: 9999 }}
         />
-        <Analytics />
-        <SpeedInsights />
+        <DeferredVercelMetrics />
       </SessionProvider>
     </ThemeProvider>
   );

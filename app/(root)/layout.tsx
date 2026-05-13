@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import NextTopLoader from 'nextjs-toploader';
 import Link from 'next/link';
 import { Loader, Loader2, Loader2Icon, Menu, PanelLeft, PanelLeftClose } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -254,7 +253,6 @@ const RootLayout = ({ children }: RootLayoutProps) => {
 
   return (
     <>
-      <NextTopLoader showSpinner={false} />
       <div className="bg-gray-300 dark:bg-black">
         <div
           className={cn(
