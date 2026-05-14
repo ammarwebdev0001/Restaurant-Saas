@@ -1,5 +1,6 @@
 'use client';
 
+import * as React from 'react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,6 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ReloadIcon } from '@radix-ui/react-icons';
+import { Loader2 } from 'lucide-react';
 
 interface DeleteConfirmationProps {
   open: boolean;
@@ -35,10 +37,21 @@ export function DeleteConfirmation({
   confirmText = 'Delete',
   cancelText = 'Cancel',
 }: DeleteConfirmationProps) {
+  /** When true, dialog is closing because the user confirmed — do not run onCancel (avoids clearing parent ids before async delete starts). */
+  const confirmClickedRef = React.useRef(false);
+
   return (
-    <AlertDialog open={open} onOpenChange={(isOpen) => {
-      if (!isOpen) onCancel();
-    }}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) {
+          if (!loading && !confirmClickedRef.current) {
+            onCancel();
+          }
+          confirmClickedRef.current = false;
+        }
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
@@ -53,13 +66,16 @@ export function DeleteConfirmation({
             {cancelText}
           </AlertDialogCancel>
           <AlertDialogAction
-            onClick={onConfirm}
+            onClick={() => {
+              confirmClickedRef.current = true;
+              onConfirm();
+            }}
             disabled={loading}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {loading ? (
               <>
-                <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Deleting...
               </>
             ) : (

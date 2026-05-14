@@ -9,7 +9,7 @@ export default function RecommendationsPage() {
   const { loading, categories, load } = useRestaurantMenu();
 
   return (
-    <div className="w-full">
+    <div className="min-w-0 w-full max-w-full">
       <ErrorBoundary>
         <MenuPageShell
           title="Recommendations"

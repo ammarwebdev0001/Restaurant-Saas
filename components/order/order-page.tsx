@@ -28,9 +28,7 @@ import {
   inferHostSubdomainForMenu,
 } from '@/lib/customer-menu-client';
 import { orderPathWithQuery } from '@/lib/order-search-params';
-import {
-  setUiLanguage,
-} from '@/lib/i18n/client';
+import { setUiLanguage } from '@/lib/i18n/client';
 import type { UiLanguage } from '@/lib/i18n/resources';
 
 export type OrderPageProps = {
@@ -285,11 +283,10 @@ function ProductCard({
     product.salePrice < product.price;
 
   return (
-    <Card className="bg-card">
+    <Card className="bg-card cursor-pointer" onClick={onAdd}>
       {product.imageUrl ? (
         <img
           src={product.imageUrl}
-      
           alt={product.name}
           className="h-40 w-full object-cover rounded-t-lg"
         />
@@ -299,7 +296,9 @@ function ProductCard({
         </div>
       )}
       <CardContent className="space-y-2">
-        <h3 className="text-lg font-semibold line-clamp-1 mt-5">{product.name}</h3>
+        <h3 className="text-lg font-semibold line-clamp-1 mt-5">
+          {product.name}
+        </h3>
         {product.description ? (
           <p className="text-sm text-muted-foreground">
             {product.description.slice(0, 60)}...
@@ -314,7 +313,7 @@ function ProductCard({
             ) : null}
             €{display.toFixed(2)}
           </span>
-          <Button  onClick={onAdd} type="button">
+          <Button size="sm" onClick={onAdd} type="button">
             {showCustomizeIndicator ? t('customizePlus') : t('addPlus')}
           </Button>
         </div>
@@ -328,7 +327,8 @@ export default function OrderPageClient({
   orderId,
   orderInfo,
 }: OrderPageProps) {
-  const restaurantSlug = orderInfo?.restaurantSlug?.trim() || orderInfo?.storeId?.trim() || '';
+  const restaurantSlug =
+    orderInfo?.restaurantSlug?.trim() || orderInfo?.storeId?.trim() || '';
   const storefrontPath = restaurantSlug
     ? `/web-app/${encodeURIComponent(restaurantSlug)}`
     : '/web-app';
@@ -344,7 +344,9 @@ export default function OrderPageClient({
   const [mounted, setMounted] = useState(false);
 
   const [menuLoading, setMenuLoading] = useState(false);
-  const [themePrimaryColor, setThemePrimaryColor] = useState<string | null>(null);
+  const [themePrimaryColor, setThemePrimaryColor] = useState<string | null>(
+    null
+  );
   const { t, i18n } = useTranslation();
   const uiLang: UiLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'es';
 
@@ -390,7 +392,9 @@ export default function OrderPageClient({
             const res = await fetch(
               `/api/stripe/verify-session?session_id=${encodeURIComponent(sessionId)}`
             );
-            const body = (await res.json().catch(() => ({}))) as { paid?: boolean };
+            const body = (await res.json().catch(() => ({}))) as {
+              paid?: boolean;
+            };
             if (res.ok && body.paid === true) {
               paid = true;
               break;
@@ -413,7 +417,10 @@ export default function OrderPageClient({
           toast.info(t('paymentProcessingSyncSoon'));
         }
         router.replace(
-          orderPathWithQuery(`/order/${orderType}/${orderId}`, orderInfoRef.current)
+          orderPathWithQuery(
+            `/order/${orderType}/${orderId}`,
+            orderInfoRef.current
+          )
         );
       })();
       return;
@@ -487,7 +494,8 @@ export default function OrderPageClient({
   const addToCart = (
     product: CustomerMenuProduct,
     modifiers: CartModifierSelection[],
-    variation?: SelectedProductVariation | null
+    variation?: SelectedProductVariation | null,
+    options?: { showToast?: boolean }
   ) => {
     const baseUnitPrice = effectiveUnitPrice(product.price, product.salePrice);
     const variationId = variation?.id ?? null;
@@ -525,6 +533,10 @@ export default function OrderPageClient({
 
       return [...current, line];
     });
+
+    if (options?.showToast !== false) {
+      toast.success(t('productAddedToCart'));
+    }
   };
 
   const hasRequiredAddons = (p: CustomerMenuProduct) =>
@@ -696,9 +708,9 @@ export default function OrderPageClient({
             {orderInfo?.restaurantName ?? 'Enjoy Tacos'}
           </h1>
           <div className="flex items-center gap-2">
-            
             <div className="text-sm text-muted-foreground">
-              {orderType === 'delivery' ? t('delivery') : t('pickUp')} {t('order')} - {orderId}
+              {orderType === 'delivery' ? t('delivery') : t('pickUp')}{' '}
+              {t('order')} - {orderId}
             </div>
             <Button
               type="button"
@@ -709,7 +721,6 @@ export default function OrderPageClient({
               {t('switchOrderTypeNewOrder')}
             </Button>
           </div>
-         
         </div>
 
         <OfferSlider
@@ -742,15 +753,21 @@ export default function OrderPageClient({
                     {orderInfo.addressName || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">{t('phoneLabel')}:</strong>{' '}
+                    <strong className="text-foreground">
+                      {t('phoneLabel')}:
+                    </strong>{' '}
                     {orderInfo.customerPhone || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">{t('apartment')}:</strong>{' '}
+                    <strong className="text-foreground">
+                      {t('apartment')}:
+                    </strong>{' '}
                     {orderInfo.apartment || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">{t('gateCode')}:</strong>{' '}
+                    <strong className="text-foreground">
+                      {t('gateCode')}:
+                    </strong>{' '}
                     {orderInfo.gateCode || 'N/A'}
                   </div>
                 </>
@@ -761,7 +778,9 @@ export default function OrderPageClient({
                     {orderInfo.storeName || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">{t('storeAddress')}:</strong>{' '}
+                    <strong className="text-foreground">
+                      {t('storeAddress')}:
+                    </strong>{' '}
                     {orderInfo.storeAddress || 'N/A'}
                   </div>
                   <div>
@@ -773,7 +792,9 @@ export default function OrderPageClient({
                     {orderInfo.addressName || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">{t('phoneLabel')}:</strong>{' '}
+                    <strong className="text-foreground">
+                      {t('phoneLabel')}:
+                    </strong>{' '}
                     {orderInfo.customerPhone || 'N/A'}
                   </div>
                 </>
@@ -830,7 +851,9 @@ export default function OrderPageClient({
             </div>
 
             {menuLoading ? (
-              <p className="text-sm text-muted-foreground">{t('loadingMenu')}</p>
+              <p className="text-sm text-muted-foreground">
+                {t('loadingMenu')}
+              </p>
             ) : (
               <>
                 <section className="mb-8">
@@ -875,9 +898,10 @@ export default function OrderPageClient({
                                   if (
                                     hasRequiredAddons(product) ||
                                     hasVariations(product)
-                                  )
+                                  ) {
                                     openCustomizeForProduct(product);
-                                  else addToCart(product, []);
+                                    
+                                  } else addToCart(product, []);
                                 }}
                               />
                             ))}
@@ -904,7 +928,9 @@ export default function OrderPageClient({
                 {t('orderInfo')}
               </h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {t('orderType')}: {orderType}. {t('estimated')} {orderType === 'delivery' ? t('delivery') : t('takeAway')} {t('time20to30Mins')}
+                {t('orderType')}: {orderType}. {t('estimated')}{' '}
+                {orderType === 'delivery' ? t('delivery') : t('takeAway')}{' '}
+                {t('time20to30Mins')}
               </p>
 
               <h4 className="text-lg font-bold mt-5">{t('cart')}</h4>
@@ -923,66 +949,72 @@ export default function OrderPageClient({
                         <div className="min-w-0">
                           {(() => {
                             const isCustomized =
-                              Boolean(line.variationId) || line.modifiers.length > 0;
+                              Boolean(line.variationId) ||
+                              line.modifiers.length > 0;
                             return (
                               <>
-                          <p className="font-medium truncate">
-                            {line.productName}
-                            {line.variationName
-                              ? ` (${line.variationName})`
-                              : ''}
-                          </p>
-                          {line.modifiers.length > 0 ? (
-                            <div className="mt-1 space-y-1">
-                              {line.modifiers.map((m) => (
-                                <p
-                                  key={m.attributeGroupId}
-                                  className="text-xs text-muted-foreground"
-                                >
-                                  {m.groupName}:{' '}
-                                  {m.selections.map((s) => s.name).join(', ')}
+                                <p className="font-medium truncate">
+                                  {line.productName}
+                                  {line.variationName
+                                    ? ` (${line.variationName})`
+                                    : ''}
                                 </p>
-                              ))}
-                            </div>
-                          ) : null}
-                          <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => adjustQuantity(line.lineId, -1)}
-                              disabled={line.quantity <= 1}
-                              type="button"
-                            >
-                              -
-                            </Button>
-                            <span>{line.quantity}</span>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => adjustQuantity(line.lineId, 1)}
-                              type="button"
-                            >
-                              +
-                            </Button>
-                            <Button
-                              variant="destructive"
-                              size="sm"
-
-                              onClick={() => removeFromCart(line.lineId)}
-                              type="button"
-                            >
-                              {t('remove')}
-                            </Button>
-                            {isCustomized ? (
-                              <Button
-                                variant="secondary"
-                                onClick={() => openModifyForLine(line)}
-                                type="button"
-                              >
-                                {t('modify')}
-                              </Button>
-                            ) : null}
-                          </div>
+                                {line.modifiers.length > 0 ? (
+                                  <div className="mt-1 space-y-1">
+                                    {line.modifiers.map((m) => (
+                                      <p
+                                        key={m.attributeGroupId}
+                                        className="text-xs text-muted-foreground"
+                                      >
+                                        {m.groupName}:{' '}
+                                        {m.selections
+                                          .map((s) => s.name)
+                                          .join(', ')}
+                                      </p>
+                                    ))}
+                                  </div>
+                                ) : null}
+                                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      adjustQuantity(line.lineId, -1)
+                                    }
+                                    disabled={line.quantity <= 1}
+                                    type="button"
+                                  >
+                                    -
+                                  </Button>
+                                  <span>{line.quantity}</span>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      adjustQuantity(line.lineId, 1)
+                                    }
+                                    type="button"
+                                  >
+                                    +
+                                  </Button>
+                                  <Button
+                                    variant="destructive"
+                                    size="sm"
+                                    onClick={() => removeFromCart(line.lineId)}
+                                    type="button"
+                                  >
+                                    {t('remove')}
+                                  </Button>
+                                  {isCustomized ? (
+                                    <Button
+                                      variant="secondary"
+                                      onClick={() => openModifyForLine(line)}
+                                      type="button"
+                                    >
+                                      {t('modify')}
+                                    </Button>
+                                  ) : null}
+                                </div>
                               </>
                             );
                           })()}
@@ -1065,7 +1097,9 @@ export default function OrderPageClient({
           }
           const times = Math.max(1, Math.floor(quantity));
           for (let i = 0; i < times; i += 1) {
-            addToCart(customizeProduct, cartMods, variation ?? null);
+            addToCart(customizeProduct, cartMods, variation ?? null, {
+              showToast: i === times - 1,
+            });
           }
           setCustomizeOpen(false);
           setCustomizeProduct(null);

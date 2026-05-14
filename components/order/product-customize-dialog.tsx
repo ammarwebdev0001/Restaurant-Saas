@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
-import { Check, ChevronDown } from 'lucide-react';
+import { Check, ChevronDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Sheet,
+  SheetClose,
   SheetContent,
   SheetHeader,
   SheetTitle,
@@ -550,71 +551,110 @@ export function ProductCustomizeDialog({
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
         side="right"
-        className="w-full max-w-2xl border-l border-border bg-background p-0 text-foreground"
+        className="flex h-full w-full max-w-[min(100vw,80rem)] flex-col overflow-hidden border-l bg-background p-0 text-foreground sm:max-w-[min(100vw,80rem)]"
         style={dialogVars}
       >
-        <div className="relative flex h-full flex-col">
-          <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="relative flex min-h-0 flex-1 flex-col lg:flex-row">
+          {/* Left: hero image (desktop — full height) */}
+          <div className="relative hidden min-h-0 shrink-0 overflow-hidden bg-muted lg:block lg:w-[58%] lg:max-w-none">
             {productImageUrl ? (
               // eslint-disable-next-line @next/next/no-img-element -- arbitrary menu image URLs
               <img
                 src={productImageUrl}
                 alt={productName}
-                className="h-44 w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover"
               />
-            ) : null}
-            <div className="p-6 pb-24">
-              <SheetHeader>
-                <SheetTitle className="text-2xl font-bold uppercase tracking-wide text-primary">
-                  {productName}
-                </SheetTitle>
-              </SheetHeader>
-              <div className="mt-3 space-y-3 rounded-xl border border-slate-200 bg-white p-4">
-                <p className="inline-flex w-fit rounded-full bg-slate-100 px-2.5 py-1 text-base font-bold text-primary">
-                  {basePriceLabel}
-                </p>
-                {productDescription?.trim() ? (
-                  <p className="text-base leading-relaxed text-slate-700">
-                    {productDescription}
-                  </p>
-                ) : null}
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-primary/15 via-muted to-primary/10">
+                <span className="text-sm font-medium text-muted-foreground">
+                  No image
+                </span>
               </div>
+            )}
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/20 to-transparent lg:bg-gradient-to-r lg:from-transparent lg:to-black/10" />
+          </div>
 
-              <div className="space-y-6 py-2">
-                <h3 className="text-3xl font-bold tracking-tight text-primary">
-                  Personalize your product
-                </h3>
+          {/* Mobile: prominent image strip */}
+          <div className="relative h-[min(38vh,280px)] w-full shrink-0 overflow-hidden bg-muted lg:hidden">
+            {productImageUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={productImageUrl}
+                alt={productName}
+                className="h-full w-full object-cover"
+              />
+            ) : (
+              <div className="flex h-full items-center justify-center bg-gradient-to-br from-primary/15 to-muted text-sm text-muted-foreground">
+                No image
+              </div>
+            )}
+          </div>
+
+          {/* Right: details + scroll + footer */}
+          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col lg:w-[42%] lg:max-w-none">
+            <SheetHeader className="shrink-0 space-y-0 border-b border-border px-5 pb-4 pt-5 text-left">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1 pr-2">
+                  <SheetTitle className="text-balance text-xl font-bold uppercase leading-tight tracking-wide text-primary md:text-2xl">
+                    {productName}
+                  </SheetTitle>
+                  <p className="mt-2 text-lg font-bold tabular-nums text-primary md:text-xl">
+                    {basePriceLabel}
+                  </p>
+                </div>
+                <SheetClose asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+                    aria-label="Close"
+                  >
+                    <X className="h-5 w-5" />
+                  </Button>
+                </SheetClose>
+              </div>
+              {productDescription?.trim() ? (
+                <p className="mt-3 text-sm leading-relaxed text-muted-foreground md:text-base">
+                  {productDescription}
+                </p>
+              ) : null}
+            </SheetHeader>
+
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain px-5 py-4">
+              <h3 className="mb-4 text-lg font-semibold tracking-tight text-primary md:text-xl">
+                Personalize your product
+              </h3>
+
+              <div className="space-y-5">
                 {variations.length > 0 ? (
-                  <section className="rounded-lg border border-slate-200 bg-white p-4">
+                  <section className="rounded-xl border border-border bg-card p-4 shadow-sm">
                     <div className="flex items-start justify-between gap-3">
-                      <Label className="text-sm font-semibold text-slate-900">
-                        Variation{' '}
-                        <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
-                          Required
-                        </span>
+                      <Label className="text-sm font-semibold leading-snug text-foreground">
+                        Variation
                       </Label>
-                      {!selectedVariationId ? (
-                        <p className="text-xs text-red-700">Required</p>
-                      ) : null}
+                      <span className="shrink-0 rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
+                        Required
+                      </span>
                     </div>
                     <button
                       type="button"
-                      className="mt-3 flex h-11 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 text-left text-sm text-slate-900"
+                      className="mt-3 flex h-12 w-full items-center justify-between rounded-lg border border-input bg-muted/40 px-3 text-left text-sm text-foreground transition-colors hover:bg-muted/60"
                       onClick={() => setPicker({ kind: 'variation' })}
                     >
-                      <span>
+                      <span className="truncate text-muted-foreground">
                         {selectedVariationId
-                          ? variations.find((v) => v.id === selectedVariationId)
-                              ?.name ?? 'Select variation…'
-                          : 'Select variation…'}
+                          ? (variations.find((v) => v.id === selectedVariationId)
+                              ?.name ?? 'Select…')
+                          : 'Select…'}
                       </span>
-                      <ChevronDown className="h-4 w-4 text-slate-500" />
+                      <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </button>
                   </section>
                 ) : null}
 
                 {attributeGroups.length === 0 ? (
-                  <p className="text-sm text-slate-500">
+                  <p className="text-sm text-muted-foreground">
                     No add-ons available.
                   </p>
                 ) : (
@@ -625,57 +665,58 @@ export function ProductCustomizeDialog({
                     return (
                       <section
                         key={g.id}
-                        className="rounded-lg border border-slate-200 bg-white p-4"
+                        className="rounded-xl border border-border bg-card p-4 shadow-sm"
                       >
                         <div className="flex items-start justify-between gap-3">
-                          <div className="min-w-0">
-                            <Label className="text-sm font-semibold text-slate-900">
-                              {g.name}{' '}
-                              {g.required && (
-                                <span className="rounded bg-red-100 px-2 py-0.5 text-xs text-red-700">
-                                  Required
-                                </span>
-                              )}
+                          <div className="min-w-0 flex-1">
+                            <Label className="text-sm font-semibold leading-snug text-foreground">
+                              {g.name}
                             </Label>
                             {g.linkedCategoryName ? (
-                              <p className="mt-1 text-xs text-slate-500">
+                              <p className="mt-1 text-xs text-muted-foreground">
                                 From {g.linkedCategoryName}
                               </p>
                             ) : null}
                           </div>
-                          <div className="flex items-center gap-2">
-                            {missing ? (
-                              <p className="text-xs text-red-700">Required</p>
-                            ) : (
-                              <p className="text-xs text-slate-500">
-                                {g.selectionType === 'SINGLE'
-                                  ? 'Choose one'
-                                  : 'Choose one or more'}
-                              </p>
-                            )}
-                          </div>
+                          {g.required ? (
+                            <span className="shrink-0 rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
+                              Required
+                            </span>
+                          ) : (
+                            <p className="shrink-0 text-xs text-muted-foreground">
+                              {g.selectionType === 'SINGLE'
+                                ? 'Optional'
+                                : 'Choose one or more'}
+                            </p>
+                          )}
                         </div>
+                        {missing ? (
+                          <p className="mt-1 text-xs text-destructive">
+                            Please select an option
+                          </p>
+                        ) : null}
 
                         <div className="mt-3 space-y-3">
                           {g.items.length === 0 ? (
-                            <p className="text-sm text-slate-500">
+                            <p className="text-sm text-muted-foreground">
                               No options available in this category yet.
                             </p>
                           ) : g.selectionType === 'SINGLE' ? (
                             <>
                               <button
                                 type="button"
-                                className="flex h-11 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 text-left text-sm text-slate-900"
+                                className="flex h-12 w-full items-center justify-between rounded-lg border border-input bg-muted/40 px-3 text-left text-sm text-foreground transition-colors hover:bg-muted/60"
                                 onClick={() => openGroupSelection(g)}
                               >
-                                <span>
+                                <span className="truncate text-muted-foreground">
                                   {selectedIds[0]
-                                    ? g.items.find(
-                                        (it) => it.menuItemId === selectedIds[0]
-                                      )?.name ?? 'Select…'
+                                    ? (g.items.find(
+                                        (it) =>
+                                          it.menuItemId === selectedIds[0]
+                                      )?.name ?? 'Select…')
                                     : 'Select…'}
                                 </span>
-                                <ChevronDown className="h-4 w-4 text-slate-500" />
+                                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                               </button>
                               {(() => {
                                 const selectedOption = g.items.find(
@@ -692,7 +733,7 @@ export function ProductCustomizeDialog({
                                 return (
                                   <button
                                     type="button"
-                                    className="mt-2 flex h-11 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 text-left text-sm text-slate-900"
+                                    className="flex h-12 w-full items-center justify-between rounded-lg border border-input bg-muted/40 px-3 text-left text-sm text-foreground transition-colors hover:bg-muted/60"
                                     onClick={() =>
                                       setPicker({
                                         kind: 'nested',
@@ -701,9 +742,9 @@ export function ProductCustomizeDialog({
                                       })
                                     }
                                   >
-                                    <span>
+                                    <span className="truncate text-muted-foreground">
                                       {selectedNestedVariationByOption[key]
-                                        ? selectedOption.variations.find(
+                                        ? (selectedOption.variations.find(
                                             (v) =>
                                               v.id ===
                                               selectedNestedVariationByOption[
@@ -717,10 +758,10 @@ export function ProductCustomizeDialog({
                                                 key
                                               ]
                                           )?.title ??
-                                          `Select ${selectedOption.name} variation…`
-                                        : `Select ${selectedOption.name} variation…`}
+                                          `Select ${selectedOption.name}…`)
+                                        : `Select ${selectedOption.name}…`}
                                     </span>
-                                    <ChevronDown className="h-4 w-4 text-slate-500" />
+                                    <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                                   </button>
                                 );
                               })()}
@@ -729,15 +770,15 @@ export function ProductCustomizeDialog({
                             <div className="flex flex-col gap-2">
                               <button
                                 type="button"
-                                className="flex h-11 w-full items-center justify-between rounded-md border border-slate-300 bg-white px-3 text-left text-sm text-slate-900"
+                                className="flex h-12 w-full items-center justify-between rounded-lg border border-input bg-muted/40 px-3 text-left text-sm text-foreground transition-colors hover:bg-muted/60"
                                 onClick={() => openGroupSelection(g)}
                               >
-                                <span>
+                                <span className="truncate text-muted-foreground">
                                   {selectedIds.length > 0
                                     ? `${selectedIds.length} selected`
-                                    : 'Select options…'}
+                                    : 'Select…'}
                                 </span>
-                                <ChevronDown className="h-4 w-4 text-slate-500" />
+                                <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
                               </button>
                               {g.items.map((it) => {
                                 const checked = selectedIds.includes(
@@ -754,9 +795,9 @@ export function ProductCustomizeDialog({
                                 return (
                                   <div
                                     key={`${it.menuItemId}-nested-variation`}
-                                    className="ml-3 rounded-md border border-slate-200 bg-slate-100 p-2"
+                                    className="ml-1 rounded-lg border border-border bg-muted/30 p-3"
                                   >
-                                    <p className="mb-1 text-xs text-slate-500">
+                                    <p className="mb-2 text-xs font-medium text-muted-foreground">
                                       {it.name} variation
                                     </p>
                                     <select
@@ -772,7 +813,7 @@ export function ProductCustomizeDialog({
                                           })
                                         )
                                       }
-                                      className="h-9 w-full rounded-md border border-slate-300 bg-white px-2 text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500"
+                                      className="h-11 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
                                     >
                                       <option value="">
                                         Select nested variation…
@@ -796,149 +837,166 @@ export function ProductCustomizeDialog({
                 )}
               </div>
             </div>
-          </div>
 
-          <aside className="border-t border-slate-200 bg-white p-3 transition-all duration-300 ease-out">
-            <div className="flex items-center gap-3">
-              <Button
-                type="button"
-                variant="default"
-                className="h-10 w-10 p-0"
-                onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+            {/* Sticky footer: qty + Add (reference: Add left, price right on orange bar) */}
+            <footer className="shrink-0 border-t border-border bg-card px-4 py-4 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.12)]">
+              <div className="flex flex-wrap items-center gap-3 sm:flex-nowrap">
+                <div className="flex items-center gap-0.5 rounded-lg border border-primary/30 bg-primary/5 p-0.5">
+                  <Button
+                    type="button"
+                    variant="default"
+                    className="h-10 w-10 shrink-0 rounded-md p-0 text-base font-bold"
+                    onClick={() => setQuantity((q) => Math.max(1, q - 1))}
+                  >
+                    −
+                  </Button>
+                  <span className="min-w-[2.5rem] px-1 text-center text-sm font-bold tabular-nums text-foreground">
+                    {String(quantity).padStart(2, '0')}
+                  </span>
+                  <Button
+                    type="button"
+                    variant="default"
+                    className="h-10 w-10 shrink-0 rounded-md p-0 text-base font-bold"
+                    onClick={() => setQuantity((q) => Math.min(99, q + 1))}
+                  >
+                    +
+                  </Button>
+                </div>
+                <Button
+                  type="button"
+                  disabled={requiredMissing}
+                  onClick={handleConfirm}
+                  className="h-12 min-h-[3rem] flex-1 rounded-xl border-0 bg-gradient-to-r from-amber-400 via-orange-400 to-amber-500 px-5 text-base font-bold text-white shadow-md transition-opacity hover:opacity-95 disabled:opacity-50 sm:min-w-[12rem]"
+                >
+                  <span className="flex w-full items-center justify-between gap-4">
+                    <span>Add</span>
+                    <span className="tabular-nums">
+                      €{(selectedUnitTotal * quantity).toFixed(2)}
+                    </span>
+                  </span>
+                </Button>
+              </div>
+            </footer>
+
+            {picker ? (
+              <aside
+                className="absolute inset-0 z-[80] flex min-h-0 flex-col justify-end bg-black/40 animate-in fade-in-0 duration-200"
+                aria-modal="true"
+                role="dialog"
+                aria-labelledby="product-customize-picker-title"
               >
-                -
-              </Button>
-              <span className="min-w-[2ch] text-center text-sm font-semibold tabular-nums">
-                {quantity}
-              </span>
-              <Button
-                type="button"
-                variant="default"
-                className="h-10 w-10 p-0"
-                onClick={() => setQuantity((q) => Math.min(99, q + 1))}
-              >
-                +
-              </Button>
-              <Button
-                type="button"
-                className="ml-auto h-10 min-w-[180px] bg-primary px-6 font-semibold text-white hover:bg-primary/90"
-                onClick={handleConfirm}
-                disabled={requiredMissing}
-              >
-                Add €{(selectedUnitTotal * quantity).toFixed(2)}
-              </Button>
-            </div>
-          </aside>
-          {picker ? (
-            <aside className="absolute inset-0 z-[80] flex items-end bg-black/40 animate-in fade-in-0 duration-200">
-              <div className="w-full rounded-t-2xl border-t border-slate-200 bg-white p-4 shadow-2xl animate-in slide-in-from-bottom-6 duration-300 ease-out">
-                <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-slate-200" />
-                <div className="mb-3 flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-slate-900">
-                    {pickerTitle}
-                  </h3>
-                  <div className="flex items-center gap-2">
-                    {picker?.kind === 'group-multi' ? (
+                <div className="w-full max-h-[min(55dvh,28rem)] shrink-0 overflow-hidden rounded-t-2xl border-t border-border bg-card p-4 shadow-2xl animate-in slide-in-from-bottom-6 duration-300 ease-out">
+                  <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted" />
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <h3
+                      id="product-customize-picker-title"
+                      className="text-base font-semibold text-foreground"
+                    >
+                      {pickerTitle}
+                    </h3>
+                    <div className="flex shrink-0 items-center gap-2">
+                      {picker?.kind === 'group-multi' ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() => {
+                            const nextPicker = getNextPendingPicker(
+                              selectedVariationId,
+                              selectedByGroup,
+                              selectedNestedVariationByOption
+                            );
+                            if (
+                              nextPicker &&
+                              nextPicker.kind === 'group-multi' &&
+                              nextPicker.groupId === picker.groupId
+                            ) {
+                              setPicker(null);
+                              return;
+                            }
+                            setPicker(nextPicker);
+                          }}
+                        >
+                          Done
+                        </Button>
+                      ) : null}
                       <Button
                         type="button"
+                        variant="ghost"
                         size="sm"
-                        onClick={() => {
-                          const nextPicker = getNextPendingPicker(
-                            selectedVariationId,
-                            selectedByGroup,
-                            selectedNestedVariationByOption
-                          );
-                          if (
-                            nextPicker &&
-                            nextPicker.kind === 'group-multi' &&
-                            nextPicker.groupId === picker.groupId
-                          ) {
-                            setPicker(null);
-                            return;
-                          }
-                          setPicker(nextPicker);
-                        }}
+                        onClick={() => setPicker(null)}
                       >
-                        Done
+                        Close
                       </Button>
-                    ) : null}
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setPicker(null)}
-                    >
-                      Close
-                    </Button>
+                    </div>
+                  </div>
+                  <div className="max-h-[45vh] space-y-2 overflow-y-auto pb-2">
+                    {pickerEntries.map((entry) => (
+                      <button
+                        key={entry.id}
+                        type="button"
+                        className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left ${
+                          entry.selected
+                            ? 'border-primary bg-primary/10'
+                            : 'border-border bg-background'
+                        }`}
+                        onClick={entry.onChoose}
+                      >
+                        <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-muted">
+                          {entry.imageUrl ? (
+                            // eslint-disable-next-line @next/next/no-img-element -- menu images are external/base64
+                            <img
+                              src={entry.imageUrl}
+                              alt={entry.name}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : null}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium text-foreground">
+                            {entry.name}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            +€{entry.price.toFixed(2)}
+                          </p>
+                        </div>
+                        {picker?.kind === 'group-multi' ? (
+                          <div
+                            className="ml-auto flex items-center gap-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              disabled={!entry.quantity}
+                              onClick={entry.onDecrease}
+                            >
+                              -
+                            </Button>
+                            <span className="min-w-[2ch] text-center text-xs font-semibold">
+                              {entry.quantity ?? 0}
+                            </span>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="icon"
+                              className="h-7 w-7"
+                              onClick={entry.onIncrease}
+                            >
+                              +
+                            </Button>
+                          </div>
+                        ) : entry.selected ? (
+                          <Check className="h-4 w-4 text-primary" />
+                        ) : null}
+                      </button>
+                    ))}
                   </div>
                 </div>
-                <div className="max-h-[45vh] space-y-2 overflow-y-auto pb-2">
-                  {pickerEntries.map((entry) => (
-                    <button
-                      key={entry.id}
-                      type="button"
-                      className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2 text-left ${
-                        entry.selected
-                          ? 'border-primary bg-primary/10'
-                          : 'border-slate-200 bg-white'
-                      }`}
-                      onClick={entry.onChoose}
-                    >
-                      <div className="h-12 w-12 shrink-0 overflow-hidden rounded-md bg-slate-100">
-                        {entry.imageUrl ? (
-                          // eslint-disable-next-line @next/next/no-img-element -- menu images are external/base64
-                          <img
-                            src={entry.imageUrl}
-                            alt={entry.name}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : null}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-medium text-slate-900">
-                          {entry.name}
-                        </p>
-                        <p className="text-xs text-slate-500">
-                          +€{entry.price.toFixed(2)}
-                        </p>
-                      </div>
-                      {picker?.kind === 'group-multi' ? (
-                        <div
-                          className="ml-auto flex items-center gap-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            disabled={!entry.quantity}
-                            onClick={entry.onDecrease}
-                          >
-                            -
-                          </Button>
-                          <span className="min-w-[2ch] text-center text-xs font-semibold">
-                            {entry.quantity ?? 0}
-                          </span>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="h-7 w-7"
-                            onClick={entry.onIncrease}
-                          >
-                            +
-                          </Button>
-                        </div>
-                      ) : entry.selected ? (
-                        <Check className="h-4 w-4 text-primary" />
-                      ) : null}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </aside>
-          ) : null}
+              </aside>
+            ) : null}
+          </div>
         </div>
       </SheetContent>
     </Sheet>
