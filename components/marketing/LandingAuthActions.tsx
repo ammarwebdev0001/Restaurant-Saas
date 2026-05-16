@@ -6,7 +6,7 @@ import { useSession, signOut } from 'next-auth/react';
 import { LayoutDashboard, LogOut, Shield, User, User2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { isPlatformAdmin } from '@/lib/auth/admin';
+import { isPlatformAdminSession } from '@/lib/auth/admin';
 import { cn } from '@/lib/utils';
 
 export type LandingAuthActionsProps = {
@@ -27,8 +27,7 @@ export default function LandingAuthActions({
 }: LandingAuthActionsProps = {}) {
   const { data: session, status } = useSession();
   const [open, setOpen] = useState(false);
-  const showAdmin =
-    session?.user && isPlatformAdmin(session.user.email, session.user.role);
+  const showAdmin = isPlatformAdminSession(session?.user);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {

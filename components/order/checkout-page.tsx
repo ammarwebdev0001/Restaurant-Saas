@@ -434,6 +434,18 @@ export default function CheckoutPageClient({
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>{t('promotions')}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex items-center space-x-2 justify-between rounded-lg border border-border bg-card px-3 py-3">
+                  <input id="promo-code" type="text" className="text-sm p-2 rounded-lg w-full" placeholder={t('addPromoCode')} />
+                  <Button type="button" className="w-full" >{t('apply')}</Button>
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           <div className="space-y-4">
@@ -537,17 +549,7 @@ export default function CheckoutPageClient({
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>{t('promotions')}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center justify-between rounded-lg border border-border bg-card px-3 py-3">
-                  <input id="promo-code" type="text" className="text-sm p-2 rounded-lg " placeholder={t('addPromoCode')} />
-                  <Button type="button">{t('apply')}</Button>
-                </div>
-              </CardContent>
-            </Card>
+            
           </div>
         </div>
       </div>

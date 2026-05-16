@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'react-toastify';
+import { Loader2, SendHorizonal } from 'lucide-react';
 
 export default function DemoRequestPage() {
   const [name, setName] = useState('');
@@ -85,7 +86,17 @@ export default function DemoRequestPage() {
             disabled={loading}
             className="bg-gradient-to-r from-fire-500 via-fire-600 to-fire-500 text-white hover:from-fire-400 hover:to-fire-500"
           >
-            {loading ? 'Submitting...' : 'Submit Demo Request'}
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <span>Submitting...</span>
+              </>
+            ) : (
+              <>
+                <span>Submit Demo Request</span>
+                <SendHorizonal className="h-4 w-4 ml-1" />
+              </>
+            )}
           </Button>
         </form>
       </div>

@@ -17,6 +17,35 @@ function parsePrepMinutes(raw: unknown): number | null {
   return m;
 }
 
+type OrderLineForKitchen = {
+  quantity: number;
+  menuItem: { name: string };
+  modifiers: { name: string; quantity: number }[];
+};
+
+function buildKitchenTicketItemRows(
+  lines: OrderLineForKitchen[]
+): { productName: string; quantity: number }[] {
+  const rows: { productName: string; quantity: number }[] = [];
+  for (const line of lines) {
+    rows.push({
+      productName: line.menuItem.name,
+      quantity: line.quantity,
+    });
+    for (const mod of line.modifiers) {
+      const modName = String(mod.name || '').trim();
+      if (!modName) continue;
+      rows.push({
+        productName: `+ ${modName}`,
+        quantity: mod.quantity,
+      });
+    }
+  }
+  return rows;
+}
+
+const KDS_TX_OPTIONS = { maxWait: 10_000, timeout: 30_000 } as const;
+
 type TicketRow = {
   id: string;
   orderId: string;
@@ -181,6 +210,8 @@ export async function POST(req: NextRequest) {
         LIMIT 1
       `
     );
+    const itemRows = buildKitchenTicketItemRows(order.items);
+
     if (existing.length > 0) {
       const activeTicket = existing[0];
       if (String(activeTicket.status).toLowerCase() === 'making') {
@@ -188,69 +219,67 @@ export async function POST(req: NextRequest) {
       }
 
       await db.$transaction(async (tx) => {
-        await tx.$executeRaw(
-          Prisma.sql`
-            UPDATE "KitchenTicket"
-            SET "status" = 'making',
-                "selectedMinutes" = ${selectedMinutes},
-                "startedAt" = now(),
-                "updatedAt" = now()
-            WHERE "id" = ${activeTicket.id}
-          `
-        );
+        await tx.kitchenTicket.update({
+          where: { id: activeTicket.id },
+          data: {
+            status: 'making',
+            selectedMinutes,
+            startedAt: new Date(),
+          },
+        });
+
+        const existingItemCount = await tx.kitchenTicketItem.count({
+          where: { kitchenTicketId: activeTicket.id },
+        });
+        if (existingItemCount === 0 && itemRows.length > 0) {
+          await tx.kitchenTicketItem.createMany({
+            data: itemRows.map((row) => ({
+              kitchenTicketId: activeTicket.id,
+              productName: row.productName,
+              quantity: row.quantity,
+            })),
+          });
+        }
+
         await tx.order.update({
           where: { id: order.id },
           data: { status: 'making' },
         });
-      });
+      }, KDS_TX_OPTIONS);
 
       return NextResponse.json({ data: { id: activeTicket.id } }, { status: 200 });
     }
 
-    const ticketId = `kds_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    await db.$transaction(async (tx) => {
-      await tx.$executeRaw(
-        Prisma.sql`
-          INSERT INTO "KitchenTicket"
-            ("id","restaurantId","orderId","status","selectedMinutes","startedAt","createdAt","updatedAt")
-          VALUES
-            (${ticketId}, ${restaurant.id}, ${order.id}, 'making', ${selectedMinutes}, now(), now(), now())
-        `
-      );
+    const ticket = await db.$transaction(async (tx) => {
+      const created = await tx.kitchenTicket.create({
+        data: {
+          restaurantId: restaurant.id,
+          orderId: order.id,
+          status: 'making',
+          selectedMinutes,
+          startedAt: new Date(),
+        },
+      });
 
-      for (const line of order.items) {
-        const itemId = `kdsi_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-        await tx.$executeRaw(
-          Prisma.sql`
-            INSERT INTO "KitchenTicketItem"
-              ("id","kitchenTicketId","productName","quantity")
-            VALUES
-              (${itemId}, ${ticketId}, ${line.menuItem.name}, ${line.quantity})
-          `
-        );
-
-        for (const mod of line.modifiers) {
-          const modName = String(mod.name || '').trim();
-          if (!modName) continue;
-          const modId = `kdsi_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-          await tx.$executeRaw(
-            Prisma.sql`
-              INSERT INTO "KitchenTicketItem"
-                ("id","kitchenTicketId","productName","quantity")
-              VALUES
-                (${modId}, ${ticketId}, ${`+ ${modName}`}, ${mod.quantity})
-            `
-          );
-        }
+      if (itemRows.length > 0) {
+        await tx.kitchenTicketItem.createMany({
+          data: itemRows.map((row) => ({
+            kitchenTicketId: created.id,
+            productName: row.productName,
+            quantity: row.quantity,
+          })),
+        });
       }
 
       await tx.order.update({
         where: { id: order.id },
         data: { status: 'making' },
       });
-    });
 
-    return NextResponse.json({ data: { id: ticketId } }, { status: 201 });
+      return created;
+    }, KDS_TX_OPTIONS);
+
+    return NextResponse.json({ data: { id: ticket.id } }, { status: 201 });
   } catch (error) {
     console.error('kds tickets post', error);
     return NextResponse.json({ error: 'Failed to create ticket' }, { status: 500 });

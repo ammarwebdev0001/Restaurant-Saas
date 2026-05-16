@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
-import { isPlatformAdmin } from '@/lib/auth/admin';
+import { isPlatformAdminSession } from '@/lib/auth/admin';
 
 export function AdminGate({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -27,7 +27,7 @@ export function AdminGate({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isPlatformAdmin(session.user.email, session.user.role)) {
+  if (!isPlatformAdminSession(session.user)) {
     return (
       <div className="flex min-h-[50vh] flex-col items-center justify-center gap-2 p-6 text-center">
         <p className="font-medium">Access denied</p>

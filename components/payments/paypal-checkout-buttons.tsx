@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 
+import { AcceptedPaymentMethods } from '@/components/payments/accepted-payment-methods';
+
 declare global {
   interface Window {
     paypal?: any;
@@ -325,6 +327,13 @@ export function PayPalCheckoutButtons({
       ) : null}
       <div ref={paypalSlotRef} className="min-h-[44px]" />
       <div ref={cardSlotRef} className="min-h-[44px]" />
+      <AcceptedPaymentMethods
+        size="sm"
+        showPayPal
+        showLabel
+        label="Pay with PayPal or card"
+        className="pt-1"
+      />
     </div>
   );
 }

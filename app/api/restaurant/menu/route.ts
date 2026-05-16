@@ -9,7 +9,7 @@ const menuInclude = {
     orderBy: { name: "asc" as const },
     include: {
       items: {
-        orderBy: { name: "asc" as const },
+        orderBy: { updatedAt: "desc" as const },
         include: {
           variations: {
             orderBy: { sortOrder: "asc" as const },

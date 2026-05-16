@@ -19,6 +19,9 @@ import {
   Play,
   Layers,
   Star,
+  Send,
+  Loader2,
+  SendHorizonal,
 } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { toast } from 'react-toastify';
@@ -48,7 +51,10 @@ function HeroSection() {
   const { t } = useTranslation();
 
   const features = [
-    { icon: <TrendingUp className="h-5 w-5" />, label: t('marketing.hero.chip1') },
+    {
+      icon: <TrendingUp className="h-5 w-5" />,
+      label: t('marketing.hero.chip1'),
+    },
     { icon: <Clock className="h-5 w-5" />, label: t('marketing.hero.chip2') },
     { icon: <Star className="h-5 w-5" />, label: t('marketing.hero.chip3') },
     { icon: <Layers className="h-5 w-5" />, label: t('marketing.hero.chip4') },
@@ -67,7 +73,9 @@ function HeroSection() {
           <h1 className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight md:text-6xl lg:text-7xl">
             {t('marketing.hero.headline')}
             <br />
-            <span className="text-fire-500">{t('marketing.hero.headlineHighlight')}</span>
+            <span className="text-fire-500">
+              {t('marketing.hero.headlineHighlight')}
+            </span>
           </h1>
 
           <p className="mt-6 max-w-md text-base text-zinc-600 dark:text-zinc-400 md:text-lg">
@@ -95,7 +103,10 @@ function HeroSection() {
               asChild
               className="h-12 rounded-lg border border-zinc-200 bg-white px-7 text-base font-semibold text-zinc-900 transition-colors hover:bg-zinc-100 dark:border-zinc-800 dark:bg-zinc-950 dark:text-white dark:hover:bg-zinc-900"
             >
-              <Link href="/demo-request" className="inline-flex items-center gap-3">
+              <Link
+                href="/demo-request"
+                className="inline-flex items-center gap-3"
+              >
                 {t('marketing.hero.ctaSecondary')}
                 <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-zinc-900 text-white dark:bg-zinc-800">
                   <ArrowRight className="h-3.5 w-3.5" />
@@ -187,9 +198,13 @@ function FeaturesSection() {
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight md:text-5xl">
             {t('marketing.features.titleA')}{' '}
-            <span className="text-fire-500">{t('marketing.features.titleHighlight1')}</span>{' '}
+            <span className="text-fire-500">
+              {t('marketing.features.titleHighlight1')}
+            </span>{' '}
             {t('marketing.features.titleAnd')}{' '}
-            <span className="text-fire-500">{t('marketing.features.titleHighlight2')}</span>{' '}
+            <span className="text-fire-500">
+              {t('marketing.features.titleHighlight2')}
+            </span>{' '}
             {t('marketing.features.titleB')}
           </h2>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
@@ -198,12 +213,18 @@ function FeaturesSection() {
 
           {/* Decorative divider: fire line + diamond + fire line */}
           <div className="mt-6 flex items-center justify-center gap-3">
-            <span className="h-px w-16 bg-gradient-to-r from-transparent to-fire-500" aria-hidden="true" />
+            <span
+              className="h-px w-16 bg-gradient-to-r from-transparent to-fire-500"
+              aria-hidden="true"
+            />
             <span
               className="block h-2 w-2 rotate-45 border border-fire-500"
               aria-hidden="true"
             />
-            <span className="h-px w-16 bg-gradient-to-l from-transparent to-fire-500" aria-hidden="true" />
+            <span
+              className="h-px w-16 bg-gradient-to-l from-transparent to-fire-500"
+              aria-hidden="true"
+            />
           </div>
         </div>
 
@@ -265,7 +286,9 @@ function FeatureCard({
         />
       </div>
 
-      <h3 className="mt-6 text-xl font-bold text-zinc-900 dark:text-white">{title}</h3>
+      <h3 className="mt-6 text-xl font-bold text-zinc-900 dark:text-white">
+        {title}
+      </h3>
       <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
         {description}
       </p>
@@ -324,7 +347,9 @@ function StatsSection() {
                 <div
                   key={stat.label}
                   className={`flex items-center gap-5 px-6 py-7 md:px-8 ${
-                    idx > 0 ? 'sm:border-l sm:border-zinc-200 sm:dark:border-zinc-800/80 md:border-l-0' : ''
+                    idx > 0
+                      ? 'sm:border-l sm:border-zinc-200 sm:dark:border-zinc-800/80 md:border-l-0'
+                      : ''
                   }`}
                 >
                   <span className="shrink-0 text-fire-500" aria-hidden="true">
@@ -357,9 +382,7 @@ function ContactSection() {
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState<
-    | { kind: 'success'; text: string }
-    | { kind: 'error'; text: string }
-    | null
+    { kind: 'success'; text: string } | { kind: 'error'; text: string } | null
   >(null);
 
   async function handleContactSubmit(e: React.FormEvent) {
@@ -517,7 +540,9 @@ function ContactSection() {
                     required
                     value={message}
                     onChange={(e) => setMessage(e.target.value)}
-                    placeholder={t('marketing.contact.messagePlaceholder') as string}
+                    placeholder={
+                      t('marketing.contact.messagePlaceholder') as string
+                    }
                     className="w-full resize-none border-0 border-b border-zinc-300/80 bg-transparent px-0 py-2 text-sm text-zinc-900 placeholder:text-zinc-500 focus:border-fire-500 focus:outline-none focus:ring-0 dark:border-white/30 dark:text-white dark:placeholder:text-white/50 dark:focus:border-fire-400"
                   />
                 </div>
@@ -526,7 +551,17 @@ function ContactSection() {
                   disabled={sending}
                   className="mt-4 h-12 w-full rounded-2xl bg-gradient-to-r from-fire-500 via-fire-600 to-fire-500 text-sm font-semibold uppercase tracking-wide text-white shadow-[0_18px_40px_-12px] shadow-fire-500/60 transition-all hover:from-fire-400 hover:to-fire-500 hover:shadow-fire-500/80 disabled:opacity-60"
                 >
-                  {sending ? 'Sending…' : t('marketing.contact.submit')}
+                  {sending ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                      <span>Sending…</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>{t('marketing.contact.submit')}</span>
+                      <SendHorizonal className="h-4 w-4 ml-1" />
+                    </>
+                  )}
                 </Button>
                 {status && (
                   <div
@@ -605,7 +640,9 @@ function RecommendationsSection() {
         <div className="mx-auto max-w-3xl text-center">
           <h2 className="text-3xl font-bold tracking-tight md:text-5xl">
             {t('marketing.recommendations.titleA')}{' '}
-            <span className="text-fire-500">{t('marketing.recommendations.titleHighlight')}</span>{' '}
+            <span className="text-fire-500">
+              {t('marketing.recommendations.titleHighlight')}
+            </span>{' '}
             {t('marketing.recommendations.titleB')}
           </h2>
           <p className="mt-4 text-zinc-600 dark:text-zinc-400">
@@ -638,7 +675,11 @@ function RecommendationsSection() {
               {/* Play button */}
               <button
                 type="button"
-                aria-label={t('marketing.recommendations.playLabel', { name: item.name }) as string}
+                aria-label={
+                  t('marketing.recommendations.playLabel', {
+                    name: item.name,
+                  }) as string
+                }
                 className="absolute inset-0 z-10 flex items-center justify-center"
               >
                 <span className="inline-flex h-14 w-14 items-center justify-center rounded-full bg-white/95 text-fire-600 shadow-2xl transition-transform group-hover:scale-110">

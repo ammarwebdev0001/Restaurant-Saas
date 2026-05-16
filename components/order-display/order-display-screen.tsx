@@ -78,7 +78,7 @@ function trackingId(t: OrderDisplayTicket): string {
 }
 
 function tokenLabel(t: OrderDisplayTicket): string {
-  if (typeof t.ticketNumber === 'number' && t.ticketNumber > 0) {
+  if (typeof t.ticketNumber === 'number' && t.ticketNumber >= 0) {
     return String(t.ticketNumber).padStart(2, '0');
   }
   // Fallback when the daily ticket number isn't set yet (legacy orders) —

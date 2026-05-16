@@ -359,6 +359,10 @@ model MenuItemAttributeGroup {
   sortOrder        Int                    @default(0)
   selectionType    AttributeSelectionType @default(SINGLE)
   required         Boolean                @default(false)
+  /// Minimum selections for MULTIPLE groups (null for SINGLE).
+  minItems         Int?
+  /// Maximum selections for MULTIPLE groups (null = no cap).
+  maxItems         Int?
   linkedCategoryId String
 
   menuItem       MenuItem     @relation(fields: [menuItemId], references: [id], onDelete: Cascade)

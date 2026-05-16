@@ -53,6 +53,8 @@ const menuInclude = {
             name: true,
             selectionType: true,
             required: true,
+            minItems: true,
+            maxItems: true,
             sortOrder: true,
             linkedCategory: {
               select: {

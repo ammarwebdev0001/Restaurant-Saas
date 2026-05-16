@@ -2,16 +2,23 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { Menu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 import LandingAuthActions from '@/components/marketing/LandingAuthActions';
+import { cn } from '@/lib/utils';
 
 import { ThemeToggle } from './theme-toggle';
 import { LanguageSwitcher } from './language-switcher';
 
+function isNavLinkActive(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export default function Header() {
   const { t } = useTranslation();
+  const pathname = usePathname();
 
   const authLoggedOutClass =
     'rounded-lg bg-gradient-to-br from-fire-400 via-fire-500 to-fire-600 text-sm font-semibold text-white shadow-[0_10px_28px_-8px] shadow-fire-500/60 transition-all hover:from-fire-500 hover:to-fire-700 hover:shadow-fire-500/80';
@@ -49,15 +56,22 @@ export default function Header() {
 
         {/* Center nav */}
         <nav className="hidden flex-1 items-center justify-center gap-8 text-sm font-medium text-zinc-700 dark:text-white md:flex">
-          {navLinks.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              className="transition-colors hover:text-fire-500 dark:hover:text-fire-400"
-            >
-              {link.label}
-            </Link>
-          ))}
+          {navLinks.map((link) => {
+            const active = isNavLinkActive(pathname, link.href);
+            return (
+              <Link
+                key={link.href}
+                href={link.href}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'transition-colors hover:text-fire-500 dark:hover:text-fire-400',
+                  active && 'font-semibold text-fire-500 dark:text-fire-400'
+                )}
+              >
+                {link.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* Desktop actions */}
@@ -85,15 +99,23 @@ export default function Header() {
 
             <div className="absolute left-3 right-3 top-[calc(100%+0.75rem)] overflow-visible rounded-xl border border-zinc-200 bg-white/95 p-3 shadow-[0_18px_50px_-20px] shadow-black/30 backdrop-blur-md dark:border-zinc-800 dark:bg-black/95 dark:shadow-black">
               <nav className="flex flex-col gap-1 text-sm font-medium text-zinc-800 dark:text-white">
-                {navLinks.map((link) => (
-                  <Link
-                    key={link.href}
-                    href={link.href}
-                    className="rounded-lg px-3 py-3 transition-colors hover:bg-zinc-100 hover:text-fire-500 dark:hover:bg-zinc-900 dark:hover:text-fire-400"
-                  >
-                    {link.label}
-                  </Link>
-                ))}
+                {navLinks.map((link) => {
+                  const active = isNavLinkActive(pathname, link.href);
+                  return (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      aria-current={active ? 'page' : undefined}
+                      className={cn(
+                        'rounded-lg px-3 py-3 transition-colors hover:bg-zinc-100 hover:text-fire-500 dark:hover:bg-zinc-900 dark:hover:text-fire-400',
+                        active &&
+                          'bg-fire-50 font-semibold text-fire-500 dark:bg-fire-950/40 dark:text-fire-400'
+                      )}
+                    >
+                      {link.label}
+                    </Link>
+                  );
+                })}
               </nav>
 
               <LandingAuthActions

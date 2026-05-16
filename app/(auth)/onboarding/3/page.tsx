@@ -13,6 +13,7 @@ import {
   getOnboardingRestaurantId,
 } from "@/lib/onboarding/storage";
 import { OnboardingSteps } from "../OnboardingSteps";
+import { Loader2 } from "lucide-react";
 
 type BranchRow = { name: string; address: string; phone: string };
 
@@ -111,8 +112,8 @@ export default function OnboardingStep3Page() {
 
   if (status === "loading" || !restaurantId) {
     return (
-      <div className="rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground">
-        Loading…
+      <div className="rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground flex items-center justify-center">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
       </div>
     );
   }
@@ -132,7 +133,6 @@ export default function OnboardingStep3Page() {
             className="space-y-3 rounded-md border border-dashed p-3"
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-medium">Branch {i + 1}</span>
               {rows.length > 1 && (
                 <Button
                   type="button"
@@ -174,9 +174,7 @@ export default function OnboardingStep3Page() {
           </div>
         ))}
 
-        <Button type="button" variant="outline" onClick={addRow}>
-          Add another branch
-        </Button>
+      
 
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
           <Button
@@ -188,7 +186,9 @@ export default function OnboardingStep3Page() {
             Skip — finish without branches
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? "Saving…" : "Finish"}
+            {loading ? <>
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Finishing…</span>
+            </> : "Finish"}
           </Button>
         </div>
       </form>

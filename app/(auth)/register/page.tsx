@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PublicAuthShell } from '@/components/marketing/public-auth-shell';
 import { REGISTER_ROLE_SLUG } from '@/lib/global-roles';
+import { Loader2, UserPlus } from 'lucide-react';
 
 type GoogleSignupRole = 'OWNER' | 'WORKER';
 
@@ -270,7 +271,9 @@ export default function RegisterPage() {
           type="submit"
           className="h-11 w-full bg-gradient-to-r from-fire-500 via-fire-600 to-fire-500 text-white shadow-[0_16px_34px_-14px] shadow-fire-500/70 hover:from-fire-400 hover:to-fire-500"
         >
-          {loading ? 'Creating...' : 'Sign up'}
+          {loading ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Creating account…</span></> : <>
+          <UserPlus className="h-4 w-4 mr-2" /> <span>Sign up</span>
+          </>}
         </Button>
 
         <div className="text-center text-sm text-zinc-600 dark:text-zinc-400">

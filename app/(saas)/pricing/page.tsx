@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Prisma } from '@prisma/client';
-import { Headphones, Lock, RefreshCcw, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Headphones, Lock, RefreshCcw, SendHorizonal, ShieldCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { db } from '@/lib/db';
 import { getAppSession } from '@/lib/auth/app-session';
@@ -164,7 +164,10 @@ export default async function PricingPage() {
                               )}`
                         }
                       >
-                        Choose {plan.name}
+                        <>
+                          <span>Choose {plan.name}</span>
+                          <ArrowRight className="h-4 w-4 ml-1" />
+                        </>
                       </Link>
                     </Button>
                     <Button
@@ -172,7 +175,7 @@ export default async function PricingPage() {
                       variant="outline"
                       asChild
                     >
-                      <Link href="/demo-request">Request demo for trial</Link>
+                      <Link href="/demo-request">Request demo for trial <SendHorizonal className="h-4 w-4 ml-1" /></Link>
                     </Button>
                   </>
                 )}

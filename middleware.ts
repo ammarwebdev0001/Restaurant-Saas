@@ -2,12 +2,18 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
+import { isPlatformAdmin } from "@/lib/auth/admin";
+
 /** Same fallback as `authOptions.secret` in `lib/auth-options.ts` (dev only). */
 function resolveNextAuthJwtSecret(): string | undefined {
   const fromEnv = process.env.NEXTAUTH_SECRET?.trim();
   if (fromEnv) return fromEnv;
   if (process.env.NODE_ENV !== "production") return "dev-nextauth-secret";
   return undefined;
+}
+
+function isAdminPath(pathname: string): boolean {
+  return pathname === "/admin" || pathname.startsWith("/admin/");
 }
 
 /** Staff-facing terminals: require a signed-in session (JWT) at the edge. */
@@ -43,11 +49,13 @@ export async function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const pathname = url.pathname;
 
-  if (isStaffTerminalPath(pathname)) {
+  const needsAuth = isStaffTerminalPath(pathname) || isAdminPath(pathname);
+
+  if (needsAuth) {
     const secret = resolveNextAuthJwtSecret();
     if (!secret) {
       console.error(
-        "[middleware] NEXTAUTH_SECRET is missing in production; cannot verify staff routes."
+        "[middleware] NEXTAUTH_SECRET is missing in production; cannot verify protected routes."
       );
       const login = new URL("/login", req.url);
       login.searchParams.set("callbackUrl", `${pathname}${url.search}`);
@@ -58,6 +66,17 @@ export async function middleware(req: NextRequest) {
       const login = new URL("/login", req.url);
       login.searchParams.set("callbackUrl", `${pathname}${url.search}`);
       return NextResponse.redirect(login);
+    }
+    if (isAdminPath(pathname)) {
+      const email =
+        typeof token.email === "string" ? token.email : undefined;
+      const role =
+        typeof token.role === "string" ? token.role : undefined;
+      const allowed =
+        token.platformAdmin === true || isPlatformAdmin(email, role);
+      if (!allowed) {
+        return NextResponse.redirect(new URL("/", req.url));
+      }
     }
   }
 

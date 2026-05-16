@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { SaveConfirmation } from '@/components/ui/confirmation-dialogs';
+import { Loader2, Save } from 'lucide-react';
 
 const KEYS = [
   {
@@ -86,7 +87,13 @@ export default function AdminSettingsPage() {
             </div>
           ))}
           <Button type="button" disabled={saving} onClick={() => setShowSaveConfirmation(true)}>
-            {saving ? "Saving..." : "Save changes"}
+            {saving ? <>
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Saving...</span>
+              </> : <>
+              <Save className="h-4 w-4 mr-2" />
+              <span>Save changes</span>
+              </>}
           </Button>
         </CardContent>
       </Card>

@@ -104,6 +104,8 @@ type CustomerMenuProduct = {
     name: string;
     selectionType: 'SINGLE' | 'MULTIPLE';
     required: boolean;
+    minItems: number | null;
+    maxItems: number | null;
     linkedCategory: {
       id: string;
       name: string;
@@ -457,6 +459,8 @@ export function KioskApp({ slug }: { slug: string }) {
       name: g.name,
       selectionType: g.selectionType,
       required: g.required,
+      minItems: g.minItems,
+      maxItems: g.maxItems,
       linkedCategoryName: g.linkedCategory?.name ?? null,
       items: g.linkedCategory.items.map((it) => ({
         menuItemId: it.id,

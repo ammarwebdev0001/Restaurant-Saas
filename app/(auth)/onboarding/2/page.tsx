@@ -1,13 +1,13 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
 
 import { Button } from "@/components/ui/button";
 import { Base64ImageUploadField } from "@/components/ui/base64-image-upload";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getOnboardingRestaurantId } from "@/lib/onboarding/storage";
 import { OnboardingSteps } from "../OnboardingSteps";
@@ -62,9 +62,9 @@ export default function OnboardingStep2Page() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           restaurantId,
-          logoUrl: logoUrl.trim() || undefined,
-          mainBannerUrl: mainBannerUrl.trim() || undefined,
-          menuBannerUrls: urls.length ? urls : [],
+          logoUrl: logoUrl.trim(),
+          mainBannerUrl: mainBannerUrl.trim(),
+          menuBannerUrls: urls,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -83,19 +83,26 @@ export default function OnboardingStep2Page() {
     }
   }
 
+  const canContinue = useMemo(() => {
+    const logo = logoUrl.trim();
+    const main = mainBannerUrl.trim();
+    const hasMenuBanner = menuBanners.some((u) => u.trim().length > 0);
+    return logo.length > 0 && main.length > 0 && hasMenuBanner;
+  }, [logoUrl, mainBannerUrl, menuBanners]);
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!canContinue) {
+      toast.error("Logo, main banner, and at least one menu banner are required.");
+      return;
+    }
     await save(true);
-  }
-
-  function skip() {
-    router.push("/onboarding/3");
   }
 
   if (status === "loading" || !restaurantId) {
     return (
-      <div className="rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground">
-        Loading…
+      <div className="rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground flex items-center justify-center">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
       </div>
     );
   }
@@ -103,10 +110,9 @@ export default function OnboardingStep2Page() {
   return (
     <div className="rounded-lg border bg-background p-6 shadow-sm">
       <OnboardingSteps active={2} />
-      <h1 className="mb-1 text-xl font-semibold">Branding (optional)</h1>
+      <h1 className="mb-1 text-xl font-semibold">Branding</h1>
       <p className="mb-6 text-sm text-muted-foreground">
-        Add image URLs for your logo, main banner, and banners shown in the
-        menu. You can skip this step.
+        Upload your logo, main banner, and at least one menu banner to continue.
       </p>
 
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
@@ -114,16 +120,17 @@ export default function OnboardingStep2Page() {
           label="Logo"
           value={logoUrl}
           onChange={setLogoUrl}
-          helperText="You can upload an image file (saved as base64) or paste URL."
+          helperText="Required. Upload an image or paste a URL."
         />
         <Base64ImageUploadField
-          label="Main banner (optional)"
+          label="Main banner"
           value={mainBannerUrl}
           onChange={setMainBannerUrl}
+          helperText="Required."
         />
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <Label>Menu banners</Label>
+            <Label>Menu banner</Label>
             <Button
               type="button"
               variant="outline"
@@ -154,17 +161,16 @@ export default function OnboardingStep2Page() {
             </div>
           ))}
         </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
-          <Button
-            type="button"
-            variant="secondary"
-            onClick={skip}
-            disabled={loading}
-          >
-            Skip this step
-          </Button>
-          <Button type="submit" disabled={loading}>
-            {loading ? "Saving…" : "Continue"}
+        <div className="flex justify-end">
+          <Button type="submit" className="w-full" disabled={loading || !canContinue}>
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Saving…
+              </>
+            ) : (
+              "Continue"
+            )}
           </Button>
         </div>
       </form>

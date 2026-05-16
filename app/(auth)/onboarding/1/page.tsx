@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { setOnboardingRestaurantId } from "@/lib/onboarding/storage";
 import { OnboardingSteps } from "../OnboardingSteps";
+import { ArrowRight, Loader2 } from "lucide-react";
 
 export default function OnboardingStep1Page() {
   const router = useRouter();
@@ -72,9 +73,9 @@ export default function OnboardingStep1Page() {
 
   if (status === "loading") {
     return (
-      <div className="rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground">
-        Loading…
-      </div>
+      <div className="rounded-lg border bg-background p-6 text-center text-sm text-muted-foreground flex items-center justify-center">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
+        </div>
     );
   }
 
@@ -118,7 +119,13 @@ export default function OnboardingStep1Page() {
           </p>
         </div>
         <Button type="submit" disabled={loading}>
-          {loading ? "Saving…" : "Continue"}
+          {loading ?<>
+          <Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Creating restaurant…</span>
+          </> 
+           : <>
+           <span>Continue</span>
+           <ArrowRight className="h-4 w-4 ml-2" />
+           </>}
         </Button>
       </form>
     </div>

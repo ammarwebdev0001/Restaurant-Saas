@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
+import { OrderSourceType } from '@prisma/client';
 
 import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
@@ -26,6 +27,8 @@ export async function GET(_req: NextRequest) {
       where: {
         restaurantId: restaurant.id,
         status: { in: ['pending', 'pedding'] },
+        // POS sends straight to kitchen after checkout; not queued here.
+        sourceType: { not: OrderSourceType.POS },
       },
       orderBy: { createdAt: 'desc' },
       take: 100,

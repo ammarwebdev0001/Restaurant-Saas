@@ -27,9 +27,11 @@ import {
   buildCustomerMenuRequestUrl,
   inferHostSubdomainForMenu,
 } from '@/lib/customer-menu-client';
+import { getMenuItemDisplayPrice } from '@/lib/menu-item-pricing';
 import { orderPathWithQuery } from '@/lib/order-search-params';
 import { setUiLanguage } from '@/lib/i18n/client';
 import type { UiLanguage } from '@/lib/i18n/resources';
+import { Pencil, Trash2 } from 'lucide-react';
 
 export type OrderPageProps = {
   orderType: 'delivery' | 'pickUp';
@@ -59,6 +61,8 @@ type CustomerMenuProduct = {
     name: string;
     selectionType: 'SINGLE' | 'MULTIPLE';
     required: boolean;
+    minItems: number | null;
+    maxItems: number | null;
     linkedCategory: {
       id: string;
       name: string;
@@ -276,11 +280,8 @@ function ProductCard({
   showCustomizeIndicator: boolean;
 }) {
   const { t } = useTranslation();
-  const display = effectiveUnitPrice(product.price, product.salePrice);
-  const hasSale =
-    product.salePrice != null &&
-    product.salePrice > 0 &&
-    product.salePrice < product.price;
+  const priceDisplay = getMenuItemDisplayPrice(product);
+  const hasSale = priceDisplay.compareAt != null;
 
   return (
     <Card className="bg-card cursor-pointer" onClick={onAdd}>
@@ -306,12 +307,17 @@ function ProductCard({
         ) : null}
         <div className="flex items-center justify-between">
           <span className="font-bold">
-            {hasSale ? (
-              <span className="mr-2 text-sm font-normal text-muted-foreground line-through">
-                €{product.price.toFixed(2)}
+            {priceDisplay.prefix ? (
+              <span className="mr-1 text-sm font-normal text-muted-foreground">
+                {priceDisplay.prefix}
               </span>
             ) : null}
-            €{display.toFixed(2)}
+            {hasSale ? (
+              <span className="mr-2 text-sm font-normal text-muted-foreground line-through">
+                €{priceDisplay.compareAt!.toFixed(2)}
+              </span>
+            ) : null}
+            €{priceDisplay.amount.toFixed(2)}
           </span>
           <Button size="sm" onClick={onAdd} type="button">
             {showCustomizeIndicator ? t('customizePlus') : t('addPlus')}
@@ -683,6 +689,8 @@ export default function OrderPageClient({
       name: g.name,
       selectionType: g.selectionType,
       required: g.required,
+      minItems: g.minItems,
+      maxItems: g.maxItems,
       linkedCategoryName: g.linkedCategory?.name ?? null,
       items: g.linkedCategory.items.map((it) => ({
         menuItemId: it.id,
@@ -1003,15 +1011,16 @@ export default function OrderPageClient({
                                     onClick={() => removeFromCart(line.lineId)}
                                     type="button"
                                   >
-                                    {t('remove')}
+                                    { <Trash2 className="h-3 w-3 mr-1" />} {t('remove')}
                                   </Button>
                                   {isCustomized ? (
                                     <Button
                                       variant="secondary"
+                                      size="sm"
                                       onClick={() => openModifyForLine(line)}
                                       type="button"
                                     >
-                                      {t('modify')}
+                                      { <Pencil className="h-3 w-3 mr-1" />} {t('modify')}
                                     </Button>
                                   ) : null}
                                 </div>
@@ -1019,7 +1028,7 @@ export default function OrderPageClient({
                             );
                           })()}
                         </div>
-                        <span>€{lineTotal(line).toFixed(2)}</span>
+                        <span className="text-sm font-medium">€{lineTotal(line).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>

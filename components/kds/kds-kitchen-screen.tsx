@@ -30,7 +30,7 @@ function tokenLabel(t: {
   shortOrderId: string | null;
   orderId: string;
 }): string {
-  if (typeof t.ticketNumber === 'number' && t.ticketNumber > 0) {
+  if (typeof t.ticketNumber === 'number' && t.ticketNumber >= 0) {
     return String(t.ticketNumber).padStart(2, '0');
   }
   return (t.shortOrderId ?? t.orderId.slice(0, 6)).toUpperCase();

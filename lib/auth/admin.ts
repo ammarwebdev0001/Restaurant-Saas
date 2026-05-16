@@ -33,6 +33,18 @@ export function isPlatformAdmin(
   return getAdminEmails().includes(email.toLowerCase());
 }
 
+/** Client-safe: uses JWT/session flags set from `ADMIN_EMAIL` / `ADMIN_EMAILS` on the server. */
+export function isPlatformAdminSession(
+  user:
+    | { role?: string | null; isPlatformAdmin?: boolean }
+    | null
+    | undefined
+): boolean {
+  if (!user) return false;
+  if (user.isPlatformAdmin === true) return true;
+  return user.role === "ADMIN";
+}
+
 /**
  * NextAuth JWT/session `role`: set to `ADMIN` when the user qualifies as platform admin
  * (`isPlatformAdmin`). Use after loading the account role from DB so env allowlists and

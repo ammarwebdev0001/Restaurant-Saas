@@ -5,7 +5,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { verifyPassword } from "@/lib/auth/password";
 import { legacyRoleFromAccountRole } from "@/lib/auth/account-role";
-import { jwtRoleFromAccount } from "@/lib/auth/admin";
+import { isPlatformAdmin, jwtRoleFromAccount } from "@/lib/auth/admin";
 
 const credentialsSchema = z.object({
   email: z.string().email(),
@@ -165,6 +165,10 @@ export const authOptions: NextAuthOptions = {
             ? token.role
             : "UNKNOW";
         token.role = jwtRoleFromAccount(String(token.email), r);
+        token.platformAdmin = isPlatformAdmin(
+          String(token.email),
+          typeof token.role === "string" ? token.role : undefined
+        );
       }
 
       if (token.id && !token.sub) token.sub = String(token.id);
@@ -189,6 +193,7 @@ export const authOptions: NextAuthOptions = {
         }
         if (token.email) session.user.email = token.email as string;
         if (token.name) session.user.name = String(token.name);
+        session.user.isPlatformAdmin = token.platformAdmin === true;
       }
       return session;
     },

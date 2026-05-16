@@ -15,6 +15,29 @@ const bodySchema = z
     menuBannerUrls: z.array(z.string().max(2_800_000)).max(20).optional(),
   })
   .superRefine((val, ctx) => {
+    if (!val.logoUrl?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Logo is required.",
+        path: ["logoUrl"],
+      });
+    }
+    if (!val.mainBannerUrl?.trim()) {
+      ctx.addIssue({
+        code: "custom",
+        message: "Main banner is required.",
+        path: ["mainBannerUrl"],
+      });
+    }
+    const menuUrls = (val.menuBannerUrls ?? []).map((u) => u.trim()).filter(Boolean);
+    if (menuUrls.length === 0) {
+      ctx.addIssue({
+        code: "custom",
+        message: "At least one menu banner is required.",
+        path: ["menuBannerUrls"],
+      });
+    }
+
     const check = (label: string, v: string | undefined, path: (string | number)[]) => {
       if (!v || !v.trim()) return;
       if (!isAcceptedImageValue(v)) {
@@ -76,13 +99,14 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Restaurant not found." }, { status: 404 });
   }
 
+  const menuUrls = (menuBannerUrls ?? []).map((u) => u.trim()).filter(Boolean);
+
   const updated = await db.restaurant.update({
     where: { id: restaurantId },
     data: {
-      logoUrl: logoUrl === "" ? null : logoUrl ?? undefined,
-      mainBannerUrl: mainBannerUrl === "" ? null : mainBannerUrl ?? undefined,
-      menuBannerUrls:
-        menuBannerUrls !== undefined ? menuBannerUrls : undefined,
+      logoUrl: logoUrl!.trim(),
+      mainBannerUrl: mainBannerUrl!.trim(),
+      menuBannerUrls: menuUrls,
     },
   });
 

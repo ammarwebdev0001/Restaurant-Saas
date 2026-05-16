@@ -34,7 +34,7 @@ function tokenLabel(o: {
   shortOrderId: string | null;
   id: string;
 }): string {
-  if (typeof o.ticketNumber === 'number' && o.ticketNumber > 0) {
+  if (typeof o.ticketNumber === 'number' && o.ticketNumber >= 0) {
     return String(o.ticketNumber).padStart(2, '0');
   }
   // Fallback for legacy orders without a token: use the short id so the

@@ -1,3 +1,4 @@
+import { AcceptedPaymentMethods } from '@/components/payments/accepted-payment-methods';
 import { Button } from '@/components/ui/button';
 
 export function Footer() {
@@ -36,6 +37,7 @@ export function Footer() {
           </div>
         </div>
         <div className="flex flex-col justify-between gap-3 text-xs text-white/80">
+          <AcceptedPaymentMethods variant="on-dark" size="sm" showPayPal />
           <p>
             Powered by <span className="text-white">Foodluk</span>
           </p>

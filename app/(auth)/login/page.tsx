@@ -7,13 +7,13 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { signIn } from 'next-auth/react';
 import { getSession, useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
-import { Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LogIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PublicAuthShell } from '@/components/marketing/public-auth-shell';
 import { IconBrandGoogleFilled } from '@tabler/icons-react';
-import { isPlatformAdmin } from '@/lib/auth/admin';
+import { isPlatformAdminSession } from '@/lib/auth/admin';
 
 function safeCallbackUrl(raw: string | null): string {
   if (!raw || !raw.startsWith('/') || raw.startsWith('//')) {
@@ -23,11 +23,13 @@ function safeCallbackUrl(raw: string | null): string {
 }
 
 function roleDefaultPath(
-  email: string | null | undefined,
+  user:
+    | { role?: string | null; roleName?: string | null; isPlatformAdmin?: boolean }
+    | undefined,
   roleName: string | null | undefined,
   legacyRole: string | null | undefined
 ): string {
-  if (isPlatformAdmin(email, legacyRole)) return '/admin/dashboard';
+  if (isPlatformAdminSession(user)) return '/admin/dashboard';
   const normalizedName = (roleName ?? '').trim().toLowerCase();
   if (normalizedName === 'user') return '/';
   if (legacyRole === 'USER') return '/';
@@ -46,6 +48,7 @@ function postLoginPath(
         roleId?: string | null;
         roleName?: string | null;
         role?: string | null;
+        isPlatformAdmin?: boolean;
       }
     | undefined,
   hasExplicitCallback: boolean,
@@ -53,13 +56,13 @@ function postLoginPath(
 ): string {
   if (hasExplicitCallback) return callbackUrl;
 
-  const legacyRole = user?.role ?? undefined;
-  if (isPlatformAdmin(user?.email, legacyRole)) return '/admin/dashboard';
+  if (isPlatformAdminSession(user)) return '/admin/dashboard';
 
+  const legacyRole = user?.role ?? undefined;
   const roleId = user?.roleId;
   if (roleId == null || roleId === '') return '/';
 
-  return roleDefaultPath(user?.email, user?.roleName, legacyRole);
+  return roleDefaultPath(user, user?.roleName, legacyRole);
 }
 
 function LoginForm() {
@@ -142,7 +145,7 @@ function LoginForm() {
       }
       const fresh = await getSession();
       const nextPath = postLoginPath(
-        fresh?.user, 
+        fresh?.user,
         hasExplicitCallback,
         callbackUrl
       );
@@ -155,73 +158,90 @@ function LoginForm() {
   }
 
   return (
-    <PublicAuthShell title="Sign in" subtitle="Use your email + password to SignIn.">
-
-        <div className="flex flex-col gap-2">
-          {/* <Button onClick={handleGoogle} disabled={loading} variant="secondary">
+    <PublicAuthShell
+      title="Sign in"
+      subtitle="Use your email + password to SignIn."
+    >
+      <div className="flex flex-col gap-2">
+        {/* <Button onClick={handleGoogle} disabled={loading} variant="secondary">
             <IconBrandGoogleFilled className="mr-1 h-4 w-4" /> Continue with Google
           </Button> */}
+      </div>
+
+      {/* <div className="my-6 border-t" /> */}
+
+      <form onSubmit={handleCredentials} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="email">Email</Label>
+          <Input
+            id="email"
+            name="email"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            required
+          />
         </div>
 
-        {/* <div className="my-6 border-t" /> */}
-
-        <form onSubmit={handleCredentials} className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="email">Email</Label>
+        <div className="flex flex-col gap-2">
+          <Label htmlFor="password">Password</Label>
+          <div className="relative">
             <Input
-              id="email"
-              name="email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              autoComplete="email"
+              id="password"
+              name="password"
+              type={showPassword ? 'text' : 'password'}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              className="pr-10"
               required
             />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-0 top-0 h-9 w-9 text-muted-foreground hover:text-foreground"
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
+              onClick={() => setShowPassword((v) => !v)}
+            >
+              {showPassword ? (
+                <EyeOff className="h-4 w-4" aria-hidden />
+              ) : (
+                <Eye className="h-4 w-4" aria-hidden />
+              )}
+            </Button>
           </div>
+        </div>
 
-          <div className="flex flex-col gap-2">
-            <Label htmlFor="password">Password</Label>
-            <div className="relative">
-              <Input
-                id="password"
-                name="password"
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                autoComplete="current-password"
-                className="pr-10"
-                required
-              />
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="absolute right-0 top-0 h-9 w-9 text-muted-foreground hover:text-foreground"
-                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                onClick={() => setShowPassword((v) => !v)}
-              >
-                {showPassword ? (
-                  <EyeOff className="h-4 w-4" aria-hidden />
-                ) : (
-                  <Eye className="h-4 w-4" aria-hidden />
-                )}
-              </Button>
-            </div>
-          </div>
+        <Button
+          disabled={loading}
+          type="submit"
+          className="h-11 w-full bg-gradient-to-r from-fire-500 via-fire-600 to-fire-500 text-white shadow-[0_16px_34px_-14px] shadow-fire-500/70 hover:from-fire-400 hover:to-fire-500"
+        >
+          {' '}
+          {loading ? (
+            <>
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />{' '}
+              <span>Signing in…</span>
+            </>
+          ) : (
+            <>
+              {' '}
+              <LogIn className="h-4 w-4 mr-2" /> <span>Login</span>
+            </>
+          )}
+        </Button>
 
-          <Button disabled={loading} type="submit">
-            {loading ? 'Signing in...' : 'Login'}
-          </Button>
-
-          <div className="flex items-center justify-between text-sm">
-            <Link className="text-primary underline" href="/reset-password">
-              Forgot password?
-            </Link>
-            <Link className="text-primary underline" href="/register">
-              Create account
-            </Link>
-          </div>
-        </form>
+        <div className="flex items-center justify-between text-sm">
+          <Link className="text-primary underline" href="/reset-password">
+            Forgot password?
+          </Link>
+          <Link className="text-primary underline" href="/register">
+            Create account
+          </Link>
+        </div>
+      </form>
     </PublicAuthShell>
   );
 }
@@ -231,7 +251,9 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <main className="flex min-h-screen items-center justify-center bg-white dark:bg-black">
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin text-primary mx-auto" />
+          </p>
         </main>
       }
     >

@@ -26,6 +26,8 @@ export type AttributeGroup = {
   name: string;
   selectionType: 'SINGLE' | 'MULTIPLE';
   required: boolean;
+  minItems?: number | null;
+  maxItems?: number | null;
   linkedCategoryName?: string | null;
   items: (Omit<MenuOption, 'unitPrice'> & {
     price: number;
@@ -58,6 +60,22 @@ export type SelectedProductVariation = {
 function effectiveUnitPrice(price: number, salePrice: number | null) {
   if (salePrice != null && salePrice > 0 && salePrice < price) return salePrice;
   return price;
+}
+
+function multiSelectionHint(
+  minItems: number | null | undefined,
+  maxItems: number | null | undefined
+): string {
+  if (minItems != null && maxItems != null) {
+    return `Choose ${minItems}–${maxItems} options`;
+  }
+  if (minItems != null) return `Choose at least ${minItems}`;
+  if (maxItems != null) return `Choose up to ${maxItems}`;
+  return 'Choose one or more';
+}
+
+function groupSelectionCount(selectedIds: string[]) {
+  return selectedIds.length;
 }
 
 type Props = {
@@ -173,9 +191,17 @@ export function ProductCustomizeDialog({
   }, [open, attributeGroups]);
 
   const requiredMissing = useMemo(() => {
-    const missingAttrs = attributeGroups
-      .filter((g) => g.required)
-      .some((g) => (selectedByGroup[g.id] ?? []).length === 0);
+    const missingAttrs = attributeGroups.some((g) => {
+      const count = groupSelectionCount(selectedByGroup[g.id] ?? []);
+      if (g.selectionType === 'SINGLE') {
+        return g.required && count === 0;
+      }
+      const min = g.minItems ?? (g.required ? 1 : 0);
+      if (g.required && count < min) return true;
+      if (count > 0 && min > 0 && count < min) return true;
+      if (g.maxItems != null && count > g.maxItems) return true;
+      return false;
+    });
     const missingVariation = variations.length > 0 && !selectedVariationId;
     const missingNestedVariation = attributeGroups.some((g) => {
       const selectedIds = selectedByGroup[g.id] ?? [];
@@ -210,29 +236,42 @@ export function ProductCustomizeDialog({
     }));
   };
 
-  const toggleMulti = (groupId: string, optionId: string) => {
+  const toggleMulti = (group: AttributeGroup, optionId: string) => {
     setSelectedByGroup((prev) => {
-      const cur = prev[groupId] ?? [];
+      const cur = prev[group.id] ?? [];
       const has = cur.includes(optionId);
       if (has) {
         setSelectedNestedVariationByOption((prevVar) => {
           const next = { ...prevVar };
-          delete next[`${groupId}:${optionId}`];
+          delete next[`${group.id}:${optionId}`];
           return next;
         });
+        return {
+          ...prev,
+          [group.id]: cur.filter((x) => x !== optionId),
+        };
+      }
+      if (group.maxItems != null && cur.length >= group.maxItems) {
+        return prev;
       }
       return {
         ...prev,
-        [groupId]: has ? cur.filter((x) => x !== optionId) : [...cur, optionId],
+        [group.id]: [...cur, optionId],
       };
     });
   };
 
-  const increaseMultiQty = (groupId: string, optionId: string) => {
-    setSelectedByGroup((prev) => ({
-      ...prev,
-      [groupId]: [...(prev[groupId] ?? []), optionId],
-    }));
+  const increaseMultiQty = (group: AttributeGroup, optionId: string) => {
+    setSelectedByGroup((prev) => {
+      const cur = prev[group.id] ?? [];
+      if (group.maxItems != null && cur.length >= group.maxItems) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [group.id]: [...cur, optionId],
+      };
+    });
   };
 
   const decreaseMultiQty = (groupId: string, optionId: string) => {
@@ -423,6 +462,17 @@ export function ProductCustomizeDialog({
     return item ? `Select ${item.name} variation` : 'Select variation';
   }, [attributeGroups, picker]);
 
+  const pickerSubtitle = useMemo(() => {
+    if (!picker || picker.kind !== 'group-multi') return null;
+    const group = attributeGroups.find((g) => g.id === picker.groupId);
+    if (!group) return null;
+    const count = groupSelectionCount(selectedByGroup[group.id] ?? []);
+    const hint = multiSelectionHint(group.minItems, group.maxItems);
+    const progress =
+      group.maxItems != null ? ` · Selected ${count} / ${group.maxItems}` : ` · Selected ${count}`;
+    return `${hint}${progress}`;
+  }, [attributeGroups, picker, selectedByGroup]);
+
   const pickerEntries = useMemo(() => {
     if (!picker)
       return [] as Array<{
@@ -505,9 +555,14 @@ export function ProductCustomizeDialog({
         selected: selected.includes(it.menuItemId),
         quantity: selected.filter((x) => x === it.menuItemId).length,
         onChoose: () => {
-          increaseMultiQty(group.id, it.menuItemId);
+          const qty = selected.filter((x) => x === it.menuItemId).length;
+          if (qty > 0) {
+            decreaseMultiQty(group.id, it.menuItemId);
+            return;
+          }
+          increaseMultiQty(group, it.menuItemId);
         },
-        onIncrease: () => increaseMultiQty(group.id, it.menuItemId),
+        onIncrease: () => increaseMultiQty(group, it.menuItemId),
         onDecrease: () => decreaseMultiQty(group.id, it.menuItemId),
       }));
     }
@@ -660,7 +715,13 @@ export function ProductCustomizeDialog({
                 ) : (
                   attributeGroups.map((g) => {
                     const selectedIds = selectedByGroup[g.id] ?? [];
-                    const missing = g.required && selectedIds.length === 0;
+                    const count = groupSelectionCount(selectedIds);
+                    const min = g.minItems ?? (g.required ? 1 : 0);
+                    const missing =
+                      g.selectionType === 'SINGLE'
+                        ? g.required && count === 0
+                        : (g.required && count < min) ||
+                          (count > 0 && min > 0 && count < min);
 
                     return (
                       <section
@@ -686,13 +747,29 @@ export function ProductCustomizeDialog({
                             <p className="shrink-0 text-xs text-muted-foreground">
                               {g.selectionType === 'SINGLE'
                                 ? 'Optional'
-                                : 'Choose one or more'}
+                                : multiSelectionHint(g.minItems, g.maxItems)}
                             </p>
                           )}
                         </div>
+                        {g.selectionType === 'MULTIPLE' &&
+                        (g.minItems != null || g.maxItems != null) ? (
+                          <p className="mt-1 text-xs text-muted-foreground">
+                            Selected {count}
+                            {g.maxItems != null ? ` / ${g.maxItems}` : ''}
+                            {g.minItems != null && g.maxItems != null
+                              ? ` · need ${g.minItems}–${g.maxItems}`
+                              : g.minItems != null
+                                ? ` · need at least ${g.minItems}`
+                                : g.maxItems != null
+                                  ? ` · up to ${g.maxItems}`
+                                  : ''}
+                          </p>
+                        ) : null}
                         {missing ? (
                           <p className="mt-1 text-xs text-destructive">
-                            Please select an option
+                            {g.selectionType === 'SINGLE'
+                              ? 'Please select an option'
+                              : `Please select at least ${min} option${min === 1 ? '' : 's'}`}
                           </p>
                         ) : null}
 
@@ -888,12 +965,19 @@ export function ProductCustomizeDialog({
                 <div className="w-full max-h-[min(55dvh,28rem)] shrink-0 overflow-hidden rounded-t-2xl border-t border-border bg-card p-4 shadow-2xl animate-in slide-in-from-bottom-6 duration-300 ease-out">
                   <div className="mx-auto mb-3 h-1.5 w-10 rounded-full bg-muted" />
                   <div className="mb-3 flex items-center justify-between gap-2">
-                    <h3
-                      id="product-customize-picker-title"
-                      className="text-base font-semibold text-foreground"
-                    >
-                      {pickerTitle}
-                    </h3>
+                    <div className="min-w-0 flex-1">
+                      <h3
+                        id="product-customize-picker-title"
+                        className="text-base font-semibold text-foreground"
+                      >
+                        {pickerTitle}
+                      </h3>
+                      {pickerSubtitle ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          {pickerSubtitle}
+                        </p>
+                      ) : null}
+                    </div>
                     <div className="flex shrink-0 items-center gap-2">
                       {picker?.kind === 'group-multi' ? (
                         <Button

@@ -13,6 +13,8 @@ type MenuItemLite = {
     name: string;
     selectionType: string;
     required: boolean;
+    minItems?: number | null;
+    maxItems?: number | null;
     linkedCategory: {
       name: string;
       items: { id: string; name: string; price: number }[];
@@ -131,7 +133,18 @@ export function StoreMenu({ slug }: { slug: string }) {
                           {g.name}{' '}
                           <span className="font-normal">
                             ({g.selectionType === 'MULTIPLE' ? 'multi' : 'one'}
-                            {g.required ? ', required' : ''})
+                            {g.required ? ', required' : ''}
+                            {g.selectionType === 'MULTIPLE' &&
+                            g.minItems != null &&
+                            g.maxItems != null
+                              ? `, ${g.minItems}–${g.maxItems} items`
+                              : g.selectionType === 'MULTIPLE' && g.minItems != null
+                                ? `, min ${g.minItems}`
+                                : g.selectionType === 'MULTIPLE' &&
+                                    g.maxItems != null
+                                  ? `, max ${g.maxItems}`
+                                  : ''}
+                            )
                           </span>
                         </p>
                         <p className="text-xs text-[#64748b]">

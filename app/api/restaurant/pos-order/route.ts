@@ -86,12 +86,6 @@ export async function POST(req: NextRequest) {
       paymentStatusRaw === 'cancelled'
         ? paymentStatusRaw
         : 'completed';
-    const rawMin = Number(body?.selectedMinutes);
-    const roundedMin = Math.round(rawMin);
-    const selectedMinutes =
-      Number.isFinite(rawMin) && roundedMin >= 1 && roundedMin <= 240
-        ? roundedMin
-        : 15;
     const methodLabel =
       paymentMode === 'card'
         ? 'Card'
@@ -257,22 +251,8 @@ export async function POST(req: NextRequest) {
         })),
       });
 
-      const ticket = await tx.kitchenTicket.create({
-        data: {
-          restaurantId: restaurant.id,
-          orderId: order.id,
-          status: 'pending',
-          selectedMinutes,
-        },
-      });
-
-      await tx.kitchenTicketItem.createMany({
-        data: normalizedItems.map((line) => ({
-          kitchenTicketId: ticket.id,
-          productName: line.productName,
-          quantity: line.quantity,
-        })),
-      });
+      // Kitchen ticket is created from POS via /api/restaurant/kds/tickets after
+      // staff enters prep time (skips KDS Manager queue).
 
       await tx.payment.create({
         data: {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useSession } from 'next-auth/react';
 import { Menu, PanelLeft, PanelLeftClose, Shield } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
@@ -12,6 +13,7 @@ import { AdminSidebarNav } from '@/components/admin/admin-sidebar-nav';
 import { ADMIN_NAV_ITEMS } from '@/constant/adminNav';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { isPlatformAdminSession } from '@/lib/auth/admin';
 
 const ADMIN_SIDEBAR_KEY = 'saas-admin-sidebar-open';
 
@@ -47,8 +49,11 @@ function AdminMobileNav({ onOpenChange }: { onOpenChange: (o: boolean) => void }
 }
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
+  const { data: session, status } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
+
+  const canAccessAdmin = isPlatformAdminSession(session?.user);
 
   useEffect(() => {
     try {
@@ -74,6 +79,31 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       setMobileOpen((o) => !o);
     }
   };
+
+  if (status === 'loading') {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm text-muted-foreground">
+        Loading…
+      </div>
+    );
+  }
+
+  if (!canAccessAdmin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-2 p-6 text-center">
+        <p className="font-medium">Access denied</p>
+        <p className="max-w-md text-sm text-muted-foreground">
+          Sign in with an email listed in{' '}
+          <code className="rounded bg-muted px-1">ADMIN_EMAIL</code> or{' '}
+          <code className="rounded bg-muted px-1">ADMIN_EMAILS</code> in your
+          environment file.
+        </p>
+        <Link href="/" className="mt-2 text-sm text-primary underline">
+          Back to home
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-zinc-100 dark:bg-zinc-950">

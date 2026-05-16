@@ -9,6 +9,7 @@ import {
   useState,
 } from 'react';
 import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import {
@@ -37,19 +38,23 @@ import {
 } from '@/components/ui/popover';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import {
   DeleteConfirmation,
   SaveConfirmation,
 } from '@/components/ui/confirmation-dialogs';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { cn } from '@/lib/utils';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 
 import type { AttrGroupRow, MenuCategoryRow, MenuItemRow } from './types';
 
@@ -67,6 +72,18 @@ function linkedItemsForGroup(
   return (cat?.items ?? []).filter((i) => i.id !== baseProduct.id);
 }
 
+function multiSelectionHint(
+  minItems: number | null,
+  maxItems: number | null
+): string {
+  if (minItems != null && maxItems != null) {
+    return `Choose ${minItems}–${maxItems} options`;
+  }
+  if (minItems != null) return `Choose at least ${minItems}`;
+  if (maxItems != null) return `Choose up to ${maxItems}`;
+  return 'Choose one or more options';
+}
+
 type Props = {
   categories: MenuCategoryRow[];
   onRefresh: () => Promise<void>;
@@ -76,6 +93,9 @@ export function RecommendationsTab({
   categories,
   onRefresh: _onRefresh,
 }: Props) {
+  const pathname = usePathname();
+  const router = useRouter();
+
   const [localCategories, setLocalCategories] =
     useState<MenuCategoryRow[]>(categories);
 
@@ -214,6 +234,8 @@ export function RecommendationsTab({
     'SINGLE' | 'MULTIPLE'
   >('SINGLE');
   const [ruleRequired, setRuleRequired] = useState(true);
+  const [ruleMinItems, setRuleMinItems] = useState(1);
+  const [ruleMaxItems, setRuleMaxItems] = useState(3);
   const [ruleCategoryIds, setRuleCategoryIds] = useState<string[]>([]);
 
   const [offerCategoryIds, setOfferCategoryIds] = useState<string[]>([]);
@@ -233,6 +255,135 @@ export function RecommendationsTab({
   const [previewByGroup, setPreviewByGroup] = useState<
     Record<string, string[]>
   >({});
+  const [editorTab, setEditorTab] = useState<'recommendations' | 'offered'>(
+    'recommendations'
+  );
+
+  const defaultRuleDraft = useMemo(
+    () => ({
+      selectionType: 'SINGLE' as const,
+      required: true,
+      minItems: 1,
+      maxItems: 3,
+    }),
+    []
+  );
+
+  const [ruleDraftBaseline, setRuleDraftBaseline] = useState(defaultRuleDraft);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    setRuleDraftBaseline(defaultRuleDraft);
+  }, [selectedId, defaultRuleDraft]);
+
+  const isDirty = useMemo(() => {
+    if (!selectedId) return false;
+    if (
+      ruleCategoryIds.length > 0 ||
+      offerCategoryIds.length > 0 ||
+      selectedOfferProductIds.length > 0
+    ) {
+      return true;
+    }
+    return (
+      ruleSelectionType !== ruleDraftBaseline.selectionType ||
+      ruleRequired !== ruleDraftBaseline.required ||
+      ruleMinItems !== ruleDraftBaseline.minItems ||
+      ruleMaxItems !== ruleDraftBaseline.maxItems
+    );
+  }, [
+    selectedId,
+    ruleCategoryIds,
+    offerCategoryIds,
+    selectedOfferProductIds,
+    ruleSelectionType,
+    ruleRequired,
+    ruleMinItems,
+    ruleMaxItems,
+    ruleDraftBaseline,
+  ]);
+
+  const {
+    leaveOpen,
+    leaveMessage,
+    requestLeave,
+    confirmLeave,
+    cancelLeave,
+    allowNextNavigation,
+  } = useUnsavedChangesGuard(
+    isDirty,
+    {
+      message:
+        'You have unsaved recommendation or offer selections. Leave without saving?',
+    }
+  );
+
+  const resetDraftState = useCallback(() => {
+    setRuleCategoryIds([]);
+    setOfferCategoryIds([]);
+    setSelectedOfferProductIds([]);
+    setRuleSelectionType(defaultRuleDraft.selectionType);
+    setRuleRequired(defaultRuleDraft.required);
+    setRuleMinItems(defaultRuleDraft.minItems);
+    setRuleMaxItems(defaultRuleDraft.maxItems);
+    setRuleDraftBaseline(defaultRuleDraft);
+  }, [defaultRuleDraft]);
+
+  const selectProduct = useCallback(
+    (id: string) => {
+      if (id === selectedId) return;
+      requestLeave(() => {
+        resetDraftState();
+        setSelectedId(id);
+        setEditorTab('recommendations');
+      });
+    },
+    [selectedId, requestLeave, resetDraftState]
+  );
+
+  useEffect(() => {
+    if (!isDirty) return;
+
+    const onClick = (e: MouseEvent) => {
+      const anchor = (e.target as HTMLElement).closest(
+        'a[href]'
+      ) as HTMLAnchorElement | null;
+      if (!anchor || anchor.target === '_blank') return;
+
+      const href = anchor.getAttribute('href');
+      if (
+        !href ||
+        href.startsWith('#') ||
+        href.startsWith('mailto:') ||
+        href.startsWith('tel:')
+      ) {
+        return;
+      }
+
+      let path = href;
+      if (href.startsWith('http')) {
+        try {
+          const url = new URL(href);
+          if (url.origin !== window.location.origin) return;
+          path = url.pathname + url.search + url.hash;
+        } catch {
+          return;
+        }
+      }
+
+      if (path === pathname || path.startsWith(`${pathname}?`)) return;
+
+      e.preventDefault();
+      e.stopPropagation();
+      requestLeave(() => {
+        resetDraftState();
+        router.push(path);
+      });
+    };
+
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [isDirty, pathname, requestLeave, resetDraftState, router]);
 
   /** Categories usable for “offered products” (any except the product’s own). */
   const linkedOptions = useMemo(
@@ -284,15 +435,34 @@ export function RecommendationsTab({
 
   useEffect(() => {
     if (!selectedId) return;
-    if (filterCategoryIds.length === 0) {
+
+    const stillVisible =
+      filterCategoryIds.length > 0 &&
+      (() => {
+        const p = allProducts.find((x) => x.id === selectedId);
+        return p != null && filterCategoryIds.includes(p.categoryId);
+      })();
+
+    if (stillVisible) return;
+
+    const clearSelection = () => {
+      resetDraftState();
       setSelectedId('');
-      return;
+    };
+
+    if (isDirty) {
+      requestLeave(clearSelection);
+    } else {
+      clearSelection();
     }
-    const p = allProducts.find((x) => x.id === selectedId);
-    if (!p || !filterCategoryIds.includes(p.categoryId)) {
-      setSelectedId('');
-    }
-  }, [filterCategoryIds, selectedId, allProducts]);
+  }, [
+    filterCategoryIds,
+    selectedId,
+    allProducts,
+    isDirty,
+    requestLeave,
+    resetDraftState,
+  ]);
 
   useEffect(() => {
     if (!selected) {
@@ -333,6 +503,20 @@ export function RecommendationsTab({
       toast.error('Choose at least one recommendation category.');
       return;
     }
+    if (ruleSelectionType === 'MULTIPLE') {
+      if (!Number.isFinite(ruleMinItems) || ruleMinItems < 0) {
+        toast.error('Enter a valid minimum number of items.');
+        return;
+      }
+      if (!Number.isFinite(ruleMaxItems) || ruleMaxItems < 1) {
+        toast.error('Enter a valid maximum number of items.');
+        return;
+      }
+      if (ruleMaxItems < ruleMinItems) {
+        toast.error('Maximum items must be greater than or equal to minimum items.');
+        return;
+      }
+    }
     setSavingRules(true);
     try {
       const selectedCategories = assignableRuleCategories.filter((c) =>
@@ -348,6 +532,9 @@ export function RecommendationsTab({
               required: ruleRequired,
               linkedCategoryId: cat.id,
               sortOrder: index,
+              ...(ruleSelectionType === 'MULTIPLE'
+                ? { minItems: ruleMinItems, maxItems: ruleMaxItems }
+                : {}),
             }
           )
         )
@@ -364,7 +551,8 @@ export function RecommendationsTab({
         ],
       }));
       toast.success('Recommendation categories saved');
-      setRuleCategoryIds([]);
+      allowNextNavigation();
+      resetDraftState();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
       toast.error(err.response?.data?.error || 'Could not save');
@@ -408,7 +596,8 @@ export function RecommendationsTab({
         ],
       }));
       toast.success('Offered products added');
-      setSelectedOfferProductIds([]);
+      allowNextNavigation();
+      resetDraftState();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
       toast.error(
@@ -600,15 +789,7 @@ export function RecommendationsTab({
               </div>
 
               <div className="min-w-0 w-full max-w-full min-h-0 overflow-x-clip">
-                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Products
-                  <span className="ml-1 hidden font-normal normal-case sm:inline">
-                    · compact chips — use arrows or swipe
-                  </span>
-                  <span className="ml-1 font-normal normal-case sm:hidden">
-                    · arrows or swipe
-                  </span>
-                </p>
+                
                 {filterCategoryIds.length === 0 ? (
                   <p className="rounded-lg border border-dashed border-border bg-background/80 px-3 py-8 text-center text-sm text-muted-foreground sm:px-4">
                     Turn on at least one category in the filter, or tap{' '}
@@ -638,30 +819,25 @@ export function RecommendationsTab({
                         onScroll={syncProductStripScroll}
                         className="min-h-0 min-w-0 max-w-full touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                       >
-                        <div className="flex w-max items-center gap-2 py-0.5 pe-0.5 ps-0.5">
+                        <div className="flex w-max items-stretch gap-3 py-1 pe-1 ps-1">
                           {filteredProducts.map((p) => {
                             const isActive = p.id === selectedId;
+                           
                             return (
                               <button
                                 key={p.id}
                                 type="button"
-                                onClick={() => setSelectedId(p.id)}
+                                onClick={() => selectProduct(p.id)}
                                 className={cn(
-                                  'inline-flex h-9 max-w-[11rem] shrink-0 items-center gap-2 rounded-full border px-1.5 py-0.5 text-left text-sm font-medium shadow-sm outline-none ring-offset-background transition sm:max-w-[12.5rem]',
+                                  'group relative w-[9.5rem] shrink-0 overflow-hidden rounded-xl border bg-card text-left shadow-sm outline-none ring-offset-background transition sm:w-[10.5rem]',
                                   'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
-                                  'active:scale-[0.98]',
+                                  'hover:border-primary/40 hover:shadow-md active:scale-[0.98]',
                                   isActive
-                                    ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20'
-                                    : 'border-border bg-card hover:border-primary/45 hover:bg-primary/5'
+                                    ? 'border-primary ring-2 ring-primary/25'
+                                    : 'border-border'
                                 )}
                               >
-                                <span
-                                  className={cn(
-                                    'relative h-7 w-7 shrink-0 overflow-hidden rounded-full bg-muted',
-                                    isActive &&
-                                      'ring-2 ring-primary-foreground/35 ring-offset-1 ring-offset-primary'
-                                  )}
-                                >
+                                <div className="relative aspect-[4/3] w-full bg-muted">
                                   {p.imageUrl ? (
                                     // eslint-disable-next-line @next/next/no-img-element -- dashboard menu URLs
                                     <img
@@ -670,14 +846,30 @@ export function RecommendationsTab({
                                       className="h-full w-full object-cover"
                                     />
                                   ) : (
-                                    <span className="flex h-full w-full items-center justify-center text-[9px] text-muted-foreground">
-                                      —
-                                    </span>
+                                    <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                                      No photo
+                                    </div>
                                   )}
-                                </span>
-                                <span className="min-w-0 flex-1 truncate pr-1 leading-tight">
-                                  {p.name}
-                                </span>
+                                  <span
+                                    className={cn(
+                                      'absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full border-2 bg-background/90 text-xs font-bold shadow-sm backdrop-blur-sm transition',
+                                      isActive
+                                        ? 'border-primary bg-primary text-primary-foreground'
+                                        : 'border-border text-transparent group-hover:border-primary/50'
+                                    )}
+                                    aria-hidden
+                                  >
+                                    ✓
+                                  </span>
+                                </div>
+                                <div className="space-y-0.5 p-2.5">
+                                  <p className="line-clamp-2 text-sm font-semibold leading-snug">
+                                    {p.name}
+                                  </p>
+                                  <p className="truncate text-[11px] text-muted-foreground">
+                                    {p.categoryName}
+                                  </p>
+                                </div>
                               </button>
                             );
                           })}
@@ -703,7 +895,15 @@ export function RecommendationsTab({
             <div className="grid min-w-0 max-w-full gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(260px,1fr)] lg:gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(280px,420px)] xl:gap-10 2xl:grid-cols-[minmax(0,1fr)_minmax(300px,440px)]">
               <div className="min-w-0 w-full max-w-xl space-y-6 lg:mx-auto">
                 {selected ? (
-                  <Tabs defaultValue="recommendations" className="w-full">
+                  <Tabs
+                    value={editorTab}
+                    onValueChange={(value) => {
+                      const next = value as 'recommendations' | 'offered';
+                      if (next === editorTab) return;
+                      requestLeave(() => setEditorTab(next));
+                    }}
+                    className="w-full"
+                  >
                     <TabsList className="grid h-auto w-full grid-cols-2 gap-1 p-1">
                       <TabsTrigger
                         value="recommendations"
@@ -758,58 +958,125 @@ export function RecommendationsTab({
                         <>
                           <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end">
                             <div className="grid w-full max-w-full gap-2 sm:w-auto">
-                              <Label>Selection type</Label>
-                              <Select
-                                value={ruleSelectionType}
-                                onValueChange={(v: 'SINGLE' | 'MULTIPLE') =>
-                                  setRuleSelectionType(v)
-                                }
+                              <Label id="rule-selection-type-label">
+                                Selection type
+                              </Label>
+                              <div
+                                role="radiogroup"
+                                aria-labelledby="rule-selection-type-label"
+                                className="inline-flex h-11 w-full min-w-0 rounded-md border border-input bg-background p-0.5 shadow-sm sm:h-10 sm:w-auto"
                               >
-                                <SelectTrigger className="h-11 w-full min-w-0 sm:h-10 sm:w-[180px]">
-                                  <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  <SelectItem value="SINGLE">
-                                    One option
-                                  </SelectItem>
-                                  <SelectItem value="MULTIPLE">
-                                    Multiple options
-                                  </SelectItem>
-                                </SelectContent>
-                              </Select>
+                                {(
+                                  [
+                                    ['SINGLE', 'One option'],
+                                    ['MULTIPLE', 'Multiple options'],
+                                  ] as const
+                                ).map(([value, label]) => (
+                                  <button
+                                    key={value}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={ruleSelectionType === value}
+                                    className={cn(
+                                      'h-full flex-1 rounded-sm px-3 text-sm font-medium transition-colors sm:flex-none sm:px-4',
+                                      ruleSelectionType === value
+                                        ? 'bg-primary text-primary-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:bg-muted/60'
+                                    )}
+                                    onClick={() => setRuleSelectionType(value)}
+                                  >
+                                    {label}
+                                  </button>
+                                ))}
+                              </div>
                             </div>
-                            <label className="flex min-h-11 items-center gap-2 text-sm sm:min-h-10 sm:pb-1">
+                            <div className="flex min-h-11 items-center gap-2 sm:min-h-10 sm:pb-1">
                               <input
+                                id="rule-required"
                                 type="checkbox"
+                                className="h-4 w-4 shrink-0 rounded border border-input"
                                 checked={ruleRequired}
                                 onChange={(e) =>
                                   setRuleRequired(e.target.checked)
                                 }
                               />
-                              Required before add to cart
-                            </label>
+                              <Label
+                                htmlFor="rule-required"
+                                className="cursor-pointer text-sm font-normal leading-none"
+                              >
+                                Required before add to cart
+                              </Label>
+                            </div>
                           </div>
+                          {ruleSelectionType === 'MULTIPLE' ? (
+                            <div className="grid w-full gap-3 sm:grid-cols-2">
+                              <div className="grid gap-2">
+                                <Label htmlFor="rule-min-items">Min items</Label>
+                                <Input
+                                  id="rule-min-items"
+                                  type="number"
+                                  min={0}
+                                  className="h-10"
+                                  value={ruleMinItems}
+                                  onChange={(e) =>
+                                    setRuleMinItems(
+                                      Math.max(
+                                        0,
+                                        Number.parseInt(e.target.value, 10) || 0
+                                      )
+                                    )
+                                  }
+                                />
+                              </div>
+                              <div className="grid gap-2">
+                                <Label htmlFor="rule-max-items">Max items</Label>
+                                <Input
+                                  id="rule-max-items"
+                                  type="number"
+                                  min={1}
+                                  className="h-10"
+                                  value={ruleMaxItems}
+                                  onChange={(e) =>
+                                    setRuleMaxItems(
+                                      Math.max(
+                                        1,
+                                        Number.parseInt(e.target.value, 10) || 1
+                                      )
+                                    )
+                                  }
+                                />
+                              </div>
+                            </div>
+                          ) : null}
+                          <p className="text-xs text-muted-foreground">
+                            {ruleSelectionType === 'SINGLE'
+                              ? 'Choose one or more categories. Each becomes a group where guests pick exactly one product.'
+                              : 'Choose one or more categories. Guests pick between min and max products from each group.'}
+                          </p>
                           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                             {assignableRuleCategories.map((cat) => {
                               const checked = ruleCategoryIds.includes(cat.id);
                               return (
                                 <label
                                   key={cat.id}
-                                  className={`flex cursor-pointer items-center justify-between rounded-lg border px-3 py-2 text-sm ${
+                                  className={cn(
+                                    'flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm',
                                     checked
                                       ? 'border-primary bg-primary/10'
                                       : 'border-border'
-                                  }`}
+                                  )}
                                 >
-                                  <button
-                                    onClick={() =>
+                                  <input
+                                    type="checkbox"
+                                    className="h-4 w-4 shrink-0 accent-primary"
+                                    checked={checked}
+                                    onChange={() =>
                                       setRuleCategoryIds((prev) =>
                                         toggleInArray(prev, cat.id)
                                       )
                                     }
-                                  >
-                                    {cat.name}
-                                  </button>
+                                  />
+                                  <span>{cat.name}</span>
                                 </label>
                               );
                             })}
@@ -1128,7 +1395,6 @@ export function RecommendationsTab({
                             localCategories
                           );
                           const previewIds = previewByGroup[g.id] ?? [];
-                          const singleValue = previewIds[0] ?? '';
 
                           return (
                             <section
@@ -1157,15 +1423,39 @@ export function RecommendationsTab({
                                         ? 'Single'
                                         : 'Multiple'}
                                     </Badge>
+                                    {g.selectionType === 'MULTIPLE' &&
+                                    (g.minItems != null || g.maxItems != null) ? (
+                                      <Badge
+                                        variant="outline"
+                                        className="text-[10px] font-medium uppercase"
+                                      >
+                                        {g.minItems != null && g.maxItems != null
+                                          ? `Min ${g.minItems} · Max ${g.maxItems}`
+                                          : g.minItems != null
+                                            ? `Min ${g.minItems}`
+                                            : `Max ${g.maxItems}`}
+                                      </Badge>
+                                    ) : null}
                                   </div>
                                   <p className="text-xs text-muted-foreground">
                                     From {g.linkedCategory.name}
                                   </p>
                                   <p className="text-xs text-muted-foreground">
                                     {g.selectionType === 'SINGLE'
-                                      ? 'Choose one option'
-                                      : 'Choose one or more options'}
+                                      ? 'Choose exactly one option'
+                                      : multiSelectionHint(
+                                          g.minItems,
+                                          g.maxItems
+                                        )}
                                   </p>
+                                  {g.selectionType === 'MULTIPLE' ? (
+                                    <p className="text-xs font-medium text-foreground">
+                                      Selected {previewIds.length}
+                                      {g.maxItems != null
+                                        ? ` / ${g.maxItems}`
+                                        : ''}
+                                    </p>
+                                  ) : null}
                                 </div>
                                 <Button
                                   type="button"
@@ -1193,94 +1483,9 @@ export function RecommendationsTab({
                                     No products in this linked category yet.
                                   </p>
                                 ) : g.selectionType === 'SINGLE' ? (
-                                  <Select
-                                    value={singleValue || undefined}
-                                    onValueChange={(v) =>
-                                      setPreviewByGroup((prev) => ({
-                                        ...prev,
-                                        [g.id]: v ? [v] : [],
-                                      }))
-                                    }
-                                  >
-                                    <SelectTrigger className="h-auto min-h-11 border-input bg-background py-2">
-                                      {(() => {
-                                        const it = items.find(
-                                          (x) => x.id === singleValue
-                                        );
-                                        if (!it) {
-                                          return (
-                                            <SelectValue placeholder="Select an option…" />
-                                          );
-                                        }
-                                        return (
-                                          <div className="flex min-w-0 items-center gap-3 text-left">
-                                            {it.imageUrl ? (
-                                              // eslint-disable-next-line @next/next/no-img-element
-                                              <img
-                                                src={it.imageUrl}
-                                                alt=""
-                                                className="h-9 w-9 shrink-0 rounded-md border border-border object-cover"
-                                              />
-                                            ) : (
-                                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted text-[10px] text-muted-foreground">
-                                                —
-                                              </div>
-                                            )}
-                                            <div className="min-w-0">
-                                              <p className="truncate text-sm font-medium">
-                                                {it.name}
-                                              </p>
-                                              <p className="truncate text-xs text-muted-foreground">
-                                                €
-                                                {effectiveUnitPrice(
-                                                  it.price,
-                                                  it.salePrice
-                                                ).toFixed(2)}
-                                              </p>
-                                            </div>
-                                          </div>
-                                        );
-                                      })()}
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                      {items.map((it) => (
-                                        <SelectItem key={it.id} value={it.id}>
-                                          <span className="flex items-center gap-2 py-0.5">
-                                            {it.imageUrl ? (
-                                              // eslint-disable-next-line @next/next/no-img-element
-                                              <img
-                                                src={it.imageUrl}
-                                                alt=""
-                                                className="h-8 w-8 rounded object-cover"
-                                              />
-                                            ) : (
-                                              <span className="flex h-8 w-8 items-center justify-center rounded bg-muted text-[10px] text-muted-foreground">
-                                                —
-                                              </span>
-                                            )}
-                                            <span className="flex flex-col gap-0.5 text-left">
-                                              <span className="font-medium leading-tight">
-                                                {it.name}
-                                              </span>
-                                              <span className="text-xs text-muted-foreground">
-                                                €
-                                                {effectiveUnitPrice(
-                                                  it.price,
-                                                  it.salePrice
-                                                ).toFixed(2)}
-                                              </span>
-                                            </span>
-                                          </span>
-                                        </SelectItem>
-                                      ))}
-                                    </SelectContent>
-                                  </Select>
-                                ) : (
                                   <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
                                     {items.map((it) => {
-                                      const checked = previewIds.includes(
-                                        it.id
-                                      );
+                                      const checked = previewIds[0] === it.id;
                                       const unit = effectiveUnitPrice(
                                         it.price,
                                         it.salePrice
@@ -1316,18 +1521,94 @@ export function RecommendationsTab({
                                             </p>
                                           </div>
                                           <input
-                                            type="checkbox"
+                                            type="radio"
+                                            name={`preview-${g.id}`}
                                             className="h-4 w-4 shrink-0 accent-primary"
                                             checked={checked}
                                             onChange={() =>
                                               setPreviewByGroup((prev) => ({
                                                 ...prev,
-                                                [g.id]: toggleInArray(
-                                                  prev[g.id] ?? [],
-                                                  it.id
-                                                ),
+                                                [g.id]: [it.id],
                                               }))
                                             }
+                                          />
+                                        </label>
+                                      );
+                                    })}
+                                  </div>
+                                ) : (
+                                  <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+                                    {items.map((it) => {
+                                      const checked = previewIds.includes(
+                                        it.id
+                                      );
+                                      const unit = effectiveUnitPrice(
+                                        it.price,
+                                        it.salePrice
+                                      );
+                                      const atMax =
+                                        g.maxItems != null &&
+                                        previewIds.length >= g.maxItems &&
+                                        !checked;
+                                      return (
+                                        <label
+                                          key={it.id}
+                                          className={cn(
+                                            'flex cursor-pointer items-center gap-3 rounded-md border px-3 py-2.5 transition',
+                                            checked
+                                              ? 'border-primary bg-primary/5 ring-1 ring-primary/20'
+                                              : 'border-border bg-card hover:bg-muted/50',
+                                            atMax && 'cursor-not-allowed opacity-50'
+                                          )}
+                                        >
+                                          {it.imageUrl ? (
+                                            // eslint-disable-next-line @next/next/no-img-element
+                                            <img
+                                              src={it.imageUrl}
+                                              alt=""
+                                              className="h-12 w-12 shrink-0 rounded-md border border-border object-cover"
+                                            />
+                                          ) : (
+                                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md border border-dashed border-border bg-muted text-[10px] text-muted-foreground">
+                                              —
+                                            </div>
+                                          )}
+                                          <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-medium">
+                                              {it.name}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                              €{unit.toFixed(2)}
+                                            </p>
+                                          </div>
+                                          <input
+                                            type="checkbox"
+                                            className="h-4 w-4 shrink-0 accent-primary"
+                                            checked={checked}
+                                            disabled={atMax}
+                                            onChange={() => {
+                                              setPreviewByGroup((prev) => {
+                                                const cur = prev[g.id] ?? [];
+                                                if (cur.includes(it.id)) {
+                                                  return {
+                                                    ...prev,
+                                                    [g.id]: cur.filter(
+                                                      (id) => id !== it.id
+                                                    ),
+                                                  };
+                                                }
+                                                if (
+                                                  g.maxItems != null &&
+                                                  cur.length >= g.maxItems
+                                                ) {
+                                                  return prev;
+                                                }
+                                                return {
+                                                  ...prev,
+                                                  [g.id]: [...cur, it.id],
+                                                };
+                                              });
+                                            }}
                                           />
                                         </label>
                                       );
@@ -1403,6 +1684,27 @@ export function RecommendationsTab({
           setDeletingOfferId(null);
         }}
       />
+
+      <AlertDialog
+        open={leaveOpen}
+        onOpenChange={(open) => {
+          if (!open) cancelLeave();
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+            <AlertDialogDescription>{leaveMessage}</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">Keep editing</AlertDialogCancel>
+            <AlertDialogAction type="button" onClick={confirmLeave}>
+              Leave without saving
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
+

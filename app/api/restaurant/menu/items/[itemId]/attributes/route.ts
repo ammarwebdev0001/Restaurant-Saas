@@ -6,13 +6,45 @@ import { db } from "@/lib/db";
 import { getRestaurantForOwnerRequest } from "@/lib/restaurant/ownerRestaurant";
 import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from "@/lib/subscription-plan-enforcement";
 
-const createSchema = z.object({
-  name: z.string().min(1).max(120),
-  selectionType: z.enum(["SINGLE", "MULTIPLE"]),
-  required: z.boolean().optional(),
-  linkedCategoryId: z.string().uuid(),
-  sortOrder: z.number().int().min(0).optional(),
-});
+const createSchema = z
+  .object({
+    name: z.string().min(1).max(120),
+    selectionType: z.enum(["SINGLE", "MULTIPLE"]),
+    required: z.boolean().optional(),
+    linkedCategoryId: z.string().uuid(),
+    sortOrder: z.number().int().min(0).optional(),
+    minItems: z.number().int().min(0).nullable().optional(),
+    maxItems: z.number().int().min(1).nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.selectionType === "MULTIPLE") {
+      if (data.minItems == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "minItems is required for multiple selection",
+          path: ["minItems"],
+        });
+      }
+      if (data.maxItems == null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "maxItems is required for multiple selection",
+          path: ["maxItems"],
+        });
+      }
+      if (
+        data.minItems != null &&
+        data.maxItems != null &&
+        data.maxItems < data.minItems
+      ) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "maxItems must be greater than or equal to minItems",
+          path: ["maxItems"],
+        });
+      }
+    }
+  });
 
 export async function POST(
   req: NextRequest,
@@ -80,6 +112,8 @@ export async function POST(
     );
   }
 
+  const isMultiple = parsed.data.selectionType === "MULTIPLE";
+
   const group = await db.menuItemAttributeGroup.create({
     data: {
       menuItemId: itemId,
@@ -88,6 +122,12 @@ export async function POST(
       required: parsed.data.required ?? false,
       linkedCategoryId: parsed.data.linkedCategoryId,
       sortOrder: parsed.data.sortOrder ?? 0,
+      ...(isMultiple
+        ? {
+            minItems: parsed.data.minItems!,
+            maxItems: parsed.data.maxItems!,
+          }
+        : {}),
     },
     include: {
       linkedCategory: { select: { id: true, name: true } },

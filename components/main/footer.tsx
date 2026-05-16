@@ -4,6 +4,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useTranslation } from 'react-i18next';
 
+import { AcceptedPaymentMethods } from '@/components/payments/accepted-payment-methods';
+
 export default function Footer() {
   const { t } = useTranslation();
 
@@ -100,7 +102,11 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 flex flex-col items-start justify-between gap-4 border-t border-zinc-200 pt-6 text-xs text-zinc-500 dark:border-zinc-900 sm:flex-row sm:items-center">
+        <div className="mt-10">
+          <AcceptedPaymentMethods size="sm" showPayPal />
+        </div>
+
+        <div className="mt-8 flex flex-col items-start justify-between gap-4 border-t border-zinc-200 pt-6 text-xs text-zinc-500 dark:border-zinc-900 sm:flex-row sm:items-center">
           <p>{t('marketing.footer.rights', { year: new Date().getFullYear() })}</p>
           <div className="flex items-center gap-2 text-xs">
             <span>Launched by</span>

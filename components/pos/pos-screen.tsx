@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ComponentType } from 'react';
 import { useRouter } from 'next/navigation';
 import {
@@ -20,6 +20,9 @@ import {
   X,
   LayoutDashboard,
   Archive,
+  ChefHat,
+  ChefHatIcon,
+  CrossIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -48,6 +51,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { DeleteConfirmation } from '@/components/ui/confirmation-dialogs';
 import {
   Sheet,
   SheetContent,
@@ -70,6 +74,7 @@ import eventBus from '@/lib/even';
 import { usePosCartGuard } from '@/components/pos/pos-cart-guard-context';
 import { ModeToggle } from '@/components/darkmode/darkmode';
 import UserMenu from '@/components/dashboard/UserMenu';
+import { Cross2Icon } from '@radix-ui/react-icons';
 
 export type OrderMode = 'new' | 'tables' | 'delivery' | 'takeaway' | 'queue';
 
@@ -145,6 +150,19 @@ type BranchOption = {
   name: string;
 };
 
+type PosPendingKitchenOrder = {
+  id: string;
+  shortOrderId: string;
+  ticketNumber: number | null;
+  total: number;
+  tableLabel: string | null;
+  createdAt: string;
+  customerName: string | null;
+  customerPhone: string | null;
+  paymentMethod: string | null;
+  items: { quantity: number; name: string }[];
+};
+
 type ArchivedOrder = {
   id: string;
   createdAt: string;
@@ -212,6 +230,45 @@ export function PosScreen() {
   const [archivedOrdersOpen, setArchivedOrdersOpen] = useState(false);
   const [archivedOrders, setArchivedOrders] = useState<ArchivedOrder[]>([]);
 
+  const KITCHEN_PREP_PRESETS = [10, 15, 30] as const;
+  const KITCHEN_PREP_MIN = 1;
+  const KITCHEN_PREP_MAX = 240;
+  const [kitchenSendOpen, setKitchenSendOpen] = useState(false);
+  const [kitchenSendOrder, setKitchenSendOrder] = useState<{
+    id: string;
+    shortOrderId: string;
+    ticketNumber: number | null;
+  } | null>(null);
+  const [kitchenPrepMinutes, setKitchenPrepMinutes] = useState<
+    Record<string, number>
+  >({});
+  const [kitchenCustomMinutes, setKitchenCustomMinutes] = useState('');
+  const [sendingToKitchen, setSendingToKitchen] = useState(false);
+  const [pendingKitchenOpen, setPendingKitchenOpen] = useState(false);
+  const [pendingKitchenOrders, setPendingKitchenOrders] = useState<
+    PosPendingKitchenOrder[]
+  >([]);
+  const [loadingPendingKitchen, setLoadingPendingKitchen] = useState(false);
+  const [cancelKitchenOrder, setCancelKitchenOrder] =
+    useState<PosPendingKitchenOrder | null>(null);
+  const [cancellingKitchenOrder, setCancellingKitchenOrder] = useState(false);
+
+  const loadPendingKitchenOrders = useCallback(async () => {
+    setLoadingPendingKitchen(true);
+    try {
+      const res = await fetch('/api/restaurant/pos-order/pending-kitchen', {
+        cache: 'no-store',
+      });
+      if (!res.ok) throw new Error('Failed to load');
+      const json = (await res.json()) as { data?: PosPendingKitchenOrder[] };
+      setPendingKitchenOrders(json.data ?? []);
+    } catch {
+      setPendingKitchenOrders([]);
+    } finally {
+      setLoadingPendingKitchen(false);
+    }
+  }, []);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -275,10 +332,11 @@ export function PosScreen() {
     }
 
     void loadMenu();
+    void loadPendingKitchenOrders();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [loadPendingKitchenOrders]);
 
   useEffect(() => {
     const id = window.setInterval(() => setNow(new Date()), 1000);
@@ -587,8 +645,6 @@ export function PosScreen() {
     frame.setAttribute('aria-hidden', 'true');
     document.body.appendChild(frame);
 
-   
-
     const doc = frame.contentWindow?.document;
     if (!doc || !frame.contentWindow) {
       toast.error('Could not open print preview.');
@@ -715,6 +771,111 @@ export function PosScreen() {
 
   function deleteArchivedOrder(orderId: string) {
     setArchivedOrders((prev) => prev.filter((o) => o.id !== orderId));
+  }
+
+  function resolveKitchenPrepMinutes(): number | null {
+    const custom = kitchenCustomMinutes.trim();
+    if (custom) {
+      const n = Math.round(Number(custom));
+      if (
+        Number.isFinite(n) &&
+        n >= KITCHEN_PREP_MIN &&
+        n <= KITCHEN_PREP_MAX
+      ) {
+        return n;
+      }
+      return null;
+    }
+    const orderId = kitchenSendOrder?.id;
+    if (!orderId) return null;
+    const preset = kitchenPrepMinutes[orderId];
+    if (
+      preset != null &&
+      preset >= KITCHEN_PREP_MIN &&
+      preset <= KITCHEN_PREP_MAX
+    ) {
+      return preset;
+    }
+    return null;
+  }
+
+  function resetKitchenSendDialog() {
+    setKitchenSendOpen(false);
+    setKitchenSendOrder(null);
+    setKitchenCustomMinutes('');
+    setKitchenPrepMinutes({});
+  }
+
+  async function sendOrderToKitchen() {
+    if (!kitchenSendOrder) return;
+    const minutes = resolveKitchenPrepMinutes();
+    if (minutes === null) {
+      toast.warn(
+        `Select a preset or enter prep time (${KITCHEN_PREP_MIN}–${KITCHEN_PREP_MAX} minutes).`
+      );
+      return;
+    }
+    setSendingToKitchen(true);
+    try {
+      const res = await fetch('/api/restaurant/kds/tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: kitchenSendOrder.id,
+          selectedMinutes: minutes,
+        }),
+      });
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(body.error || 'Could not send order to kitchen.');
+      }
+      toast.success(`Order sent to kitchen · ${minutes} min prep`);
+      resetKitchenSendDialog();
+      void loadPendingKitchenOrders();
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Could not send to kitchen.';
+      toast.error(msg);
+    } finally {
+      setSendingToKitchen(false);
+    }
+  }
+
+  async function confirmCancelPendingKitchenOrder() {
+    if (!cancelKitchenOrder) return;
+    setCancellingKitchenOrder(true);
+    try {
+      const res = await fetch(
+        `/api/restaurant/pos-order/${encodeURIComponent(cancelKitchenOrder.id)}/cancel`,
+        { method: 'PATCH' }
+      );
+      const body = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok) {
+        throw new Error(body.error || 'Could not cancel order.');
+      }
+      toast.success('Order canceled');
+      setCancelKitchenOrder(null);
+      void loadPendingKitchenOrders();
+      eventBus.emit('refreshSalesOrders');
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : 'Could not cancel order.';
+      toast.error(msg);
+    } finally {
+      setCancellingKitchenOrder(false);
+    }
+  }
+
+  function openKitchenSendDialog(order: {
+    id: string;
+    shortOrderId: string;
+    ticketNumber: number | null;
+  }) {
+    setKitchenSendOrder(order);
+    setKitchenCustomMinutes('');
+    setKitchenPrepMinutes((prev) => ({
+      ...prev,
+      [order.id]: prev[order.id] ?? 15,
+    }));
+    setKitchenSendOpen(true);
   }
 
   async function saveOrder(opts?: { paymentMode?: string; payment?: string }) {
@@ -861,6 +1022,12 @@ export function PosScreen() {
       setCustomerPhone('');
       setTableId('');
       setCheckoutOpen(false);
+      openKitchenSendDialog({
+        id: dbOrderId,
+        shortOrderId: trackingId,
+        ticketNumber: res.data?.ticketNumber ?? null,
+      });
+      void loadPendingKitchenOrders();
     } catch (e: unknown) {
       const msg =
         axios.isAxiosError(e) && e.response?.data?.error
@@ -955,7 +1122,7 @@ export function PosScreen() {
         {/* Categories */}
         <ScrollArea className="min-h-0 border-b bg-muted/10 lg:border-b-0 lg:border-r">
           <div className="space-y-2 p-3">
-             <div className="text-sm font-semibold">Select Branch</div>
+            <div className="text-sm font-semibold">Select Branch</div>
             <div className="mb-2">
               <Select
                 value={selectedBranchId}
@@ -1227,7 +1394,7 @@ export function PosScreen() {
               >
                 Clear Cart
               </Button>
-              <div className="flex items-center gap-2 justify-end">
+              <div className="flex items-center justify-end gap-1">
                 <Button
                   type="button"
                   variant="default"
@@ -1245,8 +1412,24 @@ export function PosScreen() {
                   size="icon"
                   onClick={() => setArchivedOrdersOpen(true)}
                 >
-                  <Archive className="h-5 w-5" />
-                  <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">{archivedOrders.length}</span>
+                  <Archive className="h-5 w-5 " />
+                    <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">
+                      {archivedOrders.length}
+                    </span>
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => {
+                    setPendingKitchenOpen(true);
+                    void loadPendingKitchenOrders();
+                  }}
+                >
+                  <ChefHat className="h-5 w-5 " />
+                    <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">
+                      {pendingKitchenOrders.length}
+                    </span>
                 </Button>
               </div>
             </div>
@@ -1296,6 +1479,127 @@ export function PosScreen() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <Sheet
+        open={pendingKitchenOpen}
+        onOpenChange={(open) => {
+          setPendingKitchenOpen(open);
+          if (open) void loadPendingKitchenOrders();
+        }}
+      >
+        <SheetContent className="flex w-full flex-col sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Not sent to kitchen</SheetTitle>
+            <SheetDescription>
+              Paid POS orders waiting for prep time and kitchen display.
+            </SheetDescription>
+          </SheetHeader>
+          <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
+            {loadingPendingKitchen ? (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            ) : pendingKitchenOrders.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No POS orders waiting for the kitchen.
+              </p>
+            ) : (
+              pendingKitchenOrders.map((order) => (
+                <div
+                  key={order.id}
+                  className="rounded-lg border border-amber-200/60 bg-amber-50/50 p-3 dark:border-amber-900/40 dark:bg-amber-950/20"
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <p className="font-semibold">
+                        {order.ticketNumber != null
+                          ? `Ticket #${String(order.ticketNumber).padStart(2, '0')}`
+                          : order.shortOrderId}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(order.createdAt).toLocaleString()} · €
+                        {formatMoney(order.total)}
+                      </p>
+                      {order.tableLabel ? (
+                        <p className="text-xs text-muted-foreground">
+                          Table: {order.tableLabel}
+                        </p>
+                      ) : null}
+                      {order.customerName ? (
+                        <p className="text-xs text-muted-foreground">
+                          {order.customerName}
+                          {order.customerPhone
+                            ? ` · ${order.customerPhone}`
+                            : ''}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                  <ul className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+                    {order.items.map((it, idx) => (
+                      <li key={`${order.id}-${idx}`}>
+                        {it.quantity}× {it.name}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <div className="flex shrink-0 flex-col gap-2 sm:flex-row mt-2 w-full">
+                    <Button
+                      className="w-full"
+                      type="button"
+                      onClick={() => {
+                        setPendingKitchenOpen(false);
+                        openKitchenSendDialog({
+                          id: order.id,
+                          shortOrderId: order.shortOrderId,
+                          ticketNumber: order.ticketNumber,
+                        });
+                      }}
+                    >
+                      <ChefHatIcon className="h-4 w-4 mr-2" />
+                      Send to kitchen
+                    </Button>
+                    <Button
+                      className="w-full"
+                      type="button"
+                      variant="destructive"
+                      onClick={() => setCancelKitchenOrder(order)}
+                    >
+                      <Cross2Icon className="h-4 w-4 mr-2" />
+                      Cancel order
+                    </Button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            className="mt-3 shrink-0"
+            disabled={loadingPendingKitchen}
+            onClick={() => void loadPendingKitchenOrders()}
+          >
+            Refresh list
+          </Button>
+        </SheetContent>
+      </Sheet>
+
+      <DeleteConfirmation
+        open={cancelKitchenOrder != null}
+        title="Cancel order?"
+        description="This paid POS order has not been sent to the kitchen. Canceling marks it as canceled and removes it from this list."
+        itemName={
+          cancelKitchenOrder
+            ? cancelKitchenOrder.ticketNumber != null
+              ? `Ticket #${String(cancelKitchenOrder.ticketNumber).padStart(2, '0')}`
+              : cancelKitchenOrder.shortOrderId
+            : undefined
+        }
+        loading={cancellingKitchenOrder}
+        confirmText="Cancel order"
+        cancelText="Keep order"
+        onConfirm={() => void confirmCancelPendingKitchenOrder()}
+        onCancel={() => setCancelKitchenOrder(null)}
+      />
 
       <Sheet open={archivedOrdersOpen} onOpenChange={setArchivedOrdersOpen}>
         <SheetContent className="w-full sm:max-w-lg">
@@ -1386,182 +1690,188 @@ export function PosScreen() {
           <div className="min-h-0 flex-1 overflow-y-auto overscroll-y-contain pr-1 [-webkit-overflow-scrolling:touch]">
             <div className="grid gap-4 pb-1 md:grid-cols-[1fr_280px]">
               <div className="rounded-lg border">
-              <Table>
-                <TableHeader>
-                  <TableRow className="hover:bg-transparent">
-                    <TableHead className="text-xs">Item</TableHead>
-                    <TableHead className="text-center text-xs">Qty</TableHead>
-                    <TableHead className="text-right text-xs">Total</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {cart.map((line) => {
-                    const gross = line.unitPrice * line.qty;
-                    const discAmt = gross * (line.lineDiscPct / 100);
-                    const lineTotal = gross - discAmt;
-                    return (
-                      <TableRow key={line.productId}>
-                        <TableCell className="text-xs font-medium">
-                          {line.name}
-                        </TableCell>
-                        <TableCell className="text-center text-xs tabular-nums">
-                          {line.qty}
-                        </TableCell>
-                        <TableCell className="text-right text-xs tabular-nums">
-                          €{formatMoney(lineTotal)}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-
-            <div className="space-y-3">
-              <div className="rounded-lg border p-3">
-                <div className="text-sm font-medium">Order details</div>
-                <div className="mt-2 grid gap-2">
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">
-                      Branch
-                    </label>
-                    <Input
-                      readOnly
-                      className="h-9 bg-muted/40 text-sm font-medium"
-                      value={selectedBranchName}
-                    />
-                  </div>
-                  {isTableMode ? (
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">
-                        Select table
-                      </label>
-                      <Select value={tableId} onValueChange={setTableId}>
-                        <SelectTrigger className="h-9 bg-background">
-                          <SelectValue
-                            placeholder={
-                              tablesLoading
-                                ? 'Loading tables…'
-                                : diningTables.length === 0
-                                  ? 'No tables available'
-                                  : 'Select table'
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {diningTables.map((t) => (
-                            <SelectItem key={t.id} value={t.id}>
-                              {t.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  ) : null}
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead className="text-xs">Item</TableHead>
+                      <TableHead className="text-center text-xs">Qty</TableHead>
+                      <TableHead className="text-right text-xs">
+                        Total
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {cart.map((line) => {
+                      const gross = line.unitPrice * line.qty;
+                      const discAmt = gross * (line.lineDiscPct / 100);
+                      const lineTotal = gross - discAmt;
+                      return (
+                        <TableRow key={line.productId}>
+                          <TableCell className="text-xs font-medium">
+                            {line.name}
+                          </TableCell>
+                          <TableCell className="text-center text-xs tabular-nums">
+                            {line.qty}
+                          </TableCell>
+                          <TableCell className="text-right text-xs tabular-nums">
+                            €{formatMoney(lineTotal)}
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </div>
 
-              <div className="rounded-lg border bg-muted/20 p-3">
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Total</span>
-                  <span className="font-semibold tabular-nums">
-                    €{formatMoney(grandTotal)}
-                  </span>
-                </div>
-                <div className="mt-2 grid gap-2">
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">
-                      Payment method
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Button
-                        type="button"
-                        variant={paymentMode === 'cash' ? 'default' : 'outline'}
-                        className="justify-start gap-2"
-                        onClick={() => setPaymentMode('cash')}
-                      >
-                        <Banknote className="h-4 w-4" />
-                        Cash
-                      </Button>
-                      <Button
-                        type="button"
-                        variant={paymentMode === 'card' ? 'default' : 'outline'}
-                        className="justify-start gap-2"
-                        onClick={() => setPaymentMode('card')}
-                      >
-                        <CreditCard className="h-4 w-4" />
-                        Card
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-xs text-muted-foreground">
-                      Total payment
-                    </label>
-                    <Input
-                      className="h-9 bg-background"
-                      inputMode="decimal"
-                      placeholder="0.00"
-                      value={amountPaid}
-                      onChange={(e) => setAmountPaid(e.target.value)}
-                    />
-                    <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Change</span>
-                      <span className="tabular-nums text-foreground">
-                        €
-                        {formatMoney(
-                          Math.max(0, (Number(amountPaid) || 0) - grandTotal)
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {orderMode !== 'tables' ? (
+              <div className="space-y-3">
                 <div className="rounded-lg border p-3">
-                  <div className="text-sm font-medium">Customer</div>
+                  <div className="text-sm font-medium">Order details</div>
                   <div className="mt-2 grid gap-2">
                     <div className="space-y-1">
                       <label className="text-xs text-muted-foreground">
-                        Name
+                        Branch
                       </label>
                       <Input
-                        className="h-9 bg-background"
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
+                        readOnly
+                        className="h-9 bg-muted/40 text-sm font-medium"
+                        value={selectedBranchName}
                       />
                     </div>
-                    <div className="space-y-1">
-                      <label className="text-xs text-muted-foreground">
-                        Phone
-                      </label>
-                      <Input
-                        className="h-9 bg-background"
-                        inputMode="tel"
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                      />
-                    </div>
-                    {isDeliveryMode ? (
+                    {isTableMode ? (
                       <div className="space-y-1">
                         <label className="text-xs text-muted-foreground">
-                          Delivery address
+                          Select table
                         </label>
-                        <textarea
-                          className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                          placeholder="Enter delivery address"
-                          value={orderAddress}
-                          onChange={(e) => setOrderAddress(e.target.value)}
-                          rows={3}
-                        />
+                        <Select value={tableId} onValueChange={setTableId}>
+                          <SelectTrigger className="h-9 bg-background">
+                            <SelectValue
+                              placeholder={
+                                tablesLoading
+                                  ? 'Loading tables…'
+                                  : diningTables.length === 0
+                                    ? 'No tables available'
+                                    : 'Select table'
+                              }
+                            />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {diningTables.map((t) => (
+                              <SelectItem key={t.id} value={t.id}>
+                                {t.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     ) : null}
                   </div>
                 </div>
-              ) : null}
-            </div>
+
+                <div className="rounded-lg border bg-muted/20 p-3">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-semibold tabular-nums">
+                      €{formatMoney(grandTotal)}
+                    </span>
+                  </div>
+                  <div className="mt-2 grid gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">
+                        Payment method
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <Button
+                          type="button"
+                          variant={
+                            paymentMode === 'cash' ? 'default' : 'outline'
+                          }
+                          className="justify-start gap-2"
+                          onClick={() => setPaymentMode('cash')}
+                        >
+                          <Banknote className="h-4 w-4" />
+                          Cash
+                        </Button>
+                        <Button
+                          type="button"
+                          variant={
+                            paymentMode === 'card' ? 'default' : 'outline'
+                          }
+                          className="justify-start gap-2"
+                          onClick={() => setPaymentMode('card')}
+                        >
+                          <CreditCard className="h-4 w-4" />
+                          Card
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">
+                        Total payment
+                      </label>
+                      <Input
+                        className="h-9 bg-background"
+                        inputMode="decimal"
+                        placeholder="0.00"
+                        value={amountPaid}
+                        onChange={(e) => setAmountPaid(e.target.value)}
+                      />
+                      <div className="flex justify-between text-xs text-muted-foreground">
+                        <span>Change</span>
+                        <span className="tabular-nums text-foreground">
+                          €
+                          {formatMoney(
+                            Math.max(0, (Number(amountPaid) || 0) - grandTotal)
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {orderMode !== 'tables' ? (
+                  <div className="rounded-lg border p-3">
+                    <div className="text-sm font-medium">Customer</div>
+                    <div className="mt-2 grid gap-2">
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">
+                          Name
+                        </label>
+                        <Input
+                          className="h-9 bg-background"
+                          value={customerName}
+                          onChange={(e) => setCustomerName(e.target.value)}
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-xs text-muted-foreground">
+                          Phone
+                        </label>
+                        <Input
+                          className="h-9 bg-background"
+                          inputMode="tel"
+                          value={customerPhone}
+                          onChange={(e) => setCustomerPhone(e.target.value)}
+                        />
+                      </div>
+                      {isDeliveryMode ? (
+                        <div className="space-y-1">
+                          <label className="text-xs text-muted-foreground">
+                            Delivery address
+                          </label>
+                          <textarea
+                            className="flex min-h-[72px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                            placeholder="Enter delivery address"
+                            value={orderAddress}
+                            onChange={(e) => setOrderAddress(e.target.value)}
+                            rows={3}
+                          />
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
             </div>
           </div>
 
@@ -1575,7 +1885,7 @@ export function PosScreen() {
               <X className="mr-2 h-4 w-4" />
               Cancel
             </Button>
-           
+
             <Button
               type="button"
               className="w-full"
@@ -1595,6 +1905,96 @@ export function PosScreen() {
             >
               <Check className="mr-2 h-4 w-4" />
               Place Order
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={kitchenSendOpen}
+        onOpenChange={() => {
+          /* Close only via Cancel / Proceed — not backdrop or Escape */
+        }}
+      >
+        <DialogContent
+          className="max-w-md"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <DialogTitle>Send to kitchen</DialogTitle>
+          </DialogHeader>
+          {kitchenSendOrder ? (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Payment recorded. Choose prep time to show this order on the
+                kitchen display (not the KDS manager queue).
+              </p>
+              <div className="rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                <p className="font-medium">
+                  Order{' '}
+                  {kitchenSendOrder.ticketNumber != null
+                    ? `#${String(kitchenSendOrder.ticketNumber).padStart(2, '0')}`
+                    : kitchenSendOrder.shortOrderId}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Tracking: {kitchenSendOrder.shortOrderId}
+                </p>
+              </div>
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-muted-foreground">
+                  Prep time (minutes)
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {KITCHEN_PREP_PRESETS.map((m) => (
+                    <Button
+                      key={m}
+                      type="button"
+                      variant={
+                        kitchenPrepMinutes[kitchenSendOrder.id] === m &&
+                        !kitchenCustomMinutes.trim()
+                          ? 'default'
+                          : 'outline'
+                      }
+                      onClick={() => {
+                        setKitchenPrepMinutes((prev) => ({
+                          ...prev,
+                          [kitchenSendOrder.id]: m,
+                        }));
+                        setKitchenCustomMinutes('');
+                      }}
+                    >
+                      {m} min
+                    </Button>
+                  ))}
+                </div>
+                <Input
+                  type="number"
+                  min={KITCHEN_PREP_MIN}
+                  max={KITCHEN_PREP_MAX}
+                  placeholder={`Custom (${KITCHEN_PREP_MIN}–${KITCHEN_PREP_MAX})`}
+                  value={kitchenCustomMinutes}
+                  onChange={(e) => setKitchenCustomMinutes(e.target.value)}
+                />
+              </div>
+            </div>
+          ) : null}
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={sendingToKitchen}
+              onClick={() => resetKitchenSendDialog()}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              disabled={sendingToKitchen || !kitchenSendOrder}
+              onClick={() => void sendOrderToKitchen()}
+            >
+              {sendingToKitchen ? 'Sending…' : 'Proceed to kitchen'}
             </Button>
           </DialogFooter>
         </DialogContent>

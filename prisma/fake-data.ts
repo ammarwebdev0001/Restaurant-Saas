@@ -348,6 +348,8 @@ export function fakeMenuItemOfferComplete() {
 export function fakeMenuItemAttributeGroup() {
   return {
     name: faker.person.fullName(),
+    minItems: undefined,
+    maxItems: undefined,
     updatedAt: faker.date.anytime(),
   };
 }
@@ -359,6 +361,8 @@ export function fakeMenuItemAttributeGroupComplete() {
     sortOrder: 0,
     selectionType: AttributeSelectionType.SINGLE,
     required: false,
+    minItems: undefined,
+    maxItems: undefined,
     linkedCategoryId: faker.string.uuid(),
     createdAt: new Date(),
     updatedAt: faker.date.anytime(),

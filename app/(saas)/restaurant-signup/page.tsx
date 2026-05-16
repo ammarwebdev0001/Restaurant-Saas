@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
+import { ArrowRight } from 'lucide-react';
 
 export default function RestaurantSignupPage() {
   return (
@@ -19,15 +20,24 @@ export default function RestaurantSignupPage() {
           <p>- Step 3: Add branches and start accepting orders</p>
         </div>
 
-        <div className="mt-8 flex flex-col gap-3 sm:flex-row">
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row justify-between">
+          
+          <Button variant="outline" asChild>
+            <Link href="/pricing">
+              <span>View Pricing</span>
+              <ArrowRight className="h-4 w-4 ml-1" />
+            </Link>
+          </Button>
           <Button
             asChild
             className="bg-gradient-to-r from-fire-500 via-fire-600 to-fire-500 text-white hover:from-fire-400 hover:to-fire-500"
           >
-            <Link href="/register">Continue to Signup</Link>
-          </Button>
-          <Button variant="outline" asChild>
-            <Link href="/pricing">View Pricing</Link>
+            <Link href="/register">
+              <>
+                <span>Continue to Signup</span>
+                <ArrowRight className="h-4 w-4 ml-1" />
+              </>
+            </Link>
           </Button>
         </div>
       </div>

@@ -3,6 +3,8 @@ export type AttrGroupRow = {
   name: string;
   selectionType: 'SINGLE' | 'MULTIPLE';
   required: boolean;
+  minItems: number | null;
+  maxItems: number | null;
   sortOrder: number;
   linkedCategory: { id: string; name: string };
 };
@@ -15,6 +17,8 @@ export type MenuItemRow = {
   price: number;
   salePrice: number | null;
   categoryId: string;
+  updatedAt?: string;
+  createdAt?: string;
   variations?: {
     id: string;
     name?: string;

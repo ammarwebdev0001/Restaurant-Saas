@@ -6,13 +6,45 @@ import { db } from "@/lib/db";
 import { getRestaurantForOwnerRequest } from "@/lib/restaurant/ownerRestaurant";
 import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from "@/lib/subscription-plan-enforcement";
 
-const patchSchema = z.object({
-  name: z.string().min(1).max(120).optional(),
-  selectionType: z.enum(["SINGLE", "MULTIPLE"]).optional(),
-  required: z.boolean().optional(),
-  linkedCategoryId: z.string().uuid().optional(),
-  sortOrder: z.number().int().min(0).optional(),
-});
+const patchSchema = z
+  .object({
+    name: z.string().min(1).max(120).optional(),
+    selectionType: z.enum(["SINGLE", "MULTIPLE"]).optional(),
+    required: z.boolean().optional(),
+    linkedCategoryId: z.string().uuid().optional(),
+    sortOrder: z.number().int().min(0).optional(),
+    minItems: z.number().int().min(0).nullable().optional(),
+    maxItems: z.number().int().min(1).nullable().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.selectionType === "MULTIPLE") {
+      if (data.minItems === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "minItems is required when setting selection type to MULTIPLE",
+          path: ["minItems"],
+        });
+      }
+      if (data.maxItems === undefined) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "maxItems is required when setting selection type to MULTIPLE",
+          path: ["maxItems"],
+        });
+      }
+    }
+    if (
+      data.minItems != null &&
+      data.maxItems != null &&
+      data.maxItems < data.minItems
+    ) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "maxItems must be greater than or equal to minItems",
+        path: ["maxItems"],
+      });
+    }
+  });
 
 export async function PATCH(
   req: NextRequest,
@@ -65,6 +97,14 @@ export async function PATCH(
     }
   }
 
+  const nextSelectionType = parsed.data.selectionType ?? group.selectionType;
+  const clearMinMax =
+    parsed.data.selectionType === "SINGLE" ||
+    (parsed.data.selectionType === undefined &&
+      nextSelectionType === "SINGLE" &&
+      parsed.data.minItems === undefined &&
+      parsed.data.maxItems === undefined);
+
   const updated = await db.menuItemAttributeGroup.update({
     where: { id: groupId },
     data: {
@@ -75,6 +115,9 @@ export async function PATCH(
         ? { linkedCategoryId: parsed.data.linkedCategoryId }
         : {}),
       ...(parsed.data.sortOrder !== undefined ? { sortOrder: parsed.data.sortOrder } : {}),
+      ...(parsed.data.minItems !== undefined ? { minItems: parsed.data.minItems } : {}),
+      ...(parsed.data.maxItems !== undefined ? { maxItems: parsed.data.maxItems } : {}),
+      ...(clearMinMax ? { minItems: null, maxItems: null } : {}),
     },
     include: { linkedCategory: { select: { id: true, name: true } } },
   });
