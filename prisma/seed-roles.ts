@@ -147,4 +147,9 @@ export async function seedDefaultGlobalRoles(prisma: PrismaClient) {
   );
 
   await refreshPendingSignupRoles(prisma);
+
+  const ownerPermCount = allRestaurantOwnerPermissionNames().length;
+  console.log(
+    `[seed] Global Owner (seed_owner) has ${ownerPermCount} permissions (all modules × access/edit/delete)`
+  );
 }

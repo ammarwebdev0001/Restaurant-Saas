@@ -243,7 +243,7 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   if (sessionStatus === 'loading' || sessionStatus === 'unauthenticated') {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-300 text-sm text-muted-foreground dark:bg-black">
-        <Loader2Icon className="animate-spin text-primary h-10 w-10 mx-auto" />
+        <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
       </div>
     );
   }
@@ -251,7 +251,7 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   if (!subscriptionChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-300 text-sm text-muted-foreground dark:bg-black">
-        <Loader2Icon className="animate-spin text-primary h-10 w-10 mx-auto" />
+        <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
       </div>
     );
   }
@@ -263,7 +263,7 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   if (!permissionsChecked) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-300 text-sm text-muted-foreground dark:bg-black">
-        <Loader2Icon className="animate-spin text-primary h-10 w-10 mx-auto" />
+        <Loader2 className="h-10 w-10 mx-auto animate-spin text-primary" />
       </div>
     );
   }

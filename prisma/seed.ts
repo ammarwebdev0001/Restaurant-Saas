@@ -2,6 +2,7 @@ import { PrismaClient } from '@prisma/client';
 import { fakeProductStockComplete } from './fake-data';
 import { seedPlatformAdminUser } from './seed-admin-user';
 import { seedDemoRestaurant } from './seed-demo-restaurant';
+import { refreshAllRestaurantOwnerRoles } from './seed-restaurant-roles';
 import { seedDefaultGlobalRoles } from './seed-roles';
 
 const prisma = new PrismaClient();
@@ -9,6 +10,7 @@ const prisma = new PrismaClient();
 async function main() {
   await seedDefaultGlobalRoles(prisma);
   await seedPlatformAdminUser(prisma);
+  await refreshAllRestaurantOwnerRoles(prisma);
   await seedDemoRestaurant(prisma);
 
   await prisma.$executeRaw`
@@ -20,15 +22,21 @@ async function main() {
     ON CONFLICT ("plan") DO NOTHING
   `;
 
-  await prisma.productStock.deleteMany({});
-  const fakerRounds = 40;
-  for (let i = 0; i < fakerRounds; i++) {
-    const product = await prisma.productStock.create({
-      data: {
-        ...fakeProductStockComplete(),
-      },
-    });
-    console.log(`Created product stock with id ${product.id}`);
+  if (process.env.SEED_LEGACY_PRODUCT_STOCK === 'true') {
+    await prisma.productStock.deleteMany({});
+    const fakerRounds = 40;
+    for (let i = 0; i < fakerRounds; i++) {
+      const product = await prisma.productStock.create({
+        data: {
+          ...fakeProductStockComplete(),
+        },
+      });
+      console.log(`Created product stock with id ${product.id}`);
+    }
+  } else {
+    console.log(
+      '[seed] Skipped legacy productStock (set SEED_LEGACY_PRODUCT_STOCK=true to enable)'
+    );
   }
 }
 

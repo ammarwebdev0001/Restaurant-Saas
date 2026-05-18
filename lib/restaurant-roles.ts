@@ -36,6 +36,15 @@ export async function ensurePresetRolesAndOwnerEmployee(
 ): Promise<void> {
   const full = allRestaurantDashboardPermissionNames();
 
+  async function replacePermissions(roleId: string) {
+    await db.permission.deleteMany({ where: { roleId } });
+    if (full.length > 0) {
+      await db.permission.createMany({
+        data: full.map((name) => ({ name, roleId })),
+      });
+    }
+  }
+
   let ownerRole = await db.role.findUnique({
     where: {
       restaurantId_slug: {
@@ -55,9 +64,11 @@ export async function ensurePresetRolesAndOwnerEmployee(
         },
       },
     });
+  } else {
+    await replacePermissions(ownerRole.id);
   }
 
-  const adminExists = await db.role.findUnique({
+  const adminRole = await db.role.findUnique({
     where: {
       restaurantId_slug: {
         restaurantId,
@@ -65,7 +76,7 @@ export async function ensurePresetRolesAndOwnerEmployee(
       },
     },
   });
-  if (!adminExists) {
+  if (!adminRole) {
     await db.role.create({
       data: {
         restaurantId,
@@ -76,6 +87,8 @@ export async function ensurePresetRolesAndOwnerEmployee(
         },
       },
     });
+  } else {
+    await replacePermissions(adminRole.id);
   }
 
   await db.employee.upsert({
