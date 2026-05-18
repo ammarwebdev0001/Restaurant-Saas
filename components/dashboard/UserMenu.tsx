@@ -3,7 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { signOut, useSession } from 'next-auth/react';
-import { LogOut, User } from 'lucide-react';
+import { Loader2, LogIn, LogOut, User } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -24,7 +24,7 @@ export default function UserMenu({ className }: { className?: string }) {
   if (status === 'loading') {
     return (
       <Button disabled variant="secondary" className={className}>
-        Loading...
+        <Loader2 className="h-4 w-4 mr-2 animate-spin text-primary" />
       </Button>
     );
   }
@@ -36,7 +36,10 @@ export default function UserMenu({ className }: { className?: string }) {
         className={className}
         onClick={() => router.push('/login')}
       >
-        Sign in
+        <>
+          <LogIn className="h-4 w-4 mr-2" />
+          <span>Sign in</span>
+        </>
       </Button>
     );
   }
@@ -68,8 +71,10 @@ export default function UserMenu({ className }: { className?: string }) {
           className="relative flex w-full items-center rounded-sm px-2 py-1.5 text-sm text-red-500 outline-none transition-colors hover:bg-accent"
           onClick={() => signOut({ callbackUrl: '/' })}
         >
-          <LogOut className="mr-2 h-4 w-4" />
-          Logout
+          <>
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Logout</span>
+          </>
         </button>
       </DropdownMenuContent>
     </DropdownMenu>

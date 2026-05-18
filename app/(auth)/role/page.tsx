@@ -8,6 +8,7 @@ import { toast } from "react-toastify";
 import { Button } from "@/components/ui/button";
 import { PublicAuthShell } from "@/components/marketing/public-auth-shell";
 import { isPlatformAdminSession } from "@/lib/auth/admin";
+import { Loader2 } from "lucide-react";
 
 type Role = "OWNER" | "WORKER";
 
@@ -88,7 +89,7 @@ function RolePage() {
     return (
       <main className="flex min-h-screen items-center justify-center bg-white px-4 py-10 dark:bg-black">
         <div className="text-center text-sm text-muted-foreground">
-          Loading...
+          <Loader2 className="h-4 w-4 mr-2 animate-spin text-primary" />
         </div>
       </main>
     );

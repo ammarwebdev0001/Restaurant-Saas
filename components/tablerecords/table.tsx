@@ -40,6 +40,7 @@ import type {
   TransactionHistoryResponse,
   TransactionHistoryRow,
 } from '@/types/transaction-history';
+import { Loader2 } from 'lucide-react';
 
 const PAGE_SIZE = 20;
 
@@ -117,7 +118,8 @@ export function Records() {
         <CardHeader>
           <CardTitle>Transaction History</CardTitle>
           <CardDescription>
-            Unified transaction records for orders, subscriptions, and register sales.
+            Unified transaction records for orders, subscriptions, and register
+            sales.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -152,19 +154,25 @@ export function Records() {
           <div className="grid gap-3 md:grid-cols-3">
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">Orders in current page</p>
+                <p className="text-xs text-muted-foreground">
+                  Orders in current page
+                </p>
                 <p className="text-2xl font-semibold">{stats.orderCount}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">Subscriptions in current page</p>
+                <p className="text-xs text-muted-foreground">
+                  Subscriptions in current page
+                </p>
                 <p className="text-2xl font-semibold">{stats.subCount}</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">Register in current page</p>
+                <p className="text-xs text-muted-foreground">
+                  Register in current page
+                </p>
                 <p className="text-2xl font-semibold">{stats.regCount}</p>
               </CardContent>
             </Card>
@@ -176,7 +184,9 @@ export function Records() {
                 <TableRow>
                   <TableHead>Type</TableHead>
                   <TableHead>Transaction ID</TableHead>
-                  <TableHead className="hidden md:table-cell">Order / Subscription</TableHead>
+                  <TableHead className="hidden md:table-cell">
+                    Order / Subscription
+                  </TableHead>
                   <TableHead className="hidden lg:table-cell">Source</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Amount</TableHead>
@@ -187,19 +197,28 @@ export function Records() {
               <TableBody>
                 {loading ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
-                      Loading...
+                    <TableCell
+                      colSpan={8}
+                      className="text-center text-muted-foreground"
+                    >
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     </TableCell>
                   </TableRow>
                 ) : error ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-destructive">
+                    <TableCell
+                      colSpan={8}
+                      className="text-center text-destructive"
+                    >
                       {error}
                     </TableCell>
                   </TableRow>
                 ) : rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center text-muted-foreground">
+                    <TableCell
+                      colSpan={8}
+                      className="text-center text-muted-foreground"
+                    >
                       No records found.
                     </TableCell>
                   </TableRow>
@@ -209,11 +228,15 @@ export function Records() {
                       <TableCell>
                         <Badge variant="secondary">{kindBadge(row.kind)}</Badge>
                       </TableCell>
-                      <TableCell className="font-mono text-xs">{row.transactionId}</TableCell>
+                      <TableCell className="font-mono text-xs">
+                        {row.transactionId}
+                      </TableCell>
                       <TableCell className="hidden font-mono text-xs md:table-cell">
                         {row.referenceId ?? '—'}
                       </TableCell>
-                      <TableCell className="hidden lg:table-cell">{row.source}</TableCell>
+                      <TableCell className="hidden lg:table-cell">
+                        {row.source}
+                      </TableCell>
                       <TableCell>{row.status}</TableCell>
                       <TableCell className="text-right tabular-nums">
                         {money(row.amount, row.currency)}
@@ -296,7 +319,9 @@ export function Records() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Amount</p>
-                  <p className="tabular-nums">{money(active.amount, active.currency)}</p>
+                  <p className="tabular-nums">
+                    {money(active.amount, active.currency)}
+                  </p>
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Method</p>
@@ -312,7 +337,9 @@ export function Records() {
                 </div>
               </div>
               <div className="rounded-md border p-3">
-                <p className="text-xs text-muted-foreground">Order / Subscription reference</p>
+                <p className="text-xs text-muted-foreground">
+                  Order / Subscription reference
+                </p>
                 <p className="font-mono text-xs">{active.referenceId ?? '—'}</p>
               </div>
               {active.customerName ? (
@@ -323,7 +350,9 @@ export function Records() {
               ) : null}
               {active.note ? (
                 <div className="rounded-md border p-3">
-                  <p className="text-xs text-muted-foreground">Notes / Address snapshot</p>
+                  <p className="text-xs text-muted-foreground">
+                    Notes / Address snapshot
+                  </p>
                   <p className="whitespace-pre-wrap text-xs">{active.note}</p>
                 </div>
               ) : null}

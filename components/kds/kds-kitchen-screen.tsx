@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { RefreshCw, CheckCircle2, XCircle, Clock3 } from 'lucide-react';
+import { RefreshCw, CheckCircle2, XCircle, Clock3, Loader2 } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -461,7 +461,7 @@ export function KdsKitchenScreen() {
                         >
                           <CheckCircle2 className="h-5 w-5" />
                           {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
-                            ? 'Loading...'
+                            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> </>
                             : 'Complete'}
                         </Button>
                         <Button
@@ -480,7 +480,7 @@ export function KdsKitchenScreen() {
                         >
                           <XCircle className="h-5 w-5" />
                           {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
-                            ? 'Loading...'
+                            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> </>
                             : 'Cancel'}
                         </Button>
                       </div>

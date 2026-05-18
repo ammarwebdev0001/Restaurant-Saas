@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ReloadIcon } from '@radix-ui/react-icons';
+import { Loader2 } from 'lucide-react';
 
 interface EditConfirmationProps {
   open: boolean;
@@ -36,33 +37,30 @@ export function EditConfirmation({
   cancelText = 'Cancel',
 }: EditConfirmationProps) {
   return (
-    <AlertDialog open={open} onOpenChange={(isOpen) => {
-      if (!isOpen) onCancel();
-    }}>
+    <AlertDialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        if (!isOpen) onCancel();
+      }}
+    >
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>
             {itemName ? `${title} "${itemName}"?` : title}
           </AlertDialogTitle>
-          <AlertDialogDescription>
-            {description}
-          </AlertDialogDescription>
+          <AlertDialogDescription>{description}</AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel} disabled={loading}>
             {cancelText}
           </AlertDialogCancel>
-          <AlertDialogAction
-            onClick={onConfirm}
-            disabled={loading}
-          >
+          <AlertDialogAction onClick={onConfirm} disabled={loading}>
             {loading ? (
               <>
-                <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
-                Loading...
+                <Loader2 className="mr-2 h-4 w-4 animate-spin text-primary" />
               </>
             ) : (
-              confirmText
+              <span>{confirmText}</span>
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

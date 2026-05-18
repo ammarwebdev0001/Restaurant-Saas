@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useSession, signOut } from 'next-auth/react';
-import { LayoutDashboard, LogOut, Shield, User, User2 } from 'lucide-react';
+import { LayoutDashboard, Loader2, LogOut, Shield, User, User2, UserPlus } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { isPlatformAdminSession } from '@/lib/auth/admin';
@@ -44,7 +44,7 @@ export default function LandingAuthActions({
   if (status === 'loading') {
     return (
       <Button size="sm" disabled className={loadingClassName}>
-        Loading...
+        <Loader2 className="h-4 w-4 animate-spin" />
       </Button>
     );
   }
@@ -52,7 +52,9 @@ export default function LandingAuthActions({
   if (!session?.user) {
     return (
       <Button size="sm" asChild className={loggedOutClassName}>
-        <Link href="/register">{loggedOutLabel}</Link>
+        <Link href="/register">
+            <span>{loggedOutLabel}</span>
+        </Link>
       </Button>
     );
   }
@@ -99,8 +101,10 @@ export default function LandingAuthActions({
             className="flex items-center w-full rounded-sm px-3 py-2 text-left text-red-500 text-sm hover:bg-accent"
             onClick={() => signOut({ callbackUrl: '/' })}
           >
-            <LogOut className="mr-2 h-4 w-4" />
-            Logout
+            <>
+              <LogOut className="mr-2 h-4 w-4" />
+              <span>Logout</span>
+            </>
           </button>
         </div>
       )}

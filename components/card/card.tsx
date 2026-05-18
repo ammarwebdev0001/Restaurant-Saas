@@ -1,5 +1,5 @@
 'use client';
-import { Boxes, CircleDollarSign, Handshake } from 'lucide-react';
+import { Boxes, CircleDollarSign, Handshake, Loader2 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -73,7 +73,7 @@ function DashboardCard(): React.ReactNode {
           Total Product
         </p>
         <p className="border border-red-500 bg-red-100 dark:bg-red-900/20 text-red-600 text-xs rounded-full px-2 py-0.5 mt-4">
-          {totalStock ?? 'Loading...'}
+          {totalStock ?? <Loader2 className="h-4 w-4 mr-2 animate-spin text-primary" />}
         </p>
       </motion.div>
 
@@ -89,7 +89,7 @@ function DashboardCard(): React.ReactNode {
         >
           <p className="text-green-400">
             <span className="mr-1">$</span>
-            {totalAmount ?? 'Loading...'}
+            {totalAmount ?? <Loader2 className="h-4 w-4 mr-2 animate-spin text-primary" />}
           </p>
         </Badge>
       </motion.div>
@@ -104,7 +104,7 @@ function DashboardCard(): React.ReactNode {
           Total Product Sale
         </p>
         <p className="border border-orange-500 bg-orange-100 dark:bg-orange-900/20 text-orange-600 text-xs rounded-full px-2 py-0.5 mt-4">
-          {totalQuantity ?? 'Loading...'}
+          {totalQuantity ?? <Loader2 className="h-4 w-4 mr-2 animate-spin text-primary" />}
         </p>
       </motion.div>
     </motion.div>
