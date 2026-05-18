@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { ArrowLeft, Loader2, Save } from 'lucide-react';
+import { ArrowLeft, Cross, Loader2, Save, Trash2 } from 'lucide-react';
 
 import { MenuPageShell } from '@/components/dashboard/menu-manager/menu-page-shell';
 import {
@@ -277,14 +277,15 @@ export default function ProductEditPage() {
               <AlertDialogDescription>{leaveMessage}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel type="button">
-                <span>Keep editing</span>
-                <ArrowLeft className="h-4 w-4 ml-2" />
-              </AlertDialogCancel>
-              <AlertDialogAction type="button" onClick={confirmLeave}>
+              <AlertDialogCancel type="button" className="bg-gray-100 text-gray-900 hover:bg-gray-200 hover:text-gray-900">
                 <>
+                  <Cross className="h-4 w-4 mr-2" />
+                  <span>Keep editing</span></>
+              </AlertDialogCancel>
+              <AlertDialogAction type="button" onClick={confirmLeave} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
                   <span>Leave without saving</span>
-                  <Trash2 className="h-4 w-4 ml-2" />
                 </>
               </AlertDialogAction>
             </AlertDialogFooter>
