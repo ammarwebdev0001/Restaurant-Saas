@@ -50,7 +50,10 @@ export async function POST(
   req: NextRequest,
   ctx: { params: Promise<{ itemId: string }> }
 ) {
-  const auth = await getRestaurantForOwnerRequest(req);
+  const auth = await getRestaurantForOwnerRequest(req, {
+    moduleKey: "recommendations",
+    action: "edit",
+  });
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

@@ -22,6 +22,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { SaveConfirmation } from '@/components/ui/confirmation-dialogs';
+import { Loader2, Plus, Save } from 'lucide-react';
 
 type Sub = {
   id: string;
@@ -268,7 +269,7 @@ export function SubscriptionEditDialog({
                 disabled={savingPayment}
                 onClick={() => void recordPayment()}
               >
-                {savingPayment ? 'Recording...' : 'Record Payment'}
+                {savingPayment ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Recording...</span></> : <><Save className="h-4 w-4 mr-2" /> <span>Record Payment</span></>}
               </Button>
               {loadingPayments ? (
                 <p className="mt-3 text-xs text-muted-foreground">Loading payment history…</p>
@@ -303,11 +304,11 @@ export function SubscriptionEditDialog({
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" type="button" disabled={saving} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button type="button" disabled={saving} onClick={handleSaveClick}>
-            Save
+            {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Saving...</span></> : <><Save className="h-4 w-4 mr-2" /> <span>Save</span></>}
           </Button>
         </DialogFooter>
         <SaveConfirmation

@@ -14,7 +14,10 @@ export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ tableId: string }> }
 ) {
-  const auth = await getRestaurantForOwnerRequest();
+  const auth = await getRestaurantForOwnerRequest(req, {
+    moduleKey: 'tables',
+    action: 'edit',
+  });
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -71,7 +74,10 @@ export async function DELETE(
   _req: NextRequest,
   ctx: { params: Promise<{ tableId: string }> }
 ) {
-  const auth = await getRestaurantForOwnerRequest();
+  const auth = await getRestaurantForOwnerRequest(undefined, {
+    moduleKey: 'tables',
+    action: 'delete',
+  });
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

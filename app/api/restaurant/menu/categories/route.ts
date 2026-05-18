@@ -10,7 +10,10 @@ const bodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  const auth = await getRestaurantForOwnerRequest(req);
+  const auth = await getRestaurantForOwnerRequest(req, {
+    moduleKey: "categories",
+    action: "edit",
+  });
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

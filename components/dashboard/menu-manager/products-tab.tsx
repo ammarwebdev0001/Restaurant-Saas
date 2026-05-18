@@ -27,6 +27,7 @@ import {
 } from '@/components/ui/pagination';
 import { getMenuItemDisplayPrice } from '@/lib/menu-item-pricing';
 import { cn } from '@/lib/utils';
+import { useDashboardPermissions } from '@/hooks/use-dashboard-permissions';
 
 import type { MenuCategoryRow, MenuItemRow } from './types';
 
@@ -53,6 +54,10 @@ type Props = {
 };
 
 export function ProductsTab({ categories, onRefresh }: Props) {
+  const { canEdit, canDelete } = useDashboardPermissions();
+  const canEditProducts = canEdit('product');
+  const canDeleteProducts = canDelete('product');
+
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState(ALL_CATEGORIES);
   const [page, setPage] = useState(1);
@@ -146,12 +151,14 @@ export function ProductsTab({ categories, onRefresh }: Props) {
         ) : (
           <div className="space-y-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button type="button" asChild disabled={categories.length === 0}>
-                <Link href="/product/create">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Add product
-                </Link>
-              </Button>
+              {canEditProducts ? (
+                <Button type="button" asChild disabled={categories.length === 0}>
+                  <Link href="/product/create">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add product
+                  </Link>
+                </Button>
+              ) : null}
               <div className="relative min-w-0 flex-1">
                 <Search
                   className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
@@ -298,31 +305,35 @@ export function ProductsTab({ categories, onRefresh }: Props) {
                             </td>
                             <td className="p-3">
                               <div className="flex gap-1">
-                                <Button
-                                  type="button"
-                                  size="icon"
-                                  variant="outline"
-                                  asChild
-                                >
-                                  <Link
-                                    href={`/product/edit/${item.id}`}
-                                    aria-label={`Edit ${item.name}`}
+                                {canEditProducts ? (
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="outline"
+                                    asChild
                                   >
-                                    <Pencil className="h-4 w-4" />
-                                  </Link>
-                                </Button>
-                                <Button
-                                  type="button"
-                                  size="icon"
-                                  variant="outline"
-                                  className="text-destructive"
-                                  onClick={() => {
-                                    setDeletingProduct(item);
-                                    setDeleteConfirmOpen(true);
-                                  }}
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
+                                    <Link
+                                      href={`/product/edit/${item.id}`}
+                                      aria-label={`Edit ${item.name}`}
+                                    >
+                                      <Pencil className="h-4 w-4" />
+                                    </Link>
+                                  </Button>
+                                ) : null}
+                                {canDeleteProducts ? (
+                                  <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="outline"
+                                    className="text-destructive"
+                                    onClick={() => {
+                                      setDeletingProduct(item);
+                                      setDeleteConfirmOpen(true);
+                                    }}
+                                  >
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                ) : null}
                               </div>
                             </td>
                           </tr>

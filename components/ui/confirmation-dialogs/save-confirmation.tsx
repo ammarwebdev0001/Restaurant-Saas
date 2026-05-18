@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ReloadIcon } from '@radix-ui/react-icons';
+import { Loader2, Save } from 'lucide-react';
 
 interface SaveConfirmationProps {
   open: boolean;
@@ -57,12 +57,12 @@ export function SaveConfirmation({
             disabled={loading}
           >
             {loading ? (
-              <>
-                <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
-                Saving...
-              </>
+                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Saving...</span></>
             ) : (
-              confirmText
+              <>
+                <Save className="h-4 w-4 mr-2" />
+                <span>{confirmText}</span>
+              </>
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useMemo, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Plus, Trash2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
@@ -137,7 +137,10 @@ export default function OnboardingStep2Page() {
               size="sm"
               onClick={addMenuBannerRow}
             >
-              Add image
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                <span>Add menu banner</span>
+              </>
             </Button>
           </div>
           {menuBanners.map((url, i) => (
@@ -155,7 +158,10 @@ export default function OnboardingStep2Page() {
                   onClick={() => removeMenuBanner(i)}
                   aria-label="Remove"
                 >
-                  ×
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    <span>Remove</span>
+                  </>
                 </Button>
               )}
             </div>
@@ -165,11 +171,14 @@ export default function OnboardingStep2Page() {
           <Button type="submit" className="w-full" disabled={loading || !canContinue}>
             {loading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Saving…
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                <span>Saving...</span>
               </>
             ) : (
-              "Continue"
+              <>
+                <span>Continue</span>
+                <ArrowRight className="h-4 w-4 ml-2" />
+              </>
             )}
           </Button>
         </div>

@@ -13,7 +13,7 @@ import {
   getOnboardingRestaurantId,
 } from "@/lib/onboarding/storage";
 import { OnboardingSteps } from "../OnboardingSteps";
-import { Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Trash2 } from "lucide-react";
 
 type BranchRow = { name: string; address: string; phone: string };
 
@@ -140,7 +140,10 @@ export default function OnboardingStep3Page() {
                   size="sm"
                   onClick={() => removeRow(i)}
                 >
-                  Remove
+                  <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    <span>Remove</span>
+                  </>
                 </Button>
               )}
             </div>
@@ -187,8 +190,11 @@ export default function OnboardingStep3Page() {
           </Button>
           <Button type="submit" disabled={loading}>
             {loading ? <>
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Finishing…</span>
-            </> : "Finish"}
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Finishing...</span>
+            </> : <>
+            <span>Finish</span>
+            <ArrowRight className="h-4 w-4 ml-2" />
+            </>}
           </Button>
         </div>
       </form>

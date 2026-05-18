@@ -15,6 +15,10 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { getMinVariationPrice } from '@/lib/menu-item-pricing';
+import {
+  filterDecimalInput,
+  filterNameTextInput,
+} from '@/lib/validation/fields';
 
 import type { MenuCategoryRow, MenuItemRow } from './types';
 
@@ -120,8 +124,13 @@ export function ProductFormFields({
       <div className="grid gap-2 ">
         <FieldLabel required={showRequired}>Name</FieldLabel>
         <Input
+          type="text"
+          inputMode="text"
+          autoComplete="off"
           value={form.name}
-          onChange={(e) => onFormChange({ name: e.target.value })}
+          onChange={(e) =>
+            onFormChange({ name: filterNameTextInput(e.target.value) })
+          }
           placeholder="Product name"
           required={showRequired}
           aria-required={showRequired || undefined}
@@ -156,7 +165,9 @@ export function ProductFormFields({
               step="0.01"
               min="0"
               value={form.price}
-              onChange={(e) => onFormChange({ price: e.target.value })}
+              onChange={(e) =>
+                onFormChange({ price: filterDecimalInput(e.target.value) })
+              }
               required={showRequired}
               aria-required={showRequired || undefined}
             />
@@ -169,7 +180,9 @@ export function ProductFormFields({
               min="0"
               placeholder="—"
               value={form.salePrice}
-              onChange={(e) => onFormChange({ salePrice: e.target.value })}
+              onChange={(e) =>
+                onFormChange({ salePrice: filterDecimalInput(e.target.value) })
+              }
             />
           </div>
         </div>
@@ -213,7 +226,9 @@ export function ProductFormFields({
                   <Input
                     value={row.name}
                     onChange={(e) =>
-                      updateVariation(index, { name: e.target.value })
+                      updateVariation(index, {
+                        name: filterNameTextInput(e.target.value),
+                      })
                     }
                     placeholder="Small / Red / 500ml"
                     required={showRequired}
@@ -228,7 +243,9 @@ export function ProductFormFields({
                     min="0"
                     value={row.priceDelta}
                     onChange={(e) =>
-                      updateVariation(index, { priceDelta: e.target.value })
+                      updateVariation(index, {
+                        priceDelta: filterDecimalInput(e.target.value),
+                      })
                     }
                     required={showRequired}
                     aria-required={showRequired || undefined}

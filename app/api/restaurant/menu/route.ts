@@ -51,7 +51,10 @@ const menuInclude = {
 };
 
 export async function GET(req: NextRequest) {
-  const auth = await getRestaurantForOwnerRequest(req);
+  const auth = await getRestaurantForOwnerRequest(req, {
+    moduleKey: "product",
+    action: "access",
+  });
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

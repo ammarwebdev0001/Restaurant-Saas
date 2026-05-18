@@ -12,7 +12,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { ReloadIcon } from '@radix-ui/react-icons';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Trash2 } from 'lucide-react';
 
 interface DeleteConfirmationProps {
   open: boolean;
@@ -76,10 +76,13 @@ export function DeleteConfirmation({
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Deleting...
+                <span>Deleting...</span>
               </>
             ) : (
-              confirmText
+              <>
+                <Trash2 className="h-4 w-4 mr-2" />
+                <span>{confirmText}</span>
+              </>
             )}
           </AlertDialogAction>
         </AlertDialogFooter>

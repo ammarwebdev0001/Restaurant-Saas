@@ -108,6 +108,14 @@ export function permissionsFromRows(
   return normalizeDashboardPermissions(tokens);
 }
 
+export function hasDashboardPermission(
+  permissionNames: string[],
+  moduleKey: string,
+  action: PermissionAction
+): boolean {
+  return permissionNames.includes(permissionName(moduleKey, action));
+}
+
 export function toggleModuleAction(
   list: string[],
   moduleKey: string,

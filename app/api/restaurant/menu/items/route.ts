@@ -55,7 +55,10 @@ const createSchema = z
   });
 
 export async function POST(req: NextRequest) {
-  const auth = await getRestaurantForOwnerRequest(req);
+  const auth = await getRestaurantForOwnerRequest(req, {
+    moduleKey: "product",
+    action: "edit",
+  });
   if ("error" in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

@@ -17,6 +17,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { normalizeThemePrimaryColor } from '@/lib/restaurant-theme';
+import { Loader2, Save } from 'lucide-react';
 
 type RestaurantBrandingDto = {
   id: string;
@@ -235,7 +236,7 @@ export function RestaurantBrandingCard({
           disabled={saving || !brandingAllowed}
           onClick={() => void handleSave()}
         >
-          {saving ? 'Saving…' : 'Save branding'}
+          {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Saving...</span></> : <><Save className="h-4 w-4 mr-2" /> <span>Save branding</span></>}
         </Button>
       </CardFooter>
     </Card>

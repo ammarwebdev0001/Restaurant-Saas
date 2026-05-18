@@ -1,5 +1,6 @@
 import { PrismaClient } from '@prisma/client';
 import { fakeProductStockComplete } from './fake-data';
+import { seedPlatformAdminUser } from './seed-admin-user';
 import { seedDemoRestaurant } from './seed-demo-restaurant';
 import { seedDefaultGlobalRoles } from './seed-roles';
 
@@ -7,6 +8,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   await seedDefaultGlobalRoles(prisma);
+  await seedPlatformAdminUser(prisma);
   await seedDemoRestaurant(prisma);
 
   await prisma.$executeRaw`

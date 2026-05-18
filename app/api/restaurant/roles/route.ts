@@ -13,7 +13,10 @@ const createSchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  const auth = await getRestaurantIdForRequest(req);
+  const auth = await getRestaurantIdForRequest(req, {
+    moduleKey: 'settings',
+    action: 'access',
+  });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -35,7 +38,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await getRestaurantIdForRequest(req);
+  const auth = await getRestaurantIdForRequest(req, {
+    moduleKey: 'settings',
+    action: 'edit',
+  });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

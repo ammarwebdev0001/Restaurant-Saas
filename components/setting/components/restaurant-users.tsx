@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Loader2, UserPlus } from 'lucide-react';
+import { Loader2, Trash2, UserPlus } from 'lucide-react';
 
 import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
 import {
@@ -476,7 +476,10 @@ export default function RestaurantUsersCard({
                                 className="text-destructive"
                                 onClick={() => void removeEmployee(emp.id)}
                               >
-                                Remove
+                                <>
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  <span>Remove</span>
+                                </>
                               </Button>
                             )}
                           </TableCell>

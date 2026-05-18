@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { getToken } from "next-auth/jwt";
 
 import { isPlatformAdmin } from "@/lib/auth/admin";
+import { DASHBOARD_MODULES } from "@/constant/dashboardModules";
 
 /** Same fallback as `authOptions.secret` in `lib/auth-options.ts` (dev only). */
 function resolveNextAuthJwtSecret(): string | undefined {
@@ -14,6 +15,13 @@ function resolveNextAuthJwtSecret(): string | undefined {
 
 function isAdminPath(pathname: string): boolean {
   return pathname === "/admin" || pathname.startsWith("/admin/");
+}
+
+function isDashboardPath(pathname: string): boolean {
+  if (pathname === "/no-access") return true;
+  return DASHBOARD_MODULES.some(
+    (m) => pathname === m.path || pathname.startsWith(`${m.path}/`)
+  );
 }
 
 /** Staff-facing terminals: require a signed-in session (JWT) at the edge. */
@@ -49,7 +57,10 @@ export async function middleware(req: NextRequest) {
   const url = req.nextUrl.clone();
   const pathname = url.pathname;
 
-  const needsAuth = isStaffTerminalPath(pathname) || isAdminPath(pathname);
+  const needsAuth =
+    isStaffTerminalPath(pathname) ||
+    isAdminPath(pathname) ||
+    isDashboardPath(pathname);
 
   if (needsAuth) {
     const secret = resolveNextAuthJwtSecret();

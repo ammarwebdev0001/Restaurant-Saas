@@ -15,8 +15,10 @@ import { toast } from 'react-toastify';
 import {
   ChevronLeft,
   ChevronRight,
+  Cross,
   ListFilter,
   Loader2,
+  Save,
   Search,
   Trash2,
 } from 'lucide-react';
@@ -1090,12 +1092,12 @@ export function RecommendationsTab({
                             className="w-full"
                           >
                             {savingRules ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />{' '}
-                                Saving...
-                              </>
+                                <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Saving...</span></>
                             ) : (
-                              'Save Recommendation'
+                              <>
+                                <Save className="h-4 w-4 mr-2" />
+                                <span>Save Recommendation</span>
+                              </>
                             )}
                           </Button>
                         </>
@@ -1229,12 +1231,12 @@ export function RecommendationsTab({
                         className="w-full"
                       >
                         {savingOffers ? (
-                          <>
-                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />{' '}
-                            Saving...
-                          </>
-                        ) : (
-                          'Save offered products'
+                            <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Saving...</span></>
+                          ) : (
+                            <>
+                              <Save className="h-4 w-4 mr-2" />
+                              <span>Save offered products</span>
+                            </>
                         )}
                       </Button>
 
@@ -1290,9 +1292,9 @@ export function RecommendationsTab({
                                 >
                                   {deletingOffer &&
                                   deletingOfferId === offer.id ? (
-                                    <Loader2 className="h-4 w-4 animate-spin text-destructive" />
+                                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Deleting...</span></>
                                   ) : (
-                                    <Trash2 className="h-4 w-4" />
+                                    <><Trash2 className="h-4 w-4 mr-2" /> <span>Remove</span></>  
                                   )}
                                 </Button>
                               </li>
@@ -1697,9 +1699,17 @@ export function RecommendationsTab({
             <AlertDialogDescription>{leaveMessage}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel type="button">Keep editing</AlertDialogCancel>
+            <AlertDialogCancel type="button">
+              <>
+                <Cross className="h-4 w-4 mr-2" />
+                <span>Keep editing</span>
+              </>
+            </AlertDialogCancel>
             <AlertDialogAction type="button" onClick={confirmLeave}>
-              Leave without saving
+              <>
+                <Trash2 className="h-4 w-4 mr-2" />
+                <span>Leave without saving</span>
+              </>
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

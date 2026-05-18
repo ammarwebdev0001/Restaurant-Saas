@@ -15,7 +15,10 @@ export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ employeeId: string }> }
 ) {
-  const auth = await getRestaurantIdForRequest(req);
+  const auth = await getRestaurantIdForRequest(req, {
+    moduleKey: 'settings',
+    action: 'edit',
+  });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -114,7 +117,10 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ employeeId: string }> }
 ) {
-  const auth = await getRestaurantIdForRequest(req);
+  const auth = await getRestaurantIdForRequest(req, {
+    moduleKey: 'settings',
+    action: 'delete',
+  });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

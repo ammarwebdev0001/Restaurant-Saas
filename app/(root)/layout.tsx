@@ -11,6 +11,7 @@ import { NavbarSheet } from '@/components/dashboard/NavbarSheet';
 import UserMenu from '@/components/dashboard/UserMenu';
 import Bread from '@/components/dashboard/breadcrumb';
 import { usePathname, useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import eventBus from '@/lib/even';
@@ -37,6 +38,7 @@ function moduleKeyForPath(pathname: string): string | null {
 const RootLayout = ({ children }: RootLayoutProps) => {
   const router = useRouter();
   const pathname = usePathname();
+  const { status: sessionStatus } = useSession();
   const [restaurantName, setRestaurantName] = useState<string>('Restaurant');
   const [restaurantSlug, setRestaurantSlug] = useState<string | null>(null);
   const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(
@@ -73,6 +75,13 @@ const RootLayout = ({ children }: RootLayoutProps) => {
       /* ignore */
     }
   }, [sidebarOpen]);
+
+  useEffect(() => {
+    if (sessionStatus === 'unauthenticated') {
+      const callback = encodeURIComponent(pathname ?? '/dashboard');
+      router.replace(`/login?callbackUrl=${callback}`);
+    }
+  }, [sessionStatus, pathname, router]);
 
   useEffect(() => {
     let mounted = true;
@@ -230,6 +239,14 @@ const RootLayout = ({ children }: RootLayoutProps) => {
       if (link) link.href = '/favicon.ico';
     };
   }, []);
+
+  if (sessionStatus === 'loading' || sessionStatus === 'unauthenticated') {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-300 text-sm text-muted-foreground dark:bg-black">
+        <Loader2Icon className="animate-spin text-primary h-10 w-10 mx-auto" />
+      </div>
+    );
+  }
 
   if (!subscriptionChecked) {
     return (

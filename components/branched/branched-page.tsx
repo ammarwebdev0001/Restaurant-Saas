@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { toast } from 'react-toastify';
-import { Loader2Icon } from 'lucide-react';
+import { Cross, Loader2, Loader2Icon, Plus, Save, Trash, Trash2 } from 'lucide-react';
 
 type BranchRow = {
   id: string;
@@ -218,9 +218,12 @@ export function BranchedPage() {
                   onClick={() => setConfirmEditOpen(true)}
                 >
                   {saving ? (
-                    <Loader2Icon className="h-4 w-4 animate-spin" />
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Updating...</span></>
                   ) : (
-                    'Update branch'
+                    <>
+                    <Save className="h-4 w-4 mr-2" />
+                    <span>Update branch</span>
+                    </>
                   )}
                 </Button>
 
@@ -233,9 +236,12 @@ export function BranchedPage() {
                   onClick={() => setConfirmDeleteOpen(true)}
                 >
                   {deletingId === activeId ? (
-                    <Loader2Icon className="h-4 w-4 animate-spin" />
+                    <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Deleting...</span></>
                   ) : (
-                    'Delete branch'
+                    <>
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    <span>Delete branch</span>
+                    </>
                   )}
                 </Button>
                 <Button
@@ -244,7 +250,10 @@ export function BranchedPage() {
                   disabled={saving || deletingId === activeId}
                   onClick={resetForm}
                 >
-                  Cancel edit
+                  <>
+                    <Cross className="h-4 w-4 mr-2" />
+                    <span>Cancel edit</span>
+                  </>
                 </Button>
               </>
             ) : (
@@ -253,7 +262,7 @@ export function BranchedPage() {
                 onClick={() => setConfirmAddOpen(true)}
                 disabled={saving || atBranchLimit}
               >
-                Add new branch
+                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Adding...</span></> : <><Plus className="h-4 w-4 mr-2" /> <span>Add new branch</span></>}
               </Button>
             )}
           </div>

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, Plus, Trash2 } from 'lucide-react';
 
 import { MenuPageShell } from '@/components/dashboard/menu-manager/menu-page-shell';
 import {
@@ -166,7 +166,10 @@ export default function ProductCreatePage() {
                   Create at least one category before adding products.
                 </p>
                 <Button type="button" asChild className="w-fit">
-                  <Link href="/categories">Go to Categories</Link>
+                  <>
+                    <span>Go to Categories</span>
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </>
                 </Button>
               </CardContent>
             </Card>
@@ -199,14 +202,17 @@ export default function ProductCreatePage() {
                     {saving ? (
                       <>
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Creating…
+                        <span>Creating...</span>
                       </>
                     ) : (
-                      'Create product'
+                      <>
+                        <Plus className="h-4 w-4 mr-2" />
+                        <span>Create product</span>
+                      </>
                     )}
                   </Button>
                   <Button type="button" variant="outline" onClick={goToProducts}>
-                    Cancel
+                    <span>Cancel</span>
                   </Button>
                 </div>
               </CardContent>
@@ -226,9 +232,15 @@ export default function ProductCreatePage() {
               <AlertDialogDescription>{leaveMessage}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel type="button">Keep editing</AlertDialogCancel>
+              <AlertDialogCancel type="button">
+                <span>Keep editing</span>
+                <ArrowLeft className="h-4 w-4 ml-2" />
+              </AlertDialogCancel>
               <AlertDialogAction type="button" onClick={confirmLeave}>
-                Leave without saving
+                <>
+                  <span>Leave without saving</span>
+                  <Trash2 className="h-4 w-4 ml-2" />
+                </>
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>

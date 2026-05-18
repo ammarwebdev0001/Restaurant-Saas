@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
@@ -242,7 +242,7 @@ export function TablesModule() {
                 Cancel
               </Button>
               <Button type="button" disabled={saving} onClick={() => void handleSave()}>
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Saving...</span></> : <><Save className="h-4 w-4 mr-2" /> <span>Save</span></>}
               </Button>
             </DialogFooter>
           </DialogContent>

@@ -11,7 +11,10 @@ const postSchema = z.object({
 });
 
 export async function GET(_req: NextRequest) {
-  const auth = await getRestaurantForOwnerRequest();
+  const auth = await getRestaurantForOwnerRequest(undefined, {
+    moduleKey: 'tables',
+    action: 'access',
+  });
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }
@@ -26,7 +29,10 @@ export async function GET(_req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await getRestaurantForOwnerRequest();
+  const auth = await getRestaurantForOwnerRequest(req, {
+    moduleKey: 'tables',
+    action: 'edit',
+  });
   if ('error' in auth) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import axios from 'axios';
-import { Plus, Trash2 } from 'lucide-react';
+import { Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import type { MenuCategoryRow } from './types';
@@ -206,7 +206,7 @@ export function SwatchesModule({ categories, onRefresh }: Props) {
                 Add swatch
               </Button>
               <Button type="button" disabled={saving} onClick={() => void save()}>
-                {saving ? 'Saving…' : 'Save swatches'}
+                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Saving...</span></> : <><Save className="h-4 w-4 mr-2" /> <span>Save swatches</span></>}
               </Button>
             </div>
           </>

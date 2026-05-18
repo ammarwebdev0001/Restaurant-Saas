@@ -248,7 +248,9 @@ export function Sidebar({
       ) : (
         <div className="flex items-center justify-between rounded-2xl border border-[#e2e8f0] bg-[#f8fafc] p-4 text-center">
           <div className="flex flex-col items-center gap-2">
-            <p className="text-lg font-semibold text-[#0f172a]">{t('noMenuBanners')}</p>
+            <p className="text-lg font-semibold text-[#0f172a]">
+              {t('noMenuBanners')}
+            </p>
             <p className="text-base font-bold text-[#64748b]">
               {t('addBannersInSettings')}
             </p>
@@ -280,7 +282,7 @@ export function Sidebar({
               <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
                 {t('deliveryAddress')}
               </p>
-             
+
               <Input
                 placeholder={t('yourName')}
                 value={addressName}
@@ -293,7 +295,7 @@ export function Sidebar({
                 onChange={(event) => setCustomerPhone(event.target.value)}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
-               <Input
+              <Input
                 placeholder={t('yourAddressRequired')}
                 value={deliveryAddress}
                 onChange={(event) => setDeliveryAddress(event.target.value)}
@@ -314,9 +316,7 @@ export function Sidebar({
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               /> */}
 
-              <p className="text-xs text-[#64748b]">
-                {t('deliveryInfoHint')}
-              </p>
+              <p className="text-xs text-[#64748b]">{t('deliveryInfoHint')}</p>
               <Button
                 className="w-full"
                 onClick={createOrder}
@@ -351,7 +351,9 @@ export function Sidebar({
               </p>
               <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
                 {branchesLoading && (
-                  <p className="text-xs text-[#64748b]">{t('loadingBranches')}</p>
+                  <p className="text-xs text-[#64748b]">
+                    {t('loadingBranches')}
+                  </p>
                 )}
                 {!branchesLoading && activeStores?.length === 0 && (
                   <p className="text-xs text-[#64748b]">
@@ -368,7 +370,9 @@ export function Sidebar({
                     }`}
                   >
                     <div className="flex flex-1 flex-col gap-1">
-                      <p className="text-sm font-semibold text-[#0f172a]">{store.name}</p>
+                      <p className="text-sm font-semibold text-[#0f172a]">
+                        {store.name}
+                      </p>
                       <p className="text-xs text-[#64748b]">{store.address}</p>
                       {store.phone ? (
                         <p className="text-xs text-[#64748b]">
@@ -377,7 +381,9 @@ export function Sidebar({
                       ) : null}
                       <p className="text-xs text-[#64748b]">
                         {store.collectionFrom
-                          ? t('orderCollectionFrom', { time: store.collectionFrom })
+                          ? t('orderCollectionFrom', {
+                              time: store.collectionFrom,
+                            })
                           : t('takeawayCollectionAvailable')}
                       </p>
                     </div>
@@ -411,7 +417,9 @@ export function Sidebar({
                 className="w-full"
                 onClick={createOrder}
                 disabled={
-                  !selectedStoreId || !addressName.trim() || !customerPhone.trim()
+                  !selectedStoreId ||
+                  !addressName.trim() ||
+                  !customerPhone.trim()
                 }
               >
                 <IconShoppingCart className="w-4 h-4 mr-2" />

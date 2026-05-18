@@ -23,6 +23,7 @@ import {
   ChefHat,
   ChefHatIcon,
   CrossIcon,
+  Loader2,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1392,7 +1393,9 @@ export function PosScreen() {
                 }
                 onClick={clearCart}
               >
-                Clear Cart
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" /> <span>Clear Cart</span>
+                </>
               </Button>
               <div className="flex items-center justify-end gap-1">
                 <Button
@@ -1404,7 +1407,9 @@ export function PosScreen() {
                   }
                   onClick={holdCurrentOrder}
                 >
-                  Hold Order
+                  <>
+                    <Clock className="h-4 w-4 mr-2" /> <span>Hold Order</span>
+                  </>
                 </Button>
                 <Button
                   type="button"
@@ -1412,10 +1417,12 @@ export function PosScreen() {
                   size="icon"
                   onClick={() => setArchivedOrdersOpen(true)}
                 >
-                  <Archive className="h-5 w-5 " />
-                    <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">
-                      {archivedOrders.length}
-                    </span>
+                  <>
+                    <Archive className="h-5 w-5 mr-2" /> <span>Archived Orders</span>
+                  </>
+                  <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">
+                    {archivedOrders.length}
+                  </span>
                 </Button>
                 <Button
                   type="button"
@@ -1427,9 +1434,9 @@ export function PosScreen() {
                   }}
                 >
                   <ChefHat className="h-5 w-5 " />
-                    <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">
-                      {pendingKitchenOrders.length}
-                    </span>
+                  <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">
+                    {pendingKitchenOrders.length}
+                  </span>
                 </Button>
               </div>
             </div>
@@ -1882,7 +1889,9 @@ export function PosScreen() {
               className="w-full"
               onClick={() => setCheckoutOpen(false)}
             >
-              <X className="mr-2 h-4 w-4" />
+              <>
+                <X className="mr-2 h-4 w-4" /> <span>Cancel</span>
+              </>
               Cancel
             </Button>
 
@@ -1903,7 +1912,9 @@ export function PosScreen() {
                 void saveOrder({ paymentMode: pm, payment: pay });
               }}
             >
-              <Check className="mr-2 h-4 w-4" />
+              <>
+                <Check className="mr-2 h-4 w-4" /> <span>Place Order</span>
+              </>
               Place Order
             </Button>
           </DialogFooter>
@@ -1987,14 +1998,16 @@ export function PosScreen() {
               disabled={sendingToKitchen}
               onClick={() => resetKitchenSendDialog()}
             >
-              Cancel
+              <>
+                <X className="mr-2 h-4 w-4" /> <span>Cancel</span>
+              </>
             </Button>
             <Button
               type="button"
               disabled={sendingToKitchen || !kitchenSendOrder}
               onClick={() => void sendOrderToKitchen()}
             >
-              {sendingToKitchen ? 'Sending…' : 'Proceed to kitchen'}
+              {sendingToKitchen ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Sending...</span></> : <><Check className="h-4 w-4 mr-2" /> <span>Proceed to kitchen</span></>}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -2027,7 +2040,9 @@ export function PosScreen() {
               variant="outline"
               onClick={() => setSwatchDialogOpen(false)}
             >
-              Cancel
+              <>
+                <X className="mr-2 h-4 w-4" /> <span>Cancel</span>
+              </>
             </Button>
             <Button
               type="button"
@@ -2048,7 +2063,9 @@ export function PosScreen() {
                 setSwatchId('');
               }}
             >
-              Add
+              <>
+                <Plus className="h-4 w-4 mr-2" /> <span>Add Swatch</span>
+              </>
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -1,6 +1,6 @@
 {
   "name": "storage",
-  "version": "2.4.0",
+  "version": "2.4.1",
   "private": true,
   "prisma": {
     "seed": "ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"
@@ -10,7 +10,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "seed:admin": "ts-node -O \"{\\\"module\\\":\\\"CommonJS\\\"}\" prisma/seed-admin-user.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.2",

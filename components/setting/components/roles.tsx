@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { ChevronDown, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ChevronDown, Loader2, Plus, Save, Trash2 } from 'lucide-react';
 import { DASHBOARD_MODULES } from '@/constant/dashboardModules';
 import {
   Collapsible,
@@ -326,9 +326,12 @@ export default function RolesCard({
                             onClick={() => setConfirmSaveId(r.id)}
                           >
                             {savingId === r.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
+                              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Saving...</span></>
                             ) : (
-                              'Save'
+                              <>
+                                <Save className="h-4 w-4 mr-2" />
+                                <span>Save</span>
+                              </>
                             )}
                           </Button>
                         </div>

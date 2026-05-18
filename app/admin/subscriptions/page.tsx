@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Pencil } from 'lucide-react';
+import { Loader2, Pencil, Save } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { SubscriptionEditDialog } from '@/components/admin/subscription-edit-dialog';
@@ -319,7 +319,8 @@ export default function AdminSubscriptionsPage() {
               Cancel
             </Button>
             <Button type="button" disabled={savingPlan} onClick={handleCatalogSaveClick}>
-              {savingPlan ? 'Saving...' : 'Save'}
+              {savingPlan ? <><Loader2 className="h-4 w-4 animate-spin" /> <span>Saving...</span></> : <><Save
+               className="h-4 w-4 mr-2" /> <span>Save</span></>}
             </Button>
           </DialogFooter>
         </DialogContent>
