@@ -8,7 +8,10 @@ export async function DELETE(
   req: NextRequest,
   context: { params: Promise<{ inviteId: string }> }
 ) {
-  const auth = await getRestaurantIdForRequest(req);
+  const auth = await getRestaurantIdForRequest(req, {
+    moduleKey: 'settings',
+    action: 'delete',
+  });
   if (!auth.ok) {
     return NextResponse.json({ error: auth.error }, { status: auth.status });
   }

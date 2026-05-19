@@ -32,11 +32,16 @@ export default async function OnlineSuccessPage({ params, searchParams }: Props)
   const trackingOrderId = pick(resolved, 'orderId').trim() || null;
   const sessionId = pick(resolved, 'session_id').trim() || null;
   const token = pick(resolved, 'token').trim() || null;
+  const ticketRaw =
+    pick(resolved, 'ticket').trim() || pick(resolved, 'ticketNumber').trim();
+  const parsedTicket = ticketRaw ? Number(ticketRaw) : NaN;
+  const ticketFromQuery = Number.isFinite(parsedTicket) ? parsedTicket : null;
 
   return (
     <OnlinePaymentSuccess
       flowOrderId={id}
       trackingOrderId={trackingOrderId}
+      ticketFromQuery={ticketFromQuery}
       sessionId={sessionId}
       token={token}
       orderType={mode}

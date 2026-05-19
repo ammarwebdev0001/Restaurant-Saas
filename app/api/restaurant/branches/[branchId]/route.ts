@@ -2,9 +2,8 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 
 const updateBranchSchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -12,36 +11,18 @@ const updateBranchSchema = z.object({
   phone: z.string().trim().max(60).optional().or(z.literal('')),
 });
 
-async function resolveRestaurantId() {
-  const session = await getAppSession();
-  const email = session?.user?.email;
-  if (!email || typeof email !== 'string') {
-    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-  }
-
-  const user = await db.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-  if (!user) {
-    return { error: NextResponse.json({ error: 'User not found' }, { status: 404 }) };
-  }
-
-  const restaurant = await getRestaurantForUser(user.id);
-  if (!restaurant) {
-    return { error: NextResponse.json({ error: 'Restaurant not found' }, { status: 404 }) };
-  }
-
-  return { restaurantId: restaurant.id };
-}
-
 export async function PATCH(
   req: NextRequest,
   ctx: { params: Promise<{ branchId: string }> }
 ) {
   try {
-    const auth = await resolveRestaurantId();
-    if ('error' in auth) return auth.error;
+    const auth = await getRestaurantIdForRequest(req, {
+      moduleKey: 'branched',
+      action: 'edit',
+    });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     const { branchId } = await ctx.params;
     const json = await req.json().catch(() => null);
@@ -92,8 +73,13 @@ export async function DELETE(
   ctx: { params: Promise<{ branchId: string }> }
 ) {
   try {
-    const auth = await resolveRestaurantId();
-    if ('error' in auth) return auth.error;
+    const auth = await getRestaurantIdForRequest(_req, {
+      moduleKey: 'branched',
+      action: 'delete',
+    });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     const { branchId } = await ctx.params;
     const totalBranches = await db.branch.count({

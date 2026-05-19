@@ -52,7 +52,7 @@ const menuInclude = {
 
 export async function GET(req: NextRequest) {
   const auth = await getRestaurantForOwnerRequest(req, {
-    moduleKey: "product",
+    moduleKeys: ["product", "pos"],
     action: "access",
   });
   if ("error" in auth) {

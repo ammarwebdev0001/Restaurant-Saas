@@ -435,7 +435,7 @@ export default function CheckoutPageClient({
               </CardContent>
             </Card>
 
-            <Card>
+            {/* <Card>
               <CardHeader>
                 <CardTitle>{t('promotions')}</CardTitle>
               </CardHeader>
@@ -445,7 +445,7 @@ export default function CheckoutPageClient({
                   <Button type="button" className="w-full" >{t('apply')}</Button>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
           </div>
 
           <div className="space-y-4">
@@ -527,6 +527,9 @@ export default function CheckoutPageClient({
                         const qs = new URLSearchParams({
                           orderId: ref,
                           ...(slug ? { restaurantSlug: slug } : {}),
+                          ...(typeof capture.ticketNumber === 'number'
+                            ? { ticket: String(capture.ticketNumber) }
+                            : {}),
                         });
                         router.push(
                           `/order/${orderType}/${encodeURIComponent(

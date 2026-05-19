@@ -2,9 +2,8 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 
-import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 
 const MIN_PREP_MINUTES = 1;
 const MAX_PREP_MINUTES = 240;
@@ -72,20 +71,14 @@ type TicketItemRow = {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
+    const auth = await getRestaurantIdForRequest(req, {
+      moduleKeys: ['kds', 'pos'],
+      action: 'access',
     });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-    const restaurant = await getRestaurantForUser(user.id);
-    if (!restaurant) return NextResponse.json({ data: [] }, { status: 200 });
+    const restaurantId = auth.restaurantId;
 
     const requestedStatus = req.nextUrl.searchParams.get('status')?.trim().toLowerCase();
     const statusFilter =
@@ -110,7 +103,7 @@ export async function GET(req: NextRequest) {
         FROM "KitchenTicket" kt
         JOIN "Order" o ON o."id" = kt."orderId"
         LEFT JOIN "Customer" c ON c."id" = o."customerId"
-        WHERE kt."restaurantId" = ${restaurant.id}
+        WHERE kt."restaurantId" = ${restaurantId}
           AND lower(kt."status") = ${statusFilter}
         ORDER BY kt."createdAt" DESC
       `
@@ -152,22 +145,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
+    const auth = await getRestaurantIdForRequest(req, {
+      moduleKeys: ['kds', 'pos'],
+      action: 'edit',
     });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-    const restaurant = await getRestaurantForUser(user.id);
-    if (!restaurant) {
-      return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
-    }
+    const restaurantId = auth.restaurantId;
 
     const body = await req.json().catch(() => ({}));
     const orderId = typeof body?.orderId === 'string' ? body.orderId : '';
@@ -185,7 +170,7 @@ export async function POST(req: NextRequest) {
     }
 
     const order = await db.order.findFirst({
-      where: { id: orderId, restaurantId: restaurant.id },
+      where: { id: orderId, restaurantId },
       select: {
         id: true,
         items: {
@@ -253,7 +238,7 @@ export async function POST(req: NextRequest) {
     const ticket = await db.$transaction(async (tx) => {
       const created = await tx.kitchenTicket.create({
         data: {
-          restaurantId: restaurant.id,
+          restaurantId,
           orderId: order.id,
           status: 'making',
           selectedMinutes,

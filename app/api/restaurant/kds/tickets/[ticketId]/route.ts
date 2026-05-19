@@ -2,9 +2,8 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 
-import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 
 const FINAL_TO_ORDER: Record<string, string> = {
   completed: 'completed',
@@ -16,23 +15,15 @@ export async function PATCH(
   { params }: { params: Promise<{ ticketId: string }> }
 ) {
   try {
-    const { ticketId } = await params;
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
+    const auth = await getRestaurantIdForRequest(req, {
+      moduleKey: 'kds',
+      action: 'edit',
     });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-    const restaurant = await getRestaurantForUser(user.id);
-    if (!restaurant) {
-      return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
-    }
+
+    const { ticketId } = await params;
 
     const body = await req.json().catch(() => ({}));
     const status = typeof body?.status === 'string' ? body.status.trim().toLowerCase() : '';
@@ -45,7 +36,7 @@ export async function PATCH(
         SELECT "orderId"
         FROM "KitchenTicket"
         WHERE "id" = ${ticketId}
-          AND "restaurantId" = ${restaurant.id}
+          AND "restaurantId" = ${auth.restaurantId}
         LIMIT 1
       `
     );

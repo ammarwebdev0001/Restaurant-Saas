@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 
@@ -75,11 +75,14 @@ function fmt(v: number) {
 
 const MIN_CUSTOM_MINUTES = 1;
 const MAX_CUSTOM_MINUTES = 240;
+/** Matches KDS kitchen screen polling interval. */
+const REFRESH_INTERVAL_MS = 5000;
 
 export function KdsManagerBoard() {
   const [orders, setOrders] = useState<PendingOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   /** Resolved prep minutes per order (from presets or custom input). */
   const [prepMinutes, setPrepMinutes] = useState<Record<string, number>>({});
   /** Raw text for the optional custom minutes field per order. */
@@ -110,12 +113,27 @@ export function KdsManagerBoard() {
     } finally {
       setLoading(false);
       setRefreshing(false);
+      setLastUpdated(new Date());
     }
   }, []);
 
   useEffect(() => {
     void load();
   }, [load]);
+
+  useEffect(() => {
+    const t = window.setInterval(() => void load(), REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(t);
+  }, [load]);
+
+  const lastUpdatedText = useMemo(() => {
+    if (!lastUpdated) return '—';
+    return lastUpdated.toLocaleTimeString([], {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  }, [lastUpdated]);
 
   function resolveMinutesForOrder(orderId: string): number | null {
     const raw = customMinutesText[orderId]?.trim();
@@ -206,7 +224,8 @@ export function KdsManagerBoard() {
           <h1 className="text-2xl font-semibold">KDS Manager</h1>
           <p className="text-sm text-muted-foreground">
             Choose a preset or enter custom minutes, then proceed the order to
-            making.
+            making. Live · refreshes every {REFRESH_INTERVAL_MS / 1000}s · last
+            sync {lastUpdatedText}
           </p>
         </div>
         <div className="flex items-center gap-2">

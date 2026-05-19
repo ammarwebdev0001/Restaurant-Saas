@@ -1212,7 +1212,7 @@ export function PosScreen() {
         </ScrollArea>
 
         {/* Checkout */}
-        <div className="flex min-h-0 flex-col gap-3 border-t bg-muted/20 p-3 lg:border-t-0">
+        <div className="flex min-h-0 flex-col gap-3 border-t bg-muted/20 p-3 lg:border-t-0" >
           <div className="grid grid-cols-4 gap-2">
             {modeButtons.map((b) => {
               const active = orderMode === b.id;
@@ -1252,7 +1252,7 @@ export function PosScreen() {
                     : 'New order'}
             </p>
 
-            <ScrollArea className="mt-3 h-[250px] border-y">
+            <ScrollArea className="mt-3 h-[250px] max-h-[250px] border-y">
               <div className="space-y-3 py-3">
                 {cart.length === 0 ? (
                   <p className="text-center text-sm text-muted-foreground">
@@ -1384,18 +1384,17 @@ export function PosScreen() {
           </div>
 
           <div className="mt-auto space-y-2 pt-1">
-            <div className="grid grid-cols-2 gap-2">
+            <div className="flex items-center justify-between gap-2 w-full">
               <Button
                 type="button"
                 variant="outline"
+                className="w-full"
                 disabled={
                   cart.length === 0 || savingOrder || terminalProcessing
                 }
                 onClick={clearCart}
               >
-                <>
-                  <Trash2 className="h-4 w-4 mr-2" /> <span>Clear Cart</span>
-                </>
+                <Trash2 className="h-4 w-4 mr-2" /> <span>Clear Cart</span>
               </Button>
               <div className="flex items-center justify-end gap-1">
                 <Button
@@ -1407,9 +1406,7 @@ export function PosScreen() {
                   }
                   onClick={holdCurrentOrder}
                 >
-                  <>
-                    <Clock className="h-4 w-4 mr-2" /> <span>Hold Order</span>
-                  </>
+                  <Clock className="h-4 w-4 mr-2" /> <span>Hold Order</span>
                 </Button>
                 <Button
                   type="button"
@@ -1417,9 +1414,7 @@ export function PosScreen() {
                   size="icon"
                   onClick={() => setArchivedOrdersOpen(true)}
                 >
-                  <>
-                    <Archive className="h-5 w-5 mr-2" /> <span>Archived Orders</span>
-                  </>
+                    <Archive className="h-5 w-5" /> 
                   <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">
                     {archivedOrders.length}
                   </span>
@@ -1892,7 +1887,7 @@ export function PosScreen() {
               <>
                 <X className="mr-2 h-4 w-4" /> <span>Cancel</span>
               </>
-              Cancel
+        
             </Button>
 
             <Button
@@ -1915,7 +1910,6 @@ export function PosScreen() {
               <>
                 <Check className="mr-2 h-4 w-4" /> <span>Place Order</span>
               </>
-              Place Order
             </Button>
           </DialogFooter>
         </DialogContent>

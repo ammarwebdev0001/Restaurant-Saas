@@ -2,11 +2,10 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getAppSession } from "@/lib/auth/app-session";
 import { db } from "@/lib/db";
 import { estimateDataUrlBytes, isAcceptedImageValue } from "@/lib/image-data-url";
 import { ensurePresetRolesAndOwnerEmployee } from "@/lib/restaurant-roles";
-import { getRestaurantForUser } from "@/lib/restaurant-owner";
+import { getRestaurantForOwnerRequest } from "@/lib/restaurant/ownerRestaurant";
 import { normalizeThemePrimaryColor } from "@/lib/restaurant-theme";
 import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from "@/lib/subscription-plan-enforcement";
 
@@ -65,29 +64,18 @@ const brandingPatchSchema = z
     }
   });
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== "string") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
-    });
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    } 
-
-    const restaurant = await getRestaurantForUser(user.id);
-    if (!restaurant) {
-      return NextResponse.json({ data: null }, { status: 200 });
+    const auth = await getRestaurantForOwnerRequest(req);
+    if ("error" in auth) {
+      if (auth.status === 404) {
+        return NextResponse.json({ data: null }, { status: 200 });
+      }
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const full = await db.restaurant.findUnique({
-      where: { id: restaurant.id },
+      where: { id: auth.restaurant.id },
       select: {
         id: true,
         name: true,
@@ -101,8 +89,8 @@ export async function GET(_req: NextRequest) {
       },
     });
 
-    if (full?.ownerId === user.id) {
-      await ensurePresetRolesAndOwnerEmployee(full.id, user.id);
+    if (full?.ownerId === auth.user.id) {
+      await ensurePresetRolesAndOwnerEmployee(full.id, auth.user.id);
     }
 
     return NextResponse.json({ data: full }, { status: 200 });
@@ -117,26 +105,15 @@ export async function GET(_req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
   try {
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== "string") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
+    const auth = await getRestaurantForOwnerRequest(req, {
+      moduleKey: "settings",
+      action: "edit",
     });
-    if (!user) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if ("error" in auth) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const restaurant = await getRestaurantForUser(user.id);
-    if (!restaurant) {
-      return NextResponse.json({ error: "Restaurant not found" }, { status: 404 });
-    }
-
-    const planFeatures = await getRestaurantPlanFeatures(restaurant.id);
+    const planFeatures = await getRestaurantPlanFeatures(auth.restaurant.id);
 
     const json = await req.json().catch(() => null);
     const parsed = brandingPatchSchema.safeParse(json);
@@ -195,7 +172,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const updated = await db.restaurant.update({
-      where: { id: restaurant.id },
+      where: { id: auth.restaurant.id },
       data,
       select: {
         id: true,

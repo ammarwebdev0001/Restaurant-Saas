@@ -1,13 +1,11 @@
 import type { NextRequest } from "next/server";
 
-import type { DashboardModuleKey, PermissionAction } from "@/constant/dashboardModules";
+import {
+  requireRestaurantSession,
+  type RestaurantSessionOptions,
+} from "@/lib/restaurant/require-session";
 
-import { requireRestaurantSession } from "@/lib/restaurant/require-session";
-
-export type OwnerRequestOptions = {
-  moduleKey?: DashboardModuleKey;
-  action?: PermissionAction;
-};
+export type OwnerRequestOptions = RestaurantSessionOptions;
 
 /**
  * Resolves the dashboard restaurant for the signed-in user: either they own it

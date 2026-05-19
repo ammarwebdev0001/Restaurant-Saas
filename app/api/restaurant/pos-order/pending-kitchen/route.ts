@@ -2,37 +2,25 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { OrderSourceType } from '@prisma/client';
 
-import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 
 /**
  * POS orders paid/saved but not yet on the kitchen display (no ticket in "making").
  */
 export async function GET(_req: NextRequest) {
   try {
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
+    const auth = await getRestaurantIdForRequest(_req, {
+      moduleKey: 'pos',
+      action: 'access',
     });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const restaurant = await getRestaurantForUser(user.id);
-    if (!restaurant) {
-      return NextResponse.json({ data: [] }, { status: 200 });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const orders = await db.order.findMany({
       where: {
-        restaurantId: restaurant.id,
+        restaurantId: auth.restaurantId,
         sourceType: OrderSourceType.POS,
         status: { in: ['pending', 'pedding'] },
         kitchenTickets: {

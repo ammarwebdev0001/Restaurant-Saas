@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
+import { OrderSourceType, Prisma } from '@prisma/client';
 
-import { getAppSession } from '@/lib/auth/app-session';
+import type { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 import { getOrderDisplayTimezone } from '@/lib/order-display-timezone';
 
 export const runtime = 'nodejs';
@@ -55,27 +55,22 @@ export type OrderDisplayPayload = {
  * Customer-facing order display feed.
  *
  * Returns the most recent {@link COMPLETED_LIMIT} completed and
- * {@link IN_PROGRESS_LIMIT} in-progress kitchen tickets for **orders
- * placed today** (calendar day of `Order.createdAt` in
- * `ORDER_DISPLAY_TIMEZONE`, default UTC) so daily token numbers stay
- * consistent on the wall display.
+ * {@link IN_PROGRESS_LIMIT} in-progress kitchen tickets for **POS and
+ * kiosk orders placed today** (calendar day of `Order.createdAt` in
+ * `ORDER_DISPLAY_TIMEZONE`, default UTC). Online orders are excluded —
+ * those customers are not physically at the restaurant for this screen.
  *
  * Auth: signed-in restaurant staff only (no public access — the response
  * contains customer phone numbers).
  */
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
+    const auth = await getRestaurantIdForRequest(req, {
+      moduleKey: 'order-display',
+      action: 'access',
     });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
     const tz = getOrderDisplayTimezone();
@@ -92,7 +87,10 @@ export async function GET() {
           ? rawFd.toISOString().slice(0, 10)
           : '';
 
-    const restaurant = await getRestaurantForUser(user.id);
+    const restaurant = await db.restaurant.findUnique({
+      where: { id: auth.restaurantId },
+      select: { id: true },
+    });
     if (!restaurant) {
       const empty: OrderDisplayPayload = {
         data: {
@@ -123,6 +121,10 @@ export async function GET() {
         LEFT JOIN "Customer" c ON c."id" = o."customerId"
         WHERE kt."restaurantId" = ${restaurant.id}
           AND lower(kt."status") = 'completed'
+          AND o."sourceType" IN (
+            ${OrderSourceType.POS}::"OrderSourceType",
+            ${OrderSourceType.KIOSK}::"OrderSourceType"
+          )
           AND (timezone(${tz}::text, o."createdAt"))::date
               = (timezone(${tz}::text, now()))::date
         ORDER BY kt."updatedAt" DESC
@@ -148,6 +150,10 @@ export async function GET() {
         LEFT JOIN "Customer" c ON c."id" = o."customerId"
         WHERE kt."restaurantId" = ${restaurant.id}
           AND lower(kt."status") = 'making'
+          AND o."sourceType" IN (
+            ${OrderSourceType.POS}::"OrderSourceType",
+            ${OrderSourceType.KIOSK}::"OrderSourceType"
+          )
           AND (timezone(${tz}::text, o."createdAt"))::date
               = (timezone(${tz}::text, now()))::date
         ORDER BY kt."startedAt" ASC

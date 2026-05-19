@@ -116,6 +116,17 @@ export function hasDashboardPermission(
   return permissionNames.includes(permissionName(moduleKey, action));
 }
 
+/** True if the user has the given action on any of the listed modules. */
+export function hasAnyDashboardPermission(
+  permissionNames: string[],
+  moduleKeys: readonly string[],
+  action: PermissionAction
+): boolean {
+  return moduleKeys.some((key) =>
+    hasDashboardPermission(permissionNames, key, action)
+  );
+}
+
 export function toggleModuleAction(
   list: string[],
   moduleKey: string,

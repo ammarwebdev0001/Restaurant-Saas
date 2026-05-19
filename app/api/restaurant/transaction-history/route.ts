@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 
 type HistoryKind = 'ORDER' | 'SUBSCRIPTION' | 'REGISTER';
 
@@ -29,24 +28,14 @@ function toPositiveInt(raw: string | null, fallback: number) {
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
+    const auth = await getRestaurantIdForRequest(req, {
+      moduleKey: 'records',
+      action: 'access',
     });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-
-    const restaurant = await getRestaurantForUser(user.id);
-    if (!restaurant) {
-      return NextResponse.json({ error: 'Restaurant not found' }, { status: 404 });
-    }
+    const restaurantId = auth.restaurantId;
 
     const q = req.nextUrl.searchParams.get('q')?.trim().toLowerCase() ?? '';
     const kindFilterRaw = req.nextUrl.searchParams.get('kind');
@@ -61,7 +50,7 @@ export async function GET(req: NextRequest) {
 
     const [orders, subscriptions, registerTxns] = await Promise.all([
       db.order.findMany({
-        where: { restaurantId: restaurant.id },
+        where: { restaurantId },
         select: {
           id: true,
           total: true,
@@ -78,7 +67,7 @@ export async function GET(req: NextRequest) {
         },
       }),
       db.subscriptionPayment.findMany({
-        where: { restaurantId: restaurant.id },
+        where: { restaurantId },
         orderBy: { paidAt: 'desc' },
         select: {
           id: true,
@@ -90,7 +79,7 @@ export async function GET(req: NextRequest) {
         },
       }),
       db.transaction.findMany({
-        where: { restaurantId: restaurant.id },
+        where: { restaurantId },
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,

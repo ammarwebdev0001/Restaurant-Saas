@@ -2,28 +2,24 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 
-import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 import type { SalesOrderRow, SalesOrdersStats } from '@/types/sales-order';
 
 export async function GET(_req: NextRequest) {
   try {
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    const auth = await getRestaurantIdForRequest(_req, {
+      moduleKey: 'sales',
+      action: 'access',
+    });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
 
-    const user = await db.user.findUnique({
-      where: { email },
+    const restaurant = await db.restaurant.findUnique({
+      where: { id: auth.restaurantId },
       select: { id: true },
     });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
-    }
-
-    const restaurant = await getRestaurantForUser(user.id);
     if (!restaurant) {
       const empty: SalesOrderRow[] = [];
       const emptyStats: SalesOrdersStats = {

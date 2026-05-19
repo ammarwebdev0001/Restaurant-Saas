@@ -2,9 +2,8 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 
-import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 import { branchCapacityAllows } from '@/lib/subscription-plan-features';
 import { getRestaurantPlanFeatures, subscriptionPlanDeniedResponse } from '@/lib/subscription-plan-enforcement';
 
@@ -14,33 +13,15 @@ const createBranchSchema = z.object({
   phone: z.string().trim().max(60).optional().or(z.literal('')),
 });
 
-async function resolveRestaurantId() {
-  const session = await getAppSession();
-  const email = session?.user?.email;
-  if (!email || typeof email !== 'string') {
-    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-  }
-
-  const user = await db.user.findUnique({
-    where: { email },
-    select: { id: true },
-  });
-  if (!user) {
-    return { error: NextResponse.json({ error: 'User not found' }, { status: 404 }) };
-  }
-
-  const restaurant = await getRestaurantForUser(user.id);
-  if (!restaurant) {
-    return { error: NextResponse.json({ error: 'Restaurant not found' }, { status: 404 }) };
-  }
-
-  return { restaurantId: restaurant.id };
-}
-
 export async function GET(_req: NextRequest) {
   try {
-    const auth = await resolveRestaurantId();
-    if ('error' in auth) return auth.error;
+    const auth = await getRestaurantIdForRequest(_req, {
+      moduleKeys: ['branched', 'pos'],
+      action: 'access',
+    });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     const branches = await db.branch.findMany({
       where: { restaurantId: auth.restaurantId },
@@ -66,8 +47,13 @@ export async function GET(_req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await resolveRestaurantId();
-    if ('error' in auth) return auth.error;
+    const auth = await getRestaurantIdForRequest(req, {
+      moduleKey: 'branched',
+      action: 'edit',
+    });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
+    }
 
     const json = await req.json().catch(() => null);
     const parsed = createBranchSchema.safeParse(json);

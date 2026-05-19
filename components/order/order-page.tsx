@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import { useTranslation } from 'react-i18next';
@@ -31,7 +31,8 @@ import { getMenuItemDisplayPrice } from '@/lib/menu-item-pricing';
 import { orderPathWithQuery } from '@/lib/order-search-params';
 import { setUiLanguage } from '@/lib/i18n/client';
 import type { UiLanguage } from '@/lib/i18n/resources';
-import { Pencil, Trash2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { ArrowUp, Pencil, Search, Trash2, X } from 'lucide-react';
 
 export type OrderPageProps = {
   orderType: 'delivery' | 'pickUp';
@@ -345,6 +346,9 @@ export default function OrderPageClient({
   const [selectedCategory, setSelectedCategory] = useState<string>('');
   const [cart, setCart] = useState<CartLine[]>([]);
   const [search, setSearch] = useState('');
+  const [searchOpen, setSearchOpen] = useState(false);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
   const [currentOffer, setCurrentOffer] = useState(0);
   const [bannerOffers, setBannerOffers] = useState<OfferItem[]>([]);
   const [mounted, setMounted] = useState(false);
@@ -386,6 +390,22 @@ export default function OrderPageClient({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (searchOpen) {
+      searchInputRef.current?.focus();
+    }
+  }, [searchOpen]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    const onScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, [mounted]);
 
   useEffect(() => {
     if (!mounted) return;
@@ -603,6 +623,69 @@ export default function OrderPageClient({
     setSelectedCategory(id);
   };
 
+  const categoryStripItems = useMemo(
+    () => [
+      { id: ALL_CATEGORY_ID, name: t('all'), imageUrl: null as string | null },
+      ...categories.map((category) => ({
+        id: category.id,
+        name: category.name,
+        imageUrl: category.items[0]?.imageUrl ?? null,
+      })),
+    ],
+    [categories, t]
+  );
+
+  const categoryStripIdsKey = useMemo(
+    () => categoryStripItems.map((c) => c.id).join(','),
+    [categoryStripItems]
+  );
+
+  const categoryStripRef = useRef<HTMLDivElement>(null);
+  const [categoryStripScroll, setCategoryStripScroll] = useState({
+    back: false,
+    forward: false,
+  });
+
+  const syncCategoryStripScroll = useCallback(() => {
+    const el = categoryStripRef.current;
+    if (!el) {
+      setCategoryStripScroll({ back: false, forward: false });
+      return;
+    }
+    const { scrollLeft, scrollWidth, clientWidth } = el;
+    const max = Math.max(0, scrollWidth - clientWidth);
+    setCategoryStripScroll({
+      back: scrollLeft > 4,
+      forward: max > 4 && scrollLeft < max - 4,
+    });
+  }, []);
+
+  useLayoutEffect(() => {
+    syncCategoryStripScroll();
+  }, [categoryStripIdsKey, syncCategoryStripScroll]);
+
+  useEffect(() => {
+    const el = categoryStripRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => syncCategoryStripScroll());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [syncCategoryStripScroll]);
+
+  const scrollCategoryStrip = useCallback((direction: 'back' | 'forward') => {
+    const el = categoryStripRef.current;
+    if (!el) return;
+    const amount = Math.min(Math.max(el.clientWidth * 0.65, 140), 280);
+    el.scrollBy({
+      left: direction === 'forward' ? amount : -amount,
+      behavior: 'smooth',
+    });
+  }, []);
+
+  const scrollToTop = useCallback(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
   useEffect(() => {
     if (!mounted) return;
 
@@ -708,15 +791,132 @@ export default function OrderPageClient({
   // Important: this must be AFTER all hooks to keep React Hook order stable.
   if (!mounted) return null;
 
+  const cartPanel = (
+    <div className="flex min-h-[32rem] max-h-[calc(100dvh-2rem)] flex-col rounded-2xl border border-border bg-card p-4">
+      <h3 className="text-lg font-semibold">
+        {orderType === 'delivery' ? t('delivery') : t('takeAway')} /{' '}
+        {t('orderInfo')}
+      </h3>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {t('orderType')}: {orderType}. {t('estimated')}{' '}
+        {orderType === 'delivery' ? t('delivery') : t('takeAway')}{' '}
+        {t('time20to30Mins')}
+      </p>
+
+      <h4 className="mt-5 text-lg font-bold">{t('cart')}</h4>
+      <div className="mt-4 min-h-0 flex-1 overflow-y-auto pr-1">
+        {cart.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">{t('cartEmpty')}</p>
+        ) : (
+          <div className="space-y-3">
+            {cart.map((line) => (
+              <div
+                key={line.lineId}
+                className="flex items-start justify-between gap-2 text-sm"
+              >
+                <div className="min-w-0 flex-1">
+                  {(() => {
+                    const isCustomized =
+                      Boolean(line.variationId) || line.modifiers.length > 0;
+                    return (
+                      <>
+                        <p className="truncate font-medium">
+                          {line.productName}
+                          {line.variationName
+                            ? ` (${line.variationName})`
+                            : ''}
+                        </p>
+                        {line.modifiers.length > 0 ? (
+                          <div className="mt-1 space-y-1">
+                            {line.modifiers.map((m) => (
+                              <p
+                                key={m.attributeGroupId}
+                                className="text-xs text-muted-foreground"
+                              >
+                                {m.groupName}:{' '}
+                                {m.selections.map((s) => s.name).join(', ')}
+                              </p>
+                            ))}
+                          </div>
+                        ) : null}
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => adjustQuantity(line.lineId, -1)}
+                            disabled={line.quantity <= 1}
+                            type="button"
+                          >
+                            -
+                          </Button>
+                          <span>{line.quantity}</span>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => adjustQuantity(line.lineId, 1)}
+                            type="button"
+                          >
+                            +
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => removeFromCart(line.lineId)}
+                            type="button"
+                          >
+                            {<Trash2 className="mr-1 h-3 w-3" />} {t('remove')}
+                          </Button>
+                          {isCustomized ? (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => openModifyForLine(line)}
+                              type="button"
+                            >
+                              {<Pencil className="mr-1 h-3 w-3" />} {t('modify')}
+                            </Button>
+                          ) : null}
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+                <span className="shrink-0 text-sm font-medium">
+                  €{lineTotal(line).toFixed(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="mt-2 flex items-center justify-between gap-2 border-t border-border pt-2 text-sm font-bold">
+        <span>{t('total')}</span>
+        <span>€{total.toFixed(2)}</span>
+      </div>
+      <Button
+        className="mt-2 w-full"
+        onClick={() =>
+          router.push(
+            orderPathWithQuery(`/order/${orderType}/${orderId}/cart`, orderInfo)
+          )
+        }
+        type="button"
+        disabled={cart.length === 0}
+      >
+        {t('viewCart')}
+      </Button>
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="mx-auto max-w-7xl px-4 pb-10 pt-6 sm:px-6 lg:px-8">
-        <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
+        <div className="flex flex-wrap items-center justify-center gap-4 mb-6">
           <h1 className="text-3xl font-bold">
             {orderInfo?.restaurantName ?? 'Enjoy Tacos'}
           </h1>
           <div className="flex items-center gap-2">
-            <div className="text-sm text-muted-foreground">
+            <div className="text-primary text-muted-foreground">
               {orderType === 'delivery' ? t('delivery') : t('pickUp')}{' '}
               {t('order')} - {orderId}
             </div>
@@ -742,7 +942,122 @@ export default function OrderPageClient({
           onNext={() => setCurrentOffer((p) => (p + 1) % bannerOffers.length)}
         />
 
-        {orderInfo && (
+<div
+              className="mb-4 min-w-0 w-full max-w-full min-h-0 overflow-x-clip"
+              aria-label={t('allCategories')}
+            >
+             
+              <div className="relative isolate w-full min-w-0 max-w-full overflow-hidden rounded-xl border border-border bg-card">
+                <div className="grid w-full min-w-0 max-w-full grid-cols-[auto_minmax(0,1fr)_auto_auto] items-center gap-1.5 px-1 py-1.5 sm:gap-2 sm:px-1.5">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 rounded-full border-border bg-background shadow-sm"
+                    disabled={!categoryStripScroll.back}
+                    aria-label="Scroll categories back"
+                    onClick={() => scrollCategoryStrip('back')}
+                  >
+                    <IconChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <div
+                    ref={categoryStripRef}
+                    onScroll={syncCategoryStripScroll}
+                    className="min-h-0 min-w-0 max-w-full touch-pan-x overflow-x-auto overflow-y-hidden overscroll-x-contain scroll-smooth [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                  >
+                    <div className="flex w-max items-center gap-2 py-0.5 pe-0.5 ps-0.5">
+                      {categoryStripItems.map((category) => {
+                        const isActive = selectedCategory === category.id;
+                        return (
+                          <button
+                            key={category.id}
+                            type="button"
+                            onClick={() => onCategoryClick(category.id)}
+                            className={cn(
+                              'inline-flex h-9 max-w-[11rem] shrink-0 items-center gap-2 rounded-full border px-1.5 py-0.5 text-left text-sm font-medium shadow-sm outline-none ring-offset-background transition sm:max-w-[12.5rem]',
+                              'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                              'active:scale-[0.98]',
+                              isActive
+                                ? 'border-primary bg-primary text-primary-foreground shadow-md shadow-primary/20'
+                                : 'border-border bg-card text-primary hover:border-primary/45 hover:bg-primary/5'
+                            )}
+                          >
+                            {category.imageUrl ? (
+                              // eslint-disable-next-line @next/next/no-img-element -- customer menu URLs
+                              <span className="relative h-7 w-7 shrink-0 overflow-hidden rounded-full bg-muted">
+                                <img
+                                  src={category.imageUrl}
+                                  alt=""
+                                  className="h-full w-full object-cover"
+                                />
+                              </span>
+                            ) : (
+                              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-[10px] text-muted-foreground">
+                                —
+                              </span>
+                            )}
+                            <span className="min-w-0 flex-1 truncate pr-1 leading-tight">
+                              {category.name}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="icon"
+                    className="h-9 w-9 shrink-0 rounded-full border-border bg-background shadow-sm"
+                    disabled={!categoryStripScroll.forward}
+                    aria-label="Scroll categories forward"
+                    onClick={() => scrollCategoryStrip('forward')}
+                  >
+                    <IconChevronRight className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={searchOpen ? 'outline' : 'default'}
+                    size="icon"
+                    className="h-9 w-9 shrink-0  shadow-sm"
+                    aria-label={t('searchProducts')}
+                    aria-pressed={searchOpen}
+                    onClick={() => setSearchOpen((open) => !open)}
+                  >
+                    <Search className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              {searchOpen ? (
+                <div className="mt-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
+                  <Input
+                    ref={searchInputRef}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder={t('searchProducts')}
+                    className="min-w-0 w-full"
+                  />
+                  <Button
+                    className="shrink-0 whitespace-nowrap"
+                    onClick={() => {
+                      setSearch('');
+                      setSearchOpen(false);
+                    }}
+                    variant="outline"
+                    type="button"
+                    aria-label={t('clear')}
+                  >
+                    <X className="h-4 w-4 sm:me-1" />
+                    <span className="hidden sm:inline">{t('clear')}</span>
+                  </Button>
+                </div>
+              ) : null}
+            </div>
+
+        <div className="flex min-w-0 w-full max-w-full flex-col gap-6 md:flex-row md:items-start">
+          <div className="min-w-0 w-full md:w-[70%] md:max-w-[70%]">
+
+          {orderInfo && (
           <section className="mb-6 rounded-2xl border border-border bg-card p-4">
             <h4 className="text-sm font-semibold mb-2">{t('orderDetails')}</h4>
             <div className="grid gap-2 text-sm text-muted-foreground">
@@ -792,10 +1107,6 @@ export default function OrderPageClient({
                     {orderInfo.storeAddress || 'N/A'}
                   </div>
                   <div>
-                    <strong className="text-foreground">{t('storeId')}:</strong>{' '}
-                    {orderInfo.storeId || 'N/A'}
-                  </div>
-                  <div>
                     <strong className="text-foreground">{t('name')}:</strong>{' '}
                     {orderInfo.addressName || 'N/A'}
                   </div>
@@ -810,255 +1121,83 @@ export default function OrderPageClient({
             </div>
           </section>
         )}
-
-        <div className="grid gap-6 lg:grid-cols-[2fr_1fr]">
-          <main>
-            <div className="mb-4 flex items-center gap-2 overflow-x-auto pb-2">
-              <button
-                type="button"
-                onClick={() => onCategoryClick(ALL_CATEGORY_ID)}
-                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                  selectedCategory === ALL_CATEGORY_ID
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-card text-foreground ring-1 ring-border hover:bg-primary/20'
-                }`}
-              >
-                {t('all')}
-              </button>
-              {categories.map((category) => (
-                <button
-                  key={category.id}
-                  type="button"
-                  onClick={() => onCategoryClick(category.id)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    selectedCategory === category.id
-                      ? 'bg-primary text-primary-foreground'
-                      : 'bg-card text-foreground ring-1 ring-border hover:bg-primary/20'
-                  }`}
-                >
-                  {category.name}
-                </button>
-              ))}
-            </div>
-
-            <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t('searchProducts')}
-                className="w-full sm:w-96"
-              />
-              <Button
-                className="whitespace-nowrap"
-                onClick={() => setSearch('')}
-                variant="outline"
-                type="button"
-              >
-                {t('clear')}
-              </Button>
-            </div>
+        
+           
 
             {menuLoading ? (
               <p className="text-sm text-muted-foreground">
                 {t('loadingMenu')}
               </p>
             ) : (
-              <>
-                <section className="mb-8">
-                  <h2 className="mb-4 text-xl font-semibold">
-                    {selectedCategory === ALL_CATEGORY_ID
-                      ? t('allCategories')
-                      : categories.find((c) => c.id === selectedCategory)
-                          ?.name ?? t('selectedCategory')}
-                  </h2>
+              <section className="mb-8 min-w-0">
+                <h2 className="mb-4 text-xl font-semibold">
+                  {selectedCategory === ALL_CATEGORY_ID
+                    ? t('allCategories')
+                    : categories.find((c) => c.id === selectedCategory)
+                        ?.name ?? t('selectedCategory')}
+                </h2>
 
-                  {displayedCategories.length > 0 ? (
-                    displayedCategories.map((category) => {
-                      const categoryProducts = category.items;
+                {displayedCategories.length > 0 ? (
+                  displayedCategories.map((category) => {
+                    const categoryProducts = category.items;
 
-                      if (categoryProducts.length === 0)
-                        return (
-                          <div key={category.id} className="mb-10">
-                            <p className="text-sm text-muted-foreground">
-                              {t('noProductsFoundInCategory')}
-                            </p>
-                          </div>
-                        );
-
+                    if (categoryProducts.length === 0)
                       return (
-                        <div
-                          key={category.id}
-                          id={category.id}
-                          className="mb-10"
-                        >
-                          <h3 className="text-lg font-bold mb-3">
-                            {category.name}
-                          </h3>
-                          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                            {categoryProducts.map((product) => (
-                              <ProductCard
-                                key={product.id}
-                                product={product}
-                                showCustomizeIndicator={hasRequiredAddons(
-                                  product
-                                )}
-                                onAdd={() => {
-                                  if (
-                                    hasRequiredAddons(product) ||
-                                    hasVariations(product)
-                                  ) {
-                                    openCustomizeForProduct(product);
-                                    
-                                  } else addToCart(product, []);
-                                }}
-                              />
-                            ))}
-                          </div>
+                        <div key={category.id} className="mb-10">
+                          <p className="text-sm text-muted-foreground">
+                            {t('noProductsFoundInCategory')}
+                          </p>
                         </div>
                       );
-                    })
-                  ) : (
-                    <div className="mb-10">
-                      <p className="text-sm text-muted-foreground">
-                        {t('noCategoriesFound')}
-                      </p>
-                    </div>
-                  )}
-                </section>
-              </>
-            )}
-          </main>
 
-          <aside className="sticky top-0 rounded-2xl border border-border bg-card p-4 max-h-[70vh]">
-            <div className="flex h-full flex-col">
-              <h3 className="text-lg font-semibold">
-                {orderType === 'delivery' ? t('delivery') : t('takeAway')} /{' '}
-                {t('orderInfo')}
-              </h3>
-              <p className="mt-2 text-sm text-muted-foreground">
-                {t('orderType')}: {orderType}. {t('estimated')}{' '}
-                {orderType === 'delivery' ? t('delivery') : t('takeAway')}{' '}
-                {t('time20to30Mins')}
-              </p>
-
-              <h4 className="text-lg font-bold mt-5">{t('cart')}</h4>
-              <div className="mt-4 flex-1 overflow-y-auto pr-1">
-                {cart.length === 0 ? (
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {t('cartEmpty')}
-                  </p>
-                ) : (
-                  <div className="space-y-3">
-                    {cart.map((line) => (
+                    return (
                       <div
-                        key={line.lineId}
-                        className="flex items-center justify-between text-sm"
+                        key={category.id}
+                        id={category.id}
+                        className="mb-10 min-w-0"
                       >
-                        <div className="min-w-0">
-                          {(() => {
-                            const isCustomized =
-                              Boolean(line.variationId) ||
-                              line.modifiers.length > 0;
-                            return (
-                              <>
-                                <p className="font-medium truncate">
-                                  {line.productName}
-                                  {line.variationName
-                                    ? ` (${line.variationName})`
-                                    : ''}
-                                </p>
-                                {line.modifiers.length > 0 ? (
-                                  <div className="mt-1 space-y-1">
-                                    {line.modifiers.map((m) => (
-                                      <p
-                                        key={m.attributeGroupId}
-                                        className="text-xs text-muted-foreground"
-                                      >
-                                        {m.groupName}:{' '}
-                                        {m.selections
-                                          .map((s) => s.name)
-                                          .join(', ')}
-                                      </p>
-                                    ))}
-                                  </div>
-                                ) : null}
-                                <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      adjustQuantity(line.lineId, -1)
-                                    }
-                                    disabled={line.quantity <= 1}
-                                    type="button"
-                                  >
-                                    -
-                                  </Button>
-                                  <span>{line.quantity}</span>
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() =>
-                                      adjustQuantity(line.lineId, 1)
-                                    }
-                                    type="button"
-                                  >
-                                    +
-                                  </Button>
-                                  <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => removeFromCart(line.lineId)}
-                                    type="button"
-                                  >
-                                    { <Trash2 className="h-3 w-3 mr-1" />} {t('remove')}
-                                  </Button>
-                                  {isCustomized ? (
-                                    <Button
-                                      variant="secondary"
-                                      size="sm"
-                                      onClick={() => openModifyForLine(line)}
-                                      type="button"
-                                    >
-                                      { <Pencil className="h-3 w-3 mr-1" />} {t('modify')}
-                                    </Button>
-                                  ) : null}
-                                </div>
-                              </>
-                            );
-                          })()}
+                        <h3 className="mb-3 text-lg font-bold">
+                          {category.name}
+                        </h3>
+                        <div className="grid min-w-0 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                          {categoryProducts.map((product) => (
+                            <ProductCard
+                              key={product.id}
+                              product={product}
+                              showCustomizeIndicator={hasRequiredAddons(
+                                product
+                              )}
+                              onAdd={() => {
+                                if (
+                                  hasRequiredAddons(product) ||
+                                  hasVariations(product)
+                                ) {
+                                  openCustomizeForProduct(product);
+                                } else addToCart(product, []);
+                              }}
+                            />
+                          ))}
                         </div>
-                        <span className="text-sm font-medium">€{lineTotal(line).toFixed(2)}</span>
                       </div>
-                    ))}
+                    );
+                  })
+                ) : (
+                  <div className="mb-10">
+                    <p className="text-sm text-muted-foreground">
+                      {t('noCategoriesFound')}
+                    </p>
                   </div>
                 )}
-              </div>
-              <div className="border-t border-border pt-2 mt-2 text-sm font-bold flex items-center justify-between gap-2">
-                <span>{t('total')}</span>
-                <span>€{total.toFixed(2)}</span>
-              </div>
-              <Button
-                className="mt-2 w-full"
-                onClick={() =>
-                  router.push(
-                    orderPathWithQuery(
-                      `/order/${orderType}/${orderId}/cart`,
-                      orderInfo
-                    )
-                  )
-                }
-                type="button"
-                disabled={cart.length === 0}
-              >
-                {t('viewCart')}
-              </Button>
-            </div>
+              </section>
+            )}
+          </div>
+
+          <aside className="min-w-0 w-full shrink-0 md:sticky md:top-4 md:z-10 md:w-[30%] md:max-w-[30%] md:self-start">
+            {cartPanel}
           </aside>
         </div>
-      </div>
 
-      <ProductCustomizeDialog
+        <ProductCustomizeDialog
         open={customizeOpen}
         onOpenChange={(open) => {
           setCustomizeOpen(open);
@@ -1083,6 +1222,7 @@ export default function OrderPageClient({
         variations={(customizeProduct?.variations ?? []).map((v) => ({
           id: v.id,
           name: v.name ?? v.title ?? 'Variation',
+          imageUrl: v.imageUrl ?? null,
           swatchHex: v.swatchHex ?? null,
           priceDelta: v.priceDelta,
         }))}
@@ -1115,6 +1255,19 @@ export default function OrderPageClient({
           setEditingLineId(null);
         }}
       />
+
+      {showScrollTop ? (
+        <Button
+          type="button"
+          size="icon"
+          className="fixed bottom-6 right-6 z-500 h-11 w-11 rounded-full shadow-lg"
+          onClick={scrollToTop}
+          aria-label="Scroll to top"
+        >
+          <ArrowUp className="h-5 w-5" />
+        </Button>
+      ) : null}
+      </div>
     </div>
   );
 }

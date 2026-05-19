@@ -1,9 +1,10 @@
 import type { NextRequest } from 'next/server';
 
-import type { DashboardModuleKey, PermissionAction } from '@/constant/dashboardModules';
-
 import { db } from '@/lib/db';
-import { requireRestaurantSession } from '@/lib/restaurant/require-session';
+import {
+  requireRestaurantSession,
+  type RestaurantSessionOptions,
+} from '@/lib/restaurant/require-session';
 
 export type RestaurantRequestAuth =
   | { ok: true; restaurantId: string; userId: string; permissions: string[] }
@@ -19,10 +20,7 @@ export async function getRestaurantForUser(userId: string) {
   });
 }
 
-export type RestaurantIdRequestOptions = {
-  moduleKey?: DashboardModuleKey;
-  action?: PermissionAction;
-};
+export type RestaurantIdRequestOptions = RestaurantSessionOptions;
 
 /** @param _req optional — kept for call-site compatibility; session is read from cookies. */
 export async function getRestaurantIdForRequest(

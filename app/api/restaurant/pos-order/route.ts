@@ -2,9 +2,8 @@ import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 import { OrderSourceType } from '@prisma/client';
 
-import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 
 type LineInput = {
   productId: string;
@@ -16,27 +15,14 @@ type LineInput = {
 
 export async function POST(req: NextRequest) {
   try {
-    const session = await getAppSession();
-    const email = session?.user?.email;
-    if (!email || typeof email !== 'string') {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const user = await db.user.findUnique({
-      where: { email },
-      select: { id: true },
+    const auth = await getRestaurantIdForRequest(req, {
+      moduleKey: 'pos',
+      action: 'edit',
     });
-    if (!user) {
-      return NextResponse.json({ error: 'User not found' }, { status: 404 });
+    if (!auth.ok) {
+      return NextResponse.json({ error: auth.error }, { status: auth.status });
     }
-
-    const restaurant = await getRestaurantForUser(user.id);
-    if (!restaurant) {
-      return NextResponse.json(
-        { error: 'No restaurant found for this account' },
-        { status: 400 }
-      );
-    }
+    const restaurantId = auth.restaurantId;
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== 'object') {
@@ -122,7 +108,7 @@ export async function POST(req: NextRequest) {
     let tableLabel: string | null = null;
     if (tableIdRaw) {
       const diningTable = await db.diningTable.findFirst({
-        where: { id: tableIdRaw, restaurantId: restaurant.id },
+        where: { id: tableIdRaw, restaurantId },
         select: { id: true, name: true },
       });
       if (!diningTable) {
@@ -137,7 +123,7 @@ export async function POST(req: NextRequest) {
     );
     const menuItems = await db.menuItem.findMany({
       where: {
-        restaurantId: restaurant.id,
+        restaurantId,
         id: { in: baseProductIds },
       },
       select: { id: true, name: true },
@@ -181,7 +167,7 @@ export async function POST(req: NextRequest) {
       const displayName = customerNameTrim || 'Walk-in';
       const existing = await db.customer.findFirst({
         where: {
-          restaurantId: restaurant.id,
+          restaurantId,
           phone: customerPhoneTrim,
         },
         select: { id: true, name: true },
@@ -199,7 +185,7 @@ export async function POST(req: NextRequest) {
           data: {
             name: displayName,
             phone: customerPhoneTrim,
-            restaurantId: restaurant.id,
+            restaurantId,
           },
           select: { id: true },
         });
@@ -217,7 +203,7 @@ export async function POST(req: NextRequest) {
       );
       const previousOrder = await tx.order.findFirst({
         where: {
-          restaurantId: restaurant.id,
+          restaurantId,
           ticketDate,
         },
         orderBy: { ticketNumber: 'desc' },
@@ -227,7 +213,7 @@ export async function POST(req: NextRequest) {
 
       const order = await tx.order.create({
         data: {
-          restaurantId: restaurant.id,
+          restaurantId,
           customerId,
           ticketDate,
           ticketNumber: nextTicketNumber,
@@ -260,7 +246,7 @@ export async function POST(req: NextRequest) {
           amount: paymentAmount,
           status: initialPaymentStatus,
           method: methodLabel,
-          restaurantId: restaurant.id,
+          restaurantId,
         },
       });
 

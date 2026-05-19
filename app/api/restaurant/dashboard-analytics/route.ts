@@ -1,9 +1,8 @@
 import type { NextRequest } from 'next/server';
 import { NextResponse } from 'next/server';
 
-import { getAppSession } from '@/lib/auth/app-session';
 import { db } from '@/lib/db';
-import { getRestaurantForUser } from '@/lib/restaurant-owner';
+import { getRestaurantIdForRequest } from '@/lib/restaurant-owner';
 import { getRestaurantPlanFeatures } from '@/lib/subscription-plan-enforcement';
 
 function utcDayKey(d: Date): string {
@@ -22,32 +21,22 @@ function lastNDayKeys(n: number): string[] {
   return keys;
 }
 
-async function resolveRestaurantId() {
-  const session = await getAppSession();
-  const email = session?.user?.email;
-  if (!email || typeof email !== 'string') {
-    return { error: NextResponse.json({ error: 'Unauthorized' }, { status: 401 }) };
-  }
-
-  const user = await db.user.findUnique({
-    where: { email },
-    select: { id: true },
+async function resolveRestaurantId(req: NextRequest) {
+  const auth = await getRestaurantIdForRequest(req, {
+    moduleKey: 'dashboard',
+    action: 'access',
   });
-  if (!user) {
-    return { error: NextResponse.json({ error: 'User not found' }, { status: 404 }) };
+  if (!auth.ok) {
+    return {
+      error: NextResponse.json({ error: auth.error }, { status: auth.status }),
+    };
   }
-
-  const restaurant = await getRestaurantForUser(user.id);
-  if (!restaurant) {
-    return { error: NextResponse.json({ error: 'Restaurant not found' }, { status: 404 }) };
-  }
-
-  return { restaurantId: restaurant.id };
+  return { restaurantId: auth.restaurantId };
 }
 
 export async function GET(_req: NextRequest) {
   try {
-    const auth = await resolveRestaurantId();
+    const auth = await resolveRestaurantId(_req);
     if ('error' in auth) return auth.error;
 
     const { restaurantId } = auth;

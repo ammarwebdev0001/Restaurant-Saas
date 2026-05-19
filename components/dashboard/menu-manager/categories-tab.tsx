@@ -20,6 +20,7 @@ type Props = {
 export function CategoriesTab({ categories, onRefresh }: Props) {
   const [name, setName] = useState('');
   const [adding, setAdding] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -58,12 +59,14 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
     try {
       await axios.delete(`/api/restaurant/menu/categories/${deletingId}`);
       toast.success('Deleted');
-      setConfirmDeleteOpen(false);
-      setDeletingId(null);
       await onRefresh();
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: string } } };
       toast.error(err.response?.data?.error || 'Could not delete');
+    } finally {
+      setDeleting(false);
+      setConfirmDeleteOpen(false);
+      setDeletingId(null);
     }
   };
 
@@ -126,11 +129,12 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
       title="Delete category"
       description="This category will be removed. Products in this category may need reassignment."
       itemName={categories.find((c) => c.id === deletingId)?.name}
-      onConfirm={() => void remove()}
-      onCancel={() => {
-        setConfirmDeleteOpen(false);
-        setDeletingId(null);
+      loading={deleting}
+      onConfirm={() =>{
+        setDeleting(true);
+        void remove();
       }}
+      onCancel={() => setConfirmDeleteOpen(false)}
     />
     </>
   );

@@ -12,7 +12,7 @@ const postSchema = z.object({
 
 export async function GET(_req: NextRequest) {
   const auth = await getRestaurantForOwnerRequest(undefined, {
-    moduleKey: 'tables',
+    moduleKeys: ['tables', 'pos'],
     action: 'access',
   });
   if ('error' in auth) {

@@ -30,8 +30,17 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { SaveConfirmation } from '@/components/ui/confirmation-dialogs';
+import { CreateProductSaveConfirmation } from '@/components/ui/confirmation-dialogs';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
+
+const EMPTY_PRODUCT_FORM: ProductFormState = {
+  name: '',
+  description: '',
+  categoryId: '',
+  imageUrl: '',
+  price: '',
+  salePrice: '',
+};
 
 export default function ProductCreatePage() {
   const router = useRouter();
@@ -122,7 +131,12 @@ export default function ProductCreatePage() {
 
   const goToProducts = () => requestLeave(() => router.push('/product'));
 
-  const save = async () => {
+  const resetForm = () => {
+    setForm({ ...EMPTY_PRODUCT_FORM });
+    setVariationRows([]);
+  };
+
+  const save = async (mode: 'close' | 'add-new') => {
     const payload = buildProductPayload(
       { ...form, categoryId: resolvedCategoryId },
       variationRows
@@ -136,8 +150,13 @@ export default function ProductCreatePage() {
     try {
       await axios.post('/api/restaurant/menu/items', payload.body);
       toast.success('Product created');
-      allowNextNavigation();
-      router.push('/product');
+
+      if (mode === 'close') {
+        allowNextNavigation();
+        router.push('/product');
+      } else {
+        resetForm();
+      }
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: unknown } } };
       toast.error(
@@ -246,14 +265,13 @@ export default function ProductCreatePage() {
           </AlertDialogContent>
         </AlertDialog>
 
-        <SaveConfirmation
+        <CreateProductSaveConfirmation
           open={saveConfirmOpen}
-          title="Create product"
-          description="Save this new product to your menu?"
-          itemName={form.name.trim() || 'New product'}
+          itemName={form.name.trim() || undefined}
           loading={saving}
-          onConfirm={() => void save()}
           onCancel={() => setSaveConfirmOpen(false)}
+          onSaveAndClose={() => void save('close')}
+          onSaveAndAddNew={() => void save('add-new')}
         />
       </ErrorBoundary>
     </div>

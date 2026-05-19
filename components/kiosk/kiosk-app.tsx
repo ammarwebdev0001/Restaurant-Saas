@@ -95,6 +95,7 @@ type CustomerMenuProduct = {
     id: string;
     name?: string;
     title?: string;
+    imageUrl?: string | null;
     swatchHex: string | null;
     priceDelta: number;
     sortOrder: number;
@@ -1435,6 +1436,7 @@ export function KioskApp({ slug }: { slug: string }) {
           variations={(customizeProduct?.variations ?? []).map((v) => ({
             id: v.id,
             name: v.name ?? v.title ?? 'Variation',
+            imageUrl: v.imageUrl ?? null,
             swatchHex: v.swatchHex,
             priceDelta: v.priceDelta,
           }))}

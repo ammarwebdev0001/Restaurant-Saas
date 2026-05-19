@@ -46,6 +46,7 @@ export type AttributeGroup = {
 export type ProductVariationOption = {
   id: string;
   name: string;
+  imageUrl?: string | null;
   swatchHex: string | null;
   priceDelta: number; // stored field; interpreted as absolute override price
 };
@@ -90,9 +91,9 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   onConfirm: (
     mods: {
-      attributeGroupId: string;
-      groupName: string;
-      selections: MenuOption[];
+    attributeGroupId: string;
+    groupName: string;
+    selections: MenuOption[];
     }[],
     variation?: SelectedProductVariation | null,
     quantity?: number
@@ -328,10 +329,10 @@ export function ProductCustomizeDialog({
               ? nestedVariation.priceDelta
               : effectiveUnitPrice(it.price, it.salePrice);
           return {
-            menuItemId: it.menuItemId,
+          menuItemId: it.menuItemId,
             name: qty > 1 ? `${finalName} x${qty}` : finalName,
-            description: it.description,
-            imageUrl: it.imageUrl,
+          description: it.description,
+          imageUrl: it.imageUrl,
             unitPrice: finalUnitPrice * qty,
           };
         });
@@ -491,7 +492,7 @@ export function ProductCustomizeDialog({
         id: v.id,
         name: v.name,
         price: v.priceDelta,
-        imageUrl: null,
+        imageUrl: v.imageUrl ?? productImageUrl ?? null,
         selected: selectedVariationId === v.id,
         quantity: undefined,
         onChoose: () => {
@@ -596,6 +597,7 @@ export function ProductCustomizeDialog({
   }, [
     attributeGroups,
     picker,
+    productImageUrl,
     selectedByGroup,
     selectedNestedVariationByOption,
     selectedVariationId,
@@ -708,13 +710,13 @@ export function ProductCustomizeDialog({
                   </section>
                 ) : null}
 
-                {attributeGroups.length === 0 ? (
+          {attributeGroups.length === 0 ? (
                   <p className="text-sm text-muted-foreground">
                     No add-ons available.
                   </p>
-                ) : (
-                  attributeGroups.map((g) => {
-                    const selectedIds = selectedByGroup[g.id] ?? [];
+          ) : (
+            attributeGroups.map((g) => {
+              const selectedIds = selectedByGroup[g.id] ?? [];
                     const count = groupSelectionCount(selectedIds);
                     const min = g.minItems ?? (g.required ? 1 : 0);
                     const missing =
@@ -723,22 +725,22 @@ export function ProductCustomizeDialog({
                         : (g.required && count < min) ||
                           (count > 0 && min > 0 && count < min);
 
-                    return (
-                      <section
-                        key={g.id}
+              return (
+                <section
+                  key={g.id}
                         className="rounded-xl border border-border bg-card p-4 shadow-sm"
-                      >
-                        <div className="flex items-start justify-between gap-3">
+                >
+                  <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0 flex-1">
                             <Label className="text-sm font-semibold leading-snug text-foreground">
                               {g.name}
-                            </Label>
-                            {g.linkedCategoryName ? (
-                              <p className="mt-1 text-xs text-muted-foreground">
-                                From {g.linkedCategoryName}
-                              </p>
-                            ) : null}
-                          </div>
+                      </Label>
+                      {g.linkedCategoryName ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                          From {g.linkedCategoryName}
+                        </p>
+                      ) : null}
+                    </div>
                           {g.required ? (
                             <span className="shrink-0 rounded-md bg-destructive/10 px-2 py-0.5 text-xs font-semibold text-destructive">
                               Required
@@ -748,9 +750,9 @@ export function ProductCustomizeDialog({
                               {g.selectionType === 'SINGLE'
                                 ? 'Optional'
                                 : multiSelectionHint(g.minItems, g.maxItems)}
-                            </p>
-                          )}
-                        </div>
+                      </p>
+                    )}
+                  </div>
                         {g.selectionType === 'MULTIPLE' &&
                         (g.minItems != null || g.maxItems != null) ? (
                           <p className="mt-1 text-xs text-muted-foreground">
@@ -773,12 +775,12 @@ export function ProductCustomizeDialog({
                           </p>
                         ) : null}
 
-                        <div className="mt-3 space-y-3">
-                          {g.items.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                              No options available in this category yet.
-                            </p>
-                          ) : g.selectionType === 'SINGLE' ? (
+                  <div className="mt-3 space-y-3">
+                    {g.items.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">
+                        No options available in this category yet.
+                      </p>
+                    ) : g.selectionType === 'SINGLE' ? (
                             <>
                               <button
                                 type="button"
@@ -843,10 +845,10 @@ export function ProductCustomizeDialog({
                                 );
                               })()}
                             </>
-                          ) : (
-                            <div className="flex flex-col gap-2">
-                              <button
-                                type="button"
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                            <button
+                              type="button"
                                 className="flex h-12 w-full items-center justify-between rounded-lg border border-input bg-muted/40 px-3 text-left text-sm text-foreground transition-colors hover:bg-muted/60"
                                 onClick={() => openGroupSelection(g)}
                               >
@@ -854,9 +856,9 @@ export function ProductCustomizeDialog({
                                   {selectedIds.length > 0
                                     ? `${selectedIds.length} selected`
                                     : 'Select…'}
-                                </span>
+                              </span>
                                 <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
-                              </button>
+                            </button>
                               {g.items.map((it) => {
                                 const checked = selectedIds.includes(
                                   it.menuItemId
@@ -903,16 +905,16 @@ export function ProductCustomizeDialog({
                                       ))}
                                     </select>
                                   </div>
-                                );
-                              })}
-                            </div>
-                          )}
-                        </div>
-                      </section>
-                    );
-                  })
-                )}
-              </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </section>
+              );
+            })
+          )}
+        </div>
             </div>
 
             {/* Sticky footer: qty + Add (reference: Add left, price right on orange bar) */}
@@ -1057,7 +1059,7 @@ export function ProductCustomizeDialog({
                               onClick={entry.onDecrease}
                             >
                               -
-                            </Button>
+          </Button>
                             <span className="min-w-[2ch] text-center text-xs font-semibold">
                               {entry.quantity ?? 0}
                             </span>
@@ -1069,7 +1071,7 @@ export function ProductCustomizeDialog({
                               onClick={entry.onIncrease}
                             >
                               +
-                            </Button>
+          </Button>
                           </div>
                         ) : entry.selected ? (
                           <Check className="h-4 w-4 text-primary" />

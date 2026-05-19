@@ -242,7 +242,7 @@ export function OrderDisplayScreen() {
             Order Status
           </h1>
           <p className="text-xs text-muted-foreground md:text-sm">
-            Today&apos;s orders
+            Today&apos;s POS &amp; kiosk orders
             {filterDate ? (
               <>
                 {' '}

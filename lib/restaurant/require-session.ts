@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import type { DashboardModuleKey, PermissionAction } from '@/constant/dashboardModules';
 import { getAppSession } from '@/lib/auth/app-session';
 import {
+  hasAnyDashboardPermission,
   hasDashboardPermission,
   permissionName,
 } from '@/lib/dashboard-permissions';
@@ -20,10 +21,31 @@ export type RestaurantSessionResult =
   | { ok: true; ctx: RestaurantSessionContext }
   | { ok: false; response: NextResponse };
 
-export async function requireRestaurantSession(options?: {
+export type RestaurantSessionOptions = {
+  /** Single module permission check. */
   moduleKey?: DashboardModuleKey;
+  /** Any of these modules satisfies the check (e.g. POS may read menu via `pos` or `product`). */
+  moduleKeys?: DashboardModuleKey[];
   action?: PermissionAction;
-}): Promise<RestaurantSessionResult> {
+};
+
+function checkModulePermission(
+  permissions: string[],
+  options: RestaurantSessionOptions
+): boolean {
+  const action = options.action ?? 'access';
+  if (options.moduleKeys?.length) {
+    return hasAnyDashboardPermission(permissions, options.moduleKeys, action);
+  }
+  if (options.moduleKey) {
+    return hasDashboardPermission(permissions, options.moduleKey, action);
+  }
+  return true;
+}
+
+export async function requireRestaurantSession(
+  options?: RestaurantSessionOptions
+): Promise<RestaurantSessionResult> {
   const session = await getAppSession();
   const email = session?.user?.email;
   if (!email || typeof email !== 'string') {
@@ -60,15 +82,17 @@ export async function requireRestaurantSession(options?: {
     restaurant.id
   );
 
-  if (options?.moduleKey) {
+  if (options && (options.moduleKey || options.moduleKeys?.length)) {
     const action = options.action ?? 'access';
-    if (!hasDashboardPermission(permissions, options.moduleKey, action)) {
+    if (!checkModulePermission(permissions, options)) {
+      const label =
+        options.moduleKeys?.length
+          ? options.moduleKeys.map((k) => permissionName(k, action)).join(' or ')
+          : permissionName(options.moduleKey!, action);
       return {
         ok: false,
         response: NextResponse.json(
-          {
-            error: `Forbidden: missing ${permissionName(options.moduleKey, action)} permission`,
-          },
+          { error: `Forbidden: missing ${label} permission` },
           { status: 403 }
         ),
       };
