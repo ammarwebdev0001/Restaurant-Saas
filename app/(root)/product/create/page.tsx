@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { ArrowLeft, ArrowRight, Loader2, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Loader2, Plus, Trash2, X } from 'lucide-react';
 
 import { MenuPageShell } from '@/components/dashboard/menu-manager/menu-page-shell';
 import {
@@ -29,7 +29,13 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { CreateProductSaveConfirmation } from '@/components/ui/confirmation-dialogs';
 import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 
@@ -58,8 +64,7 @@ export default function ProductCreatePage() {
   });
   const [variationRows, setVariationRows] = useState<VariationFormRow[]>([]);
 
-  const resolvedCategoryId =
-    form.categoryId || "";
+  const resolvedCategoryId = form.categoryId || '';
 
   const isDirty = useMemo(
     () =>
@@ -176,67 +181,95 @@ export default function ProductCreatePage() {
         <MenuPageShell
           title="Add product"
           description="Create a menu item with photo, category, pricing, and optional variations."
-          loading={loading}
+          loading={false}
         >
-          {categories.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col gap-3 p-6">
-                <p className="text-sm text-muted-foreground">
-                  Create at least one category before adding products.
-                </p>
-                <Button type="button" asChild className="w-fit">
-                  <>
-                    <span>Go to Categories</span>
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-                <CardTitle className="text-lg">Product details</CardTitle>
-                <Button type="button" variant="outline" onClick={goToProducts}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to products
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <ProductFormFields
-                  categories={categories}
-                  form={{ ...form, categoryId: resolvedCategoryId }}
-                  onFormChange={(patch) =>
-                    setForm((f) => ({ ...f, ...patch }))
-                  }
-                  variationRows={variationRows}
-                  onVariationRowsChange={setVariationRows}
-                  showRequired
-                />
-                <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+          <Card>
+            <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
+              <CardTitle> Create product</CardTitle>
+              {categories.length === 0 && !loading ? (
+                <></>
+              ) : (
+                <>
+                  {' '}
                   <Button
                     type="button"
-                    disabled={saving || !canCreate}
-                    onClick={() => setSaveConfirmOpen(true)}
+                    variant="default"
+                    onClick={goToProducts}
                   >
-                    {saving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        <span>Creating...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        <span>Create product</span>
-                      </>
-                    )}
+                    <ArrowLeft className="mr-2 h-4 w-4" />
+                    Back to products
                   </Button>
-                  <Button type="button" variant="outline" onClick={goToProducts}>
-                    <span>Cancel</span>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </>
+              )}
+            </CardHeader>
+            <CardContent>
+              {loading ? (
+                <p className="text-sm text-muted-foreground">
+                  <Loader2 className="animate-spin text-primary text-center mx-auto" />
+                </p>
+              ) : (
+                <>
+                  {categories?.length === 0 && !loading ? (
+                    <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border bg-muted/30 p-6">
+                      <p className="text-sm text-muted-foreground">
+                        Create at least one category before adding products.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="default"
+                        asChild
+                        className="w-fit"
+                      >
+                        <Link href="/categories"> 
+                          <span>Go to Categories</span>
+                          <ArrowRight className="ml-2 h-4 w-4" /> 
+                        </Link>
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <ProductFormFields
+                        categories={categories}
+                        form={{ ...form, categoryId: resolvedCategoryId }}
+                        onFormChange={(patch) =>
+                          setForm((f) => ({ ...f, ...patch }))
+                        }
+                        variationRows={variationRows}
+                        onVariationRowsChange={setVariationRows}
+                        showRequired
+                      />
+                      <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                        <Button
+                          type="button"
+                          disabled={saving || !canCreate}
+                          onClick={() => setSaveConfirmOpen(true)}
+                        >
+                          {saving ? (
+                            <>
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                              <span>Creating...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4 mr-2" />
+                              <span>Create product</span>
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          onClick={goToProducts}
+                        >
+                          <span>Cancel</span>
+                        </Button>
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+            </CardContent>
+          </Card>
         </MenuPageShell>
 
         <AlertDialog
@@ -252,13 +285,13 @@ export default function ProductCreatePage() {
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel type="button">
-                <span>Keep editing</span>
-                <ArrowLeft className="h-4 w-4 ml-2" />
+                <X className="h-4 w-4 mr-2" />
+                <span>Keep Editing</span>
               </AlertDialogCancel>
               <AlertDialogAction type="button" onClick={confirmLeave}>
                 <>
-                  <span>Leave without saving</span>
-                  <Trash2 className="h-4 w-4 ml-2" />
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  <span>Leave Without Saving</span>
                 </>
               </AlertDialogAction>
             </AlertDialogFooter>

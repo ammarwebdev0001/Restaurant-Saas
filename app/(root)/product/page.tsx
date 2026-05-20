@@ -14,10 +14,10 @@ export default function ProductPage() {
         <MenuPageShell
           title="Products"
           description="Add menu items with photos, pricing, optional sale price, and descriptions. Manage swatches in a dedicated module."
-          loading={loading}
+          loading={false}
         >
          
-          <ProductsTab categories={categories} onRefresh={load} />
+          <ProductsTab categories={categories} onRefresh={load} loading={loading} />
         </MenuPageShell>
       </ErrorBoundary>
     </div>

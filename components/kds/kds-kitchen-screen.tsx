@@ -2,11 +2,23 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { RefreshCw, CheckCircle2, XCircle, Clock3, Loader2 } from 'lucide-react';
+import {
+  RefreshCw,
+  CheckCircle2,
+  XCircle,
+  Clock3,
+  Loader2,
+  Check,
+  Trash2,
+} from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  KdsOrderActionDialog,
+  type KdsOrderActionKind,
+} from '@/components/kds/kds-order-action-dialog';
 
 type Ticket = {
   id: string;
@@ -36,7 +48,10 @@ function tokenLabel(t: {
   return (t.shortOrderId ?? t.orderId.slice(0, 6)).toUpperCase();
 }
 
-function trackingLabel(t: { shortOrderId: string | null; orderId: string }): string {
+function trackingLabel(t: {
+  shortOrderId: string | null;
+  orderId: string;
+}): string {
   return (t.shortOrderId ?? t.orderId.slice(0, 6)).toUpperCase();
 }
 
@@ -156,7 +171,8 @@ function toBoardLikeLines(rawName: string, rawQty: number): BoardLikeLines {
   recommendationSegments
     .sort((a, b) => b.start - a.start)
     .forEach((s) => {
-      baseName = `${baseName.slice(0, s.start)}${baseName.slice(s.end + 1)}`.trim();
+      baseName =
+        `${baseName.slice(0, s.start)}${baseName.slice(s.end + 1)}`.trim();
     });
   baseName = baseName.replace(/\s{2,}/g, ' ').trim();
 
@@ -246,10 +262,19 @@ export function KdsKitchenScreen() {
   const [recommendedNames, setRecommendedNames] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [activeUpdatingTicketId, setActiveUpdatingTicketId] = useState<
+  const [activeCompletingTicketId, setActiveCompletingTicketId] = useState<
     string | null
   >(null);
-  const [activeUpdateCount, setActiveUpdateCount] = useState(0);
+  const [activeCompleteCount, setActiveCompleteCount] = useState(0);
+  const [activeCancelingTicketId, setActiveCancelingTicketId] = useState<
+    string | null
+  >(null);
+  const [activeCancelCount, setActiveCancelCount] = useState(0);
+  const [pendingAction, setPendingAction] = useState<{
+    kind: KdsOrderActionKind;
+    ticketId: string;
+    label: string;
+  } | null>(null);
   const [nowMs, setNowMs] = useState(Date.now());
 
   const load = useCallback(async () => {
@@ -296,19 +321,30 @@ export function KdsKitchenScreen() {
     ticketId: string,
     status: 'completed' | 'canceled'
   ) {
-    setActiveUpdateCount((prev) => prev + 1);
-    setActiveUpdatingTicketId(ticketId);
+    if (status === 'completed') {
+      setActiveCompleteCount((prev) => prev + 1);
+      setActiveCompletingTicketId(ticketId);
+    } else {
+      setActiveCancelCount((prev) => prev + 1);
+      setActiveCancelingTicketId(ticketId);
+    }
     try {
       await axios.patch(`/api/restaurant/kds/tickets/${ticketId}`, { status });
       await load();
     } finally {
-      setActiveUpdateCount((prev) => {
-        const next = Math.max(0, prev - 1);
-        if (next === 0) {
-          setActiveUpdatingTicketId(null);
-        }
-        return next;
-      });
+      if (status === 'completed') {
+        setActiveCompleteCount((prev) => {
+          const next = Math.max(0, prev - 1);
+          if (next === 0) setActiveCompletingTicketId(null);
+          return next;
+        });
+      } else {
+        setActiveCancelCount((prev) => {
+          const next = Math.max(0, prev - 1);
+          if (next === 0) setActiveCancelingTicketId(null);
+          return next;
+        });
+      }
     }
   }
 
@@ -342,9 +378,7 @@ export function KdsKitchenScreen() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">
-          Loading kitchen tickets...
-        </p>
+        <Loader2 className="animate-spin text-primary text-center mx-auto" />
       ) : sorted.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
@@ -397,7 +431,10 @@ export function KdsKitchenScreen() {
 
                       <div className="space-y-1">
                         {t.items.map((it) => {
-                          const lines = toBoardLikeLines(it.productName, it.quantity);
+                          const lines = toBoardLikeLines(
+                            it.productName,
+                            it.quantity
+                          );
                           return (
                             <div key={it.id} className="text-sm leading-snug">
                               {lines.main ? (
@@ -409,7 +446,10 @@ export function KdsKitchenScreen() {
                                 </p>
                               ) : null}
                               {lines.nested.map((line, idx) => (
-                                <p key={`${it.id}-nested-${idx}`} className="pl-4 text-muted-foreground">
+                                <p
+                                  key={`${it.id}-nested-${idx}`}
+                                  className="pl-4 text-muted-foreground"
+                                >
                                   <span className="font-semibold tabular-nums">
                                     {line.quantity}×
                                   </span>{' '}
@@ -430,19 +470,18 @@ export function KdsKitchenScreen() {
                       <div className="flex items-center justify-between rounded-md border p-3">
                         <Clock3 className="w-12 h-12 text-muted-foreground" />
                         <div className="flex flex-col justify-between">
-                        <p className="text-xs text-muted-foreground">
-                          Selected time
-                        </p>
-                        <p
-                          className={`text-2xl font-bold tabular-nums ${overdue ? 'text-red-500' : ''}`}
-                        >
-                          {formatCountdown(left)}
-                        </p>
-                        <p className="text-[11px] text-muted-foreground">
-                          Target: {t.selectedMinutes}m
-                        </p>
-                          </div>  
-                            
+                          <p className="text-xs text-muted-foreground">
+                            Selected time
+                          </p>
+                          <p
+                            className={`text-2xl font-bold tabular-nums ${overdue ? 'text-red-500' : ''}`}
+                          >
+                            {formatCountdown(left)}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground">
+                            Target: {t.selectedMinutes}m
+                          </p>
+                        </div>
                       </div>
 
                       <div className="grid grid-cols-1 gap-2">
@@ -451,18 +490,37 @@ export function KdsKitchenScreen() {
                           size="lg"
                           className="h-12 justify-start gap-2 text-base"
                           disabled={
-                            (activeUpdateCount > 0 &&
-                              activeUpdatingTicketId !== null &&
-                              activeUpdatingTicketId !== t.id) ||
-                            (activeUpdatingTicketId !== null &&
-                              activeUpdatingTicketId === t.id)
+                            (activeCompleteCount > 0 &&
+                              activeCompletingTicketId !== t.id) ||
+                            (activeCompletingTicketId !== null &&
+                              activeCompletingTicketId === t.id) ||
+                            (activeCancelCount > 0 &&
+                              activeCancelingTicketId === t.id)
                           }
-                          onClick={() => void updateStatus(t.id, 'completed')}
+                          onClick={() =>
+                            setPendingAction({
+                              kind: 'complete',
+                              ticketId: t.id,
+                              label: tokenLabel(t),
+                            })
+                          }
                         >
-                          <CheckCircle2 className="h-5 w-5" />
-                          {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
-                            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> </>
-                            : 'Complete'}
+                          {activeCompleteCount > 0 &&
+                          activeCompletingTicketId === t.id ? (
+                            <>
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />{' '}
+                              <span className="text-sm font-medium">
+                                Completing...
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="mr-2 h-5 w-5" />{' '}
+                              <span className="text-sm font-medium">
+                                Complete
+                              </span>
+                            </>
+                          )}
                         </Button>
                         <Button
                           type="button"
@@ -470,18 +528,37 @@ export function KdsKitchenScreen() {
                           variant="destructive"
                           className="h-12 justify-start gap-2 text-base"
                           disabled={
-                            (activeUpdateCount > 0 &&
-                              activeUpdatingTicketId !== null &&
-                              activeUpdatingTicketId !== t.id) ||
-                            (activeUpdatingTicketId !== null &&
-                              activeUpdatingTicketId === t.id)
+                            (activeCancelCount > 0 &&
+                              activeCancelingTicketId !== t.id) ||
+                            (activeCancelingTicketId !== null &&
+                              activeCancelingTicketId === t.id) ||
+                            (activeCompleteCount > 0 &&
+                              activeCompletingTicketId === t.id)
                           }
-                          onClick={() => void updateStatus(t.id, 'canceled')}
+                          onClick={() =>
+                            setPendingAction({
+                              kind: 'cancel',
+                              ticketId: t.id,
+                              label: tokenLabel(t),
+                            })
+                          }
                         >
-                          <XCircle className="h-5 w-5" />
-                          {activeUpdateCount > 0 && activeUpdatingTicketId === t.id
-                            ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> </>
-                            : 'Cancel'}
+                          {activeCancelCount > 0 &&
+                          activeCancelingTicketId === t.id ? (
+                            <>
+                              <Loader2 className="mr-2 h-5 w-5 animate-spin" />{' '}
+                              <span className="text-sm font-medium">
+                                Canceling...
+                              </span>
+                            </>
+                          ) : (
+                            <>
+                              <XCircle className="mr-2 h-5 w-5" />{' '}
+                              <span className="text-sm font-medium">
+                                Cancel Order
+                              </span>
+                            </>
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -492,6 +569,38 @@ export function KdsKitchenScreen() {
           })}
         </div>
       )}
+      <KdsOrderActionDialog
+        open={pendingAction !== null}
+        kind={pendingAction?.kind ?? 'complete'}
+        itemName={pendingAction?.label}
+        loading={
+          pendingAction?.kind === 'complete'
+            ? activeCompleteCount > 0 &&
+              activeCompletingTicketId === pendingAction.ticketId
+            : pendingAction?.kind === 'cancel'
+              ? activeCancelCount > 0 &&
+                activeCancelingTicketId === pendingAction.ticketId
+              : false
+        }
+        onCancel={() => setPendingAction(null)}
+        iconConfirm={
+          pendingAction?.kind === 'complete' ? (
+            <Check className="mr-2 h-4 w-4" />
+          ) : (
+            <Trash2 className="mr-2 h-4 w-4" />
+          )
+        }
+        iconLoading={<Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        onConfirm={async () => {
+          if (!pendingAction) return;
+          const { kind, ticketId } = pendingAction;
+          await updateStatus(
+            ticketId,
+            kind === 'complete' ? 'completed' : 'canceled'
+          );
+          setPendingAction(null);
+        }}
+      />
     </div>
   );
 }

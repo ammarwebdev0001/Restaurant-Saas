@@ -1,6 +1,7 @@
 'use client';
 
 import {
+  ArrowLeft,
   CheckCircle,
   Loader2,
   Minus,
@@ -855,7 +856,7 @@ export function KioskApp({ slug }: { slug: string }) {
                 <DropdownMenuTrigger asChild>
                   <Button
                     type="button"
-                    variant="outline"
+                    variant="default"
                     className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
                   >
                     {t('language')}: {uiLang.toUpperCase()}
@@ -881,12 +882,14 @@ export function KioskApp({ slug }: { slug: string }) {
               {step === 'menu' ? (
                 <Button
                   type="button"
-                  variant="outline"
+                  variant="default"
                   className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
                   onClick={() => setStep('cart')}
                 >
-                  <ShoppingCart className="mr-2 h-4 w-4" />
-                  {t('cart')} ({cartCount})
+                  <ShoppingCart className="h-4 w-4" />
+                  <span className="text-xs font-medium text-primary mb-2">
+                    {cartCount}
+                  </span>
                 </Button>
               ) : null}
             </div>
@@ -1095,7 +1098,20 @@ export function KioskApp({ slug }: { slug: string }) {
              
             </div>
             {cart.length === 0 ? (
+              <>
+              <div className="flex flex-row items-center justify-start gap-2">
               <p className="text-[#64748b]">Your cart is empty.</p>
+              <Button
+                type="button"
+                variant="default"
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90 p-2"
+                onClick={() => setStep('menu')}
+              >
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                {t('backToMenu')}
+              </Button>
+              </div>
+              </>
             ) : (
               <>
                 <ul className="space-y-3">
@@ -1208,10 +1224,10 @@ export function KioskApp({ slug }: { slug: string }) {
                 className="w-full bg-black text-white"
                 onClick={() => setStep('menu')}
               >
-                <IconArrowBack
+                <ArrowLeft
                 className="mr-2 h-4 w-4"
                 />
-                Back to menu
+                {t('backToMenu')}
               </Button>
               </>
             )}

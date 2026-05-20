@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Loader2, Trash2, UserPlus } from 'lucide-react';
+import { Loader2, RefreshCcw, Trash2, UserPlus } from 'lucide-react';
 
 import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
 import {
@@ -357,7 +357,9 @@ export default function RestaurantUsersCard({
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading team…</p>
+          <p className="text-sm text-muted-foreground">
+            <Loader2 className=" animate-spin text-primary text-center mx-auto" />{' '}
+          </p>
         ) : (
           <>
             {pendingInvites.length > 0 ? (
@@ -384,7 +386,6 @@ export default function RestaurantUsersCard({
                               className="text-destructive"
                               onClick={() => void cancelInvite(p.id)}
                             >
-                              
                               Cancel
                             </Button>
                           </TableCell>
@@ -491,23 +492,6 @@ export default function RestaurantUsersCard({
             </div>
           </>
         )}
-
-        <p className="text-xs text-muted-foreground">
-          Set the <code className="rounded bg-muted px-1">SMTP_*</code> variables in{' '}
-          <code className="rounded bg-muted px-1">.env</code> and restart the dev server.
-          For Gmail, use an{' '}
-          <a
-            href="https://myaccount.google.com/apppasswords"
-            target="_blank"
-            rel="noreferrer"
-            className="underline"
-          >
-            App Password
-          </a>{' '}
-          as <code className="rounded bg-muted px-1">SMTP_PASSWORD</code>, and make sure{' '}
-          <code className="rounded bg-muted px-1">SMTP_FROM_EMAIL</code> matches{' '}
-          <code className="rounded bg-muted px-1">SMTP_USER</code> or a verified alias.
-        </p>
       </CardContent>
       <CardFooter className="border-t px-6 py-4">
         <Button
@@ -516,7 +500,16 @@ export default function RestaurantUsersCard({
           onClick={() => void fetchAll()}
           disabled={loading}
         >
-          Refresh
+          {loading ? (
+            <>
+              <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />{' '}
+              <span>Refreshing...</span>
+            </>
+          ) : (
+            <>
+              <RefreshCcw className="h-4 w-4 mr-2" /> <span>Refresh</span>
+            </>
+          )}
         </Button>
       </CardFooter>
     </Card>

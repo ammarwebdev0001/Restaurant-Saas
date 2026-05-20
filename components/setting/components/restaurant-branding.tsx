@@ -136,7 +136,7 @@ export function RestaurantBrandingCard({
       <Card>
         <CardHeader>
           <CardTitle>Logo & banners</CardTitle>
-          <CardDescription>Loading…</CardDescription>
+            <CardDescription><Loader2 className=" animate-spin text-primary text-center mx-auto" />{' '}</CardDescription>
         </CardHeader>
       </Card>
     );
@@ -162,7 +162,7 @@ export function RestaurantBrandingCard({
         <CardTitle>Logo & banners</CardTitle>
         <CardDescription>
           URLs used on the customer website and kiosk. Leave a field empty to
-          clear it. Use full <code className="text-xs">https://</code> links.
+          clear it.
         </CardDescription>
         {!brandingAllowed ? (
           <p className="text-sm text-muted-foreground">

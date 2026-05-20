@@ -2,13 +2,25 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
+import {
+  Check,
+  CheckCircle2,
+  Loader2,
+  RefreshCw,
+  Trash2,
+  XCircle,
+} from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { toast } from 'react-toastify';
+
+import {
+  KdsOrderActionDialog,
+  type KdsOrderActionKind,
+} from '@/components/kds/kds-order-action-dialog';
 
 type PendingOrder = {
   id: string;
@@ -42,10 +54,7 @@ function tokenLabel(o: {
   return (o.shortOrderId ?? o.id.slice(0, 6)).toUpperCase();
 }
 
-function trackingLabel(o: {
-  shortOrderId: string | null;
-  id: string;
-}): string {
+function trackingLabel(o: { shortOrderId: string | null; id: string }): string {
   return (o.shortOrderId ?? o.id.slice(0, 6)).toUpperCase();
 }
 
@@ -97,6 +106,12 @@ export function KdsManagerBoard() {
     null
   );
   const [activeCancelCount, setActiveCancelCount] = useState(0);
+  const [pendingAction, setPendingAction] = useState<{
+    kind: KdsOrderActionKind;
+    orderId: string;
+    label: string;
+    minutes?: number;
+  } | null>(null);
 
   const load = useCallback(async () => {
     setRefreshing(true);
@@ -204,7 +219,8 @@ export function KdsManagerBoard() {
       toast.success('Order canceled');
       await load();
     } catch (error) {
-      const msg = error instanceof Error ? error.message : 'Could not cancel order';
+      const msg =
+        error instanceof Error ? error.message : 'Could not cancel order';
       toast.error(msg);
     } finally {
       setActiveCancelCount((prev) => {
@@ -248,9 +264,7 @@ export function KdsManagerBoard() {
       </div>
 
       {loading ? (
-        <p className="text-sm text-muted-foreground">
-          Loading pending orders...
-        </p>
+        <Loader2 className="animate-spin text-primary text-center mx-auto" />
       ) : orders.length === 0 ? (
         <Card>
           <CardContent className="pt-6 text-sm text-muted-foreground">
@@ -296,7 +310,10 @@ export function KdsManagerBoard() {
                     </p>
                     <div className="space-y-1">
                       {o.items.map((it) => {
-                        const base = normalizeLineName(it.menuItem.name, it.quantity);
+                        const base = normalizeLineName(
+                          it.menuItem.name,
+                          it.quantity
+                        );
                         return (
                           <div key={it.id} className="text-xs leading-snug">
                             <p>
@@ -308,7 +325,10 @@ export function KdsManagerBoard() {
                             {it.modifiers?.map((m, idx) => {
                               const mod = normalizeLineName(m.name, m.quantity);
                               return (
-                                <p key={`${it.id}-m-${idx}`} className="pl-4 text-muted-foreground">
+                                <p
+                                  key={`${it.id}-m-${idx}`}
+                                  className="pl-4 text-muted-foreground"
+                                >
                                   <span className="font-semibold tabular-nums">
                                     {mod.quantity}×
                                   </span>{' '}
@@ -323,109 +343,156 @@ export function KdsManagerBoard() {
                     <p className="text-xs font-semibold">€{fmt(o.total)}</p>
                   </div>
 
-                 
-
                   <div className="flex w-full justify-between flex-col gap-3 rounded-lg border bg-muted/20 p-3">
-                   <div className="flex flex-col justify-between">
-
-                    <div className="space-y-2">
-                      <p className="text-xs text-muted-foreground">
-                        Select time:
-                      </p>
-                      <div className="grid grid-cols-3 gap-2">
-                        {[10, 15, 30].map((m) => (
-                          <Button
-                            key={m}
-                            type="button"
-                            variant={
-                              (prepMinutes[o.id] ?? 10) === m
-                                ? 'default'
-                                : 'outline'
+                    <div className="flex flex-col justify-between">
+                      <div className="space-y-2">
+                        <p className="text-xs text-muted-foreground">
+                          Select time:
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[10, 15, 30].map((m) => (
+                            <Button
+                              key={m}
+                              type="button"
+                              variant={
+                                (prepMinutes[o.id] ?? 10) === m
+                                  ? 'default'
+                                  : 'outline'
+                              }
+                              onClick={() => {
+                                setPrepMinutes((prev) => ({
+                                  ...prev,
+                                  [o.id]: m,
+                                }));
+                                setCustomMinutesText((prev) => {
+                                  const next = { ...prev };
+                                  delete next[o.id];
+                                  return next;
+                                });
+                              }}
+                            >
+                              {m}m
+                            </Button>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="space-y-1">
+                        <label
+                          htmlFor={`kds-custom-min-${o.id}`}
+                          className="text-xs text-muted-foreground"
+                        >
+                          Custom (minutes)
+                        </label>
+                        <Input
+                          id={`kds-custom-min-${o.id}`}
+                          className="h-9"
+                          inputMode="numeric"
+                          placeholder={`${MIN_CUSTOM_MINUTES}–${MAX_CUSTOM_MINUTES}`}
+                          value={customMinutesText[o.id] ?? ''}
+                          onChange={(e) => {
+                            const v = e.target.value;
+                            setCustomMinutesText((prev) => ({
+                              ...prev,
+                              [o.id]: v,
+                            }));
+                            const n = Math.round(Number(v));
+                            if (
+                              v.trim() !== '' &&
+                              Number.isFinite(n) &&
+                              n >= MIN_CUSTOM_MINUTES &&
+                              n <= MAX_CUSTOM_MINUTES
+                            ) {
+                              setPrepMinutes((prev) => ({
+                                ...prev,
+                                [o.id]: n,
+                              }));
                             }
-                            onClick={() => {
-                              setPrepMinutes((prev) => ({ ...prev, [o.id]: m }));
-                              setCustomMinutesText((prev) => {
-                                const next = { ...prev };
-                                delete next[o.id];
-                                return next;
-                              });
-                            }}
-                          >
-                            {m}m
-                          </Button>
-                        ))}
+                          }}
+                        />
                       </div>
                     </div>
-                    <div className="space-y-1">
-                      <label
-                        htmlFor={`kds-custom-min-${o.id}`}
-                        className="text-xs text-muted-foreground"
-                      >
-                        Custom (minutes)
-                      </label>
-                      <Input
-                        id={`kds-custom-min-${o.id}`}
-                        className="h-9"
-                        inputMode="numeric"
-                        placeholder={`${MIN_CUSTOM_MINUTES}–${MAX_CUSTOM_MINUTES}`}
-                        value={customMinutesText[o.id] ?? ''}
-                        onChange={(e) => {
-                          const v = e.target.value;
-                          setCustomMinutesText((prev) => ({
-                            ...prev,
-                            [o.id]: v,
-                          }));
-                          const n = Math.round(Number(v));
-                          if (
-                            v.trim() !== '' &&
-                            Number.isFinite(n) &&
-                            n >= MIN_CUSTOM_MINUTES &&
-                            n <= MAX_CUSTOM_MINUTES
-                          ) {
-                            setPrepMinutes((prev) => ({ ...prev, [o.id]: n }));
-                          }
-                        }}
-                      />
-                    </div>
-                   </div>
 
                     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    <Button
-                      className="w-full"
-                      type="button"
-                      disabled={
-                        (activeSubmitCount > 0 &&
-                          activeSubmittingOrderId !== o.id) ||
-                        (activeSubmittingOrderId !== null &&
-                          activeSubmittingOrderId === o.id) ||
-                        (activeCancelCount > 0 && activeCancelOrderId === o.id)
-                      }
-                      onClick={() => void proceed(o.id)}
-                    >
-                      <CheckCircle2 className="mr-2 h-5 w-5" />
-                      {activeSubmitCount > 0 && activeSubmittingOrderId === o.id
-                        ? 'Proceeding...'
-                        : 'Proceed'}
-                    </Button>
-                    <Button
-                      className="w-full"
-                      variant="destructive"
-                      type="button"
-                      disabled={
-                        (activeCancelCount > 0 &&
-                          activeCancelOrderId !== o.id) ||
-                        (activeCancelOrderId !== null &&
-                          activeCancelOrderId === o.id) ||
-                        (activeSubmitCount > 0 && activeSubmittingOrderId === o.id)
-                      }
-                      onClick={() => void cancelOrder(o.id)}
-                    >
-                      <XCircle className="mr-2 h-5 w-5" />
-                      {activeCancelCount > 0 && activeCancelOrderId === o.id
-                        ? 'Canceling...'
-                        : 'Cancel Order'}
-                    </Button>
-                  </div>
+                      <Button
+                        className="w-full"
+                        type="button"
+                        disabled={
+                          (activeSubmitCount > 0 &&
+                            activeSubmittingOrderId !== o.id) ||
+                          (activeSubmittingOrderId !== null &&
+                            activeSubmittingOrderId === o.id) ||
+                          (activeCancelCount > 0 &&
+                            activeCancelOrderId === o.id)
+                        }
+                        onClick={() => {
+                          const minutes = resolveMinutesForOrder(o.id);
+                          if (minutes === null) {
+                            toast.warn(
+                              `Enter a valid prep time (${MIN_CUSTOM_MINUTES}–${MAX_CUSTOM_MINUTES} minutes), or use a preset.`
+                            );
+                            return;
+                          }
+                          setPendingAction({
+                            kind: 'proceed',
+                            orderId: o.id,
+                            label: tokenLabel(o),
+                            minutes,
+                          });
+                        }}
+                      >
+                        {activeSubmitCount > 0 &&
+                        activeSubmittingOrderId === o.id ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />{' '}
+                            <span className="text-sm font-medium">
+                              Proceeding...
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="mr-2 h-5 w-5" />{' '}
+                            <span className="text-sm font-medium">Proceed</span>
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        className="w-full"
+                        variant="destructive"
+                        type="button"
+                        disabled={
+                          (activeCancelCount > 0 &&
+                            activeCancelOrderId !== o.id) ||
+                          (activeCancelOrderId !== null &&
+                            activeCancelOrderId === o.id) ||
+                          (activeSubmitCount > 0 &&
+                            activeSubmittingOrderId === o.id)
+                        }
+                        onClick={() =>
+                          setPendingAction({
+                            kind: 'cancel',
+                            orderId: o.id,
+                            label: tokenLabel(o),
+                          })
+                        }
+                      >
+                        {activeCancelCount > 0 &&
+                        activeCancelOrderId === o.id ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />{' '}
+                            <span className="text-sm font-medium">
+                              Canceling...
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <XCircle className="mr-2 h-5 w-5" />{' '}
+                            <span className="text-sm font-medium">
+                              Cancel Order
+                            </span>
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </CardContent>
@@ -433,6 +500,41 @@ export function KdsManagerBoard() {
           ))}
         </div>
       )}
+      <KdsOrderActionDialog
+        open={pendingAction !== null}
+        kind={pendingAction?.kind ?? 'proceed'}
+        itemName={pendingAction?.label}
+        detail={
+          pendingAction?.kind === 'proceed' && pendingAction.minutes != null
+            ? `Prep time: ${pendingAction.minutes} minutes`
+            : undefined
+        }
+        loading={
+          pendingAction?.kind === 'proceed'
+            ? activeSubmitCount > 0 &&
+              activeSubmittingOrderId === pendingAction.orderId
+            : pendingAction?.kind === 'cancel'
+              ? activeCancelCount > 0 &&
+                activeCancelOrderId === pendingAction.orderId
+              : false
+        }
+        onCancel={() => setPendingAction(null)}
+        iconConfirm={
+          pendingAction?.kind === 'proceed' ? (
+            <Check className="mr-2 h-4 w-4" />
+          ) : (
+            <Trash2 className="mr-2 h-4 w-4" />
+          )
+        }
+        iconLoading={<Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        onConfirm={async () => {
+          if (!pendingAction) return;
+          const { kind, orderId } = pendingAction;
+          if (kind === 'proceed') await proceed(orderId);
+          else await cancelOrder(orderId);
+          setPendingAction(null);
+        }}
+      />
     </div>
   );
 }

@@ -5,10 +5,10 @@ import Link from 'next/link';
 import axios from 'axios';
 import { format } from 'date-fns';
 import { toast } from 'react-toastify';
-import { ListFilter, Pencil, Plus, Search, Trash2 } from 'lucide-react';
+import { ListFilter, Loader2, Pencil, Plus, Search, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DeleteConfirmation } from '@/components/ui/confirmation-dialogs';
 import { Input } from '@/components/ui/input';
 import {
@@ -51,9 +51,10 @@ function formatUpdatedAt(iso: string | undefined) {
 type Props = {
   categories: MenuCategoryRow[];
   onRefresh: () => Promise<void>;
+  loading: boolean;
 };
 
-export function ProductsTab({ categories, onRefresh }: Props) {
+export function ProductsTab({ categories, onRefresh, loading }: Props) {
   const { canEdit, canDelete } = useDashboardPermissions();
   const canEditProducts = canEdit('product');
   const canDeleteProducts = canDelete('product');
@@ -136,8 +137,15 @@ export function ProductsTab({ categories, onRefresh }: Props) {
 
   return (
     <Card>
+      <CardHeader>
+        <CardTitle>Products</CardTitle>
+      </CardHeader>
       <CardContent className="space-y-4 pt-10">
-        {categories.length === 0 ? (
+        {loading ? (
+          <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
+        ) : (
+          <>
+           {categories.length === 0 ? (
           <div className="flex flex-col gap-3 rounded-lg border border-dashed border-border bg-muted/30 p-6">
             <p className="text-sm text-muted-foreground">
               Create at least one category before you can add products.
@@ -384,6 +392,9 @@ export function ProductsTab({ categories, onRefresh }: Props) {
             )}
           </div>
         )}
+          </>
+        )}
+       
       </CardContent>
 
       <DeleteConfirmation

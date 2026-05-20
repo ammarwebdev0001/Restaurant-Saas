@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Loader2, Pencil, Plus, Save, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Plus, RefreshCcw, RefreshCw, Save, Trash2 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
@@ -153,12 +153,12 @@ export function TablesModule() {
             Add table
           </Button>
           <Button type="button" variant="outline" onClick={() => void load()} disabled={loading}>
-            Refresh
+            {loading ? <><RefreshCw className="h-4 w-4 mr-2 animate-spin" /> <span>Refreshing...</span></> : <><RefreshCcw className="mr-2 h-4 w-4" /> <span>Refresh</span></>}
           </Button>
         </div>
 
         {loading ? (
-          <p className="text-sm text-muted-foreground">Loading…</p>
+          <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
         ) : rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             No tables yet. Add one so staff can select it on the POS screen.

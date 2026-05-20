@@ -2,8 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import ShopnameCard from './components/shopname';
-import TaxrateCard from './components/taxrate';
 import RolesCard from './components/roles';
 import RestaurantUsersCard from './components/restaurant-users';
 import { CustomerEntryLinks } from './components/customer-entry-links';

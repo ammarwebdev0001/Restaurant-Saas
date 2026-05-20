@@ -14,9 +14,9 @@ export default function CategoriesPage() {
         <MenuPageShell
           title="Categories"
           description="Create and organize menu sections (e.g. Mains, Drinks, Sauces). Add categories before products."
-          loading={loading}
+          loading={false}
         >
-          <CategoriesTab categories={categories} onRefresh={load} />
+          <CategoriesTab categories={categories} onRefresh={load} loading={loading} />
         </MenuPageShell>
       </ErrorBoundary>
     </div>

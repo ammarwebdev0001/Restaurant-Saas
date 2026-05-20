@@ -178,6 +178,10 @@ export function BranchedPage() {
 
   return (
     <>
+    <div className="flex flex-col gap-2 mb-6">
+      <h1 className="text-2xl font-semibold tracking-tight">Branches</h1>
+      <p className="text-sm text-muted-foreground space-y-2">Add, edit, and delete your branches here. You can add up to {maxBranches === null ? 'unlimited' : maxBranches} branches.</p>
+    </div>
       <Card>
         <CardHeader>
           <CardTitle>Branch Management</CardTitle>

@@ -462,6 +462,7 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
                       </Button>
                       <Button
                         variant="destructive"
+                        size="sm"
                         onClick={() => removeFromCart(line.lineId)}
                         type="button"
                       >

@@ -24,6 +24,7 @@ import {
   ChefHatIcon,
   CrossIcon,
   Loader2,
+  ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -73,6 +74,7 @@ import { toast } from 'react-toastify';
 import axios from 'axios';
 import eventBus from '@/lib/even';
 import { usePosCartGuard } from '@/components/pos/pos-cart-guard-context';
+import { useUnsavedChangesGuard } from '@/hooks/use-unsaved-changes-guard';
 import { ModeToggle } from '@/components/darkmode/darkmode';
 import UserMenu from '@/components/dashboard/UserMenu';
 import { Cross2Icon } from '@radix-ui/react-icons';
@@ -227,7 +229,6 @@ export function PosScreen() {
   const [now, setNow] = useState<Date>(() => new Date());
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [amountPaid, setAmountPaid] = useState('');
-  const [dashboardLeaveOpen, setDashboardLeaveOpen] = useState(false);
   const [archivedOrdersOpen, setArchivedOrdersOpen] = useState(false);
   const [archivedOrders, setArchivedOrders] = useState<ArchivedOrder[]>([]);
 
@@ -455,16 +456,6 @@ export function PosScreen() {
   }, [cart, setPosCartHasItems]);
 
   useEffect(() => {
-    const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (cart.length === 0 && archivedOrders.length === 0) return;
-      e.preventDefault();
-      e.returnValue = '';
-    };
-    window.addEventListener('beforeunload', onBeforeUnload);
-    return () => window.removeEventListener('beforeunload', onBeforeUnload);
-  }, [archivedOrders.length, cart.length]);
-
-  useEffect(() => {
     if (typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     if (archivedOrders.length > 0) {
@@ -511,6 +502,17 @@ export function PosScreen() {
     branches.find((b) => b.id === selectedBranchId)?.name ??
     'No branch selected';
   const hasPendingPosData = cart.length > 0 || archivedOrders.length > 0;
+
+  const {
+    leaveOpen: posLeaveGuardOpen,
+    leaveMessage: posLeaveMessage,
+    requestLeave,
+    confirmLeave,
+    cancelLeave,
+  } = useUnsavedChangesGuard(hasPendingPosData, {
+    message:
+      'You have unsaved POS data (cart or archived holds). If you leave now, current POS progress will be lost.',
+  });
 
   function printOrderReceipt(
     orderRef: string,
@@ -730,11 +732,7 @@ export function PosScreen() {
   }
 
   function requestDashboard() {
-    if (hasPendingPosData) {
-      setDashboardLeaveOpen(true);
-      return;
-    }
-    router.push('/dashboard');
+    requestLeave(() => router.push('/dashboard'));
   }
 
   function holdCurrentOrder() {
@@ -1052,7 +1050,7 @@ export function PosScreen() {
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
+    <ScrollArea className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-xl border bg-card text-card-foreground shadow-sm">
       {/* Header */}
       <div className="flex items-center gap-3 border-b bg-muted/30 px-4 py-3">
         <div className="flex items-center gap-3">
@@ -1199,18 +1197,26 @@ export function PosScreen() {
             ))}
             {loadingMenu ? (
               <div className="col-span-full py-16 text-center text-sm text-muted-foreground">
-                Loading menu products...
+                <Loader2 className="animate-spin text-primary text-center mx-auto" />
               </div>
             ) : (
               filteredProducts.length === 0 && (
                 <div className="col-span-full py-16 text-center text-sm text-muted-foreground">
-                  No products match this category or search.
+                  <p className="text-[#64748b]">No products match this category or search.</p>
+                  <Button
+                    type="button"
+                    variant="default"
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90 p-2"
+                    onClick={() => setCategoryId('all')}
+                  >
+                    <ArrowLeft className="h-4 w-4" />
+                    Back to all products
+                  </Button>
                 </div>
               )
             )}
           </div>
         </ScrollArea>
-
         {/* Checkout */}
         <div className="flex min-h-0 flex-col gap-3 border-t bg-muted/20 p-3 lg:border-t-0" >
           <div className="grid grid-cols-4 gap-2">
@@ -1456,27 +1462,29 @@ export function PosScreen() {
         </div>
       </div>
       <AlertDialog
-        open={dashboardLeaveOpen}
-        onOpenChange={setDashboardLeaveOpen}
+        open={posLeaveGuardOpen}
+        onOpenChange={(open) => {
+          if (!open) cancelLeave();
+        }}
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Leave POS and discard cart?</AlertDialogTitle>
-            <AlertDialogDescription>
-              You have unsaved POS data (cart or archived holds). If you go to
-              dashboard now, current POS progress will be lost.
-            </AlertDialogDescription>
+            <AlertDialogTitle>Leave POS?</AlertDialogTitle>
+            <AlertDialogDescription>{posLeaveMessage}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel type="button">Stay on POS</AlertDialogCancel>
+            <AlertDialogCancel type="button">
+              <X className="mr-2 inline h-4 w-4 align-middle" />
+              Stay on POS
+            </AlertDialogCancel>
             <AlertDialogAction
               type="button"
               onClick={() => {
-                setDashboardLeaveOpen(false);
-                router.push('/dashboard');
+                confirmLeave();
               }}
             >
-              Go to dashboard
+              <ArrowLeft className="mr-2 inline h-4 w-4 align-middle" />
+              Leave POS
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1498,7 +1506,7 @@ export function PosScreen() {
           </SheetHeader>
           <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
             {loadingPendingKitchen ? (
-              <p className="text-sm text-muted-foreground">Loading…</p>
+              <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
             ) : pendingKitchenOrders.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No POS orders waiting for the kitchen.
@@ -2064,6 +2072,6 @@ export function PosScreen() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </div>
+    </ScrollArea>
   );
 }

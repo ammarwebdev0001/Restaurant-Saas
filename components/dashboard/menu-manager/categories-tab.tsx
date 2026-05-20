@@ -6,8 +6,17 @@ import { toast } from 'react-toastify';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { DeleteConfirmation } from '@/components/ui/confirmation-dialogs';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  AddCategoryConfirmation,
+  DeleteConfirmation,
+} from '@/components/ui/confirmation-dialogs';
 import { Input } from '@/components/ui/input';
 
 import type { MenuCategoryRow } from './types';
@@ -15,14 +24,16 @@ import type { MenuCategoryRow } from './types';
 type Props = {
   categories: MenuCategoryRow[];
   onRefresh: () => Promise<void>;
+  loading: boolean;
 };
 
-export function CategoriesTab({ categories, onRefresh }: Props) {
+export function CategoriesTab({ categories, onRefresh, loading }: Props) {
   const [name, setName] = useState('');
   const [adding, setAdding] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const [confirmAddOpen, setConfirmAddOpen] = useState(false);
 
   const canAdd = Boolean(name.trim()) && !adding;
 
@@ -30,7 +41,9 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
     if (!name.trim() || adding) return;
     setAdding(true);
     try {
-      await axios.post('/api/restaurant/menu/categories', { name: name.trim() });
+      await axios.post('/api/restaurant/menu/categories', {
+        name: name.trim(),
+      });
       toast.success('Category created');
       setName('');
       await onRefresh();
@@ -46,7 +59,9 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
   const rename = async (id: string, next: string) => {
     if (!next.trim()) return;
     try {
-      await axios.patch(`/api/restaurant/menu/categories/${id}`, { name: next.trim() });
+      await axios.patch(`/api/restaurant/menu/categories/${id}`, {
+        name: next.trim(),
+      });
       toast.success('Saved');
       await onRefresh();
     } catch {
@@ -72,70 +87,86 @@ export function CategoriesTab({ categories, onRefresh }: Props) {
 
   return (
     <>
-    <Card>
-      <CardHeader>
-        <CardTitle>Categories</CardTitle>
-        <CardDescription>
-          Menu sections (e.g. Mains, Drinks, Sauces). Create categories before products; add-on
-          options for recommendations come from other categories.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-6">
-        <div className="flex flex-wrap gap-2">
-          <Input
-            placeholder="New category name"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="max-w-sm"
-            disabled={adding}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && canAdd) void add();
-            }}
-          />
-          <Button
-            type="button"
-            disabled={!canAdd}
-            onClick={() => void add()}
-          >
-            {adding ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-            ) : (
-              <Plus className="mr-2 h-4 w-4" aria-hidden />
-            )}
-            {adding ? 'Adding…' : 'Add category'}
-          </Button>
-        </div>
-
-        <ul className="space-y-2">
-          {categories.map((c) => (
-            <CategoryRow
-              key={c.id}
-              category={c}
-              onRename={rename}
-              onDelete={(id) => {
-                setDeletingId(id);
-                setConfirmDeleteOpen(true);
+      <Card>
+        <CardHeader>
+          <CardTitle>Categories</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-wrap gap-2">
+            <Input
+              placeholder="New category name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className="max-w-sm"
+              disabled={adding}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && canAdd) setConfirmAddOpen(true);
               }}
             />
-          ))}
-        </ul>
-        {categories.length === 0 && (
-          <p className="text-sm text-muted-foreground">No categories yet. Add your first one above.</p>
-        )}
-      </CardContent>
-    </Card>
-    <DeleteConfirmation
-      open={confirmDeleteOpen}
-      title="Delete category"
-      description="This category will be removed. Products in this category may need reassignment."
-      itemName={categories.find((c) => c.id === deletingId)?.name}
-      loading={deleting}
-      onConfirm={() =>{
-        setDeleting(true);
-        void remove();
-      }}
-      onCancel={() => setConfirmDeleteOpen(false)}
-    />
+            <Button
+              type="button"
+              disabled={!canAdd}
+              onClick={() => setConfirmAddOpen(true)}
+            >
+              {adding ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Plus className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              {adding ? 'Adding…' : 'Add category'}
+            </Button>
+          </div>
+          {loading ? (
+            <p className="text-sm text-muted-foreground">
+              <Loader2 className="animate-spin text-primary text-center mx-auto" />
+            </p>
+          ) : (
+            <>
+              <ul className="space-y-2">
+                {categories.map((c) => (
+                  <CategoryRow
+                    key={c.id}
+                    category={c}
+                    onRename={rename}
+                    onDelete={(id) => {
+                      setDeletingId(id);
+                      setConfirmDeleteOpen(true);
+                    }}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
+
+          {categories.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No categories yet. Add your first one above.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+      <AddCategoryConfirmation
+        open={confirmAddOpen}
+        categoryName={name}
+        loading={adding}
+        onCancel={() => setConfirmAddOpen(false)}
+        onConfirm={async () => {
+          await add();
+          setConfirmAddOpen(false);
+        }}
+      />
+      <DeleteConfirmation
+        open={confirmDeleteOpen}
+        title="Delete category"
+        description="This category will be removed. Products in this category may need reassignment."
+        itemName={categories.find((c) => c.id === deletingId)?.name}
+        loading={deleting}
+        onConfirm={() => {
+          setDeleting(true);
+          void remove();
+        }}
+        onCancel={() => setConfirmDeleteOpen(false)}
+      />
     </>
   );
 }
@@ -159,10 +190,13 @@ function CategoryRow({
         value={val}
         onChange={(e) => setVal(e.target.value)}
         onBlur={() => {
-          if (val.trim() && val.trim() !== category.name) onRename(category.id, val.trim());
+          if (val.trim() && val.trim() !== category.name)
+            onRename(category.id, val.trim());
         }}
       />
-      <span className="text-xs text-muted-foreground">{category.items.length} products</span>
+      <span className="text-xs text-muted-foreground">
+        {category.items.length} products
+      </span>
       <Button
         type="button"
         size="icon"

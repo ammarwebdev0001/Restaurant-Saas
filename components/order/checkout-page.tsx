@@ -268,7 +268,7 @@ export default function CheckoutPageClient({
             <p className="text-muted-foreground">{t('loadingYourCart')}</p>
             <Button
               type="button"
-              variant="outline"
+              variant="default"
               className="gap-2"
               onClick={() =>
                 router.push(
@@ -307,7 +307,7 @@ export default function CheckoutPageClient({
                 )
               }
               type="button"
-              variant="outline"
+              variant="default"
               className="gap-2"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
@@ -332,7 +332,7 @@ export default function CheckoutPageClient({
           </div>
           <Button
             type="button"
-            variant="outline"
+            variant="default"
             className="shrink-0 gap-2"
             onClick={() =>
               router.push(

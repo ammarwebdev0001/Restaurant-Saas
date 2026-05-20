@@ -5,7 +5,15 @@ import Link from 'next/link';
 import { useParams, usePathname, useRouter } from 'next/navigation';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { ArrowLeft, Cross, Loader2, Save, Trash2 } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Cross,
+  Loader2,
+  Save,
+  Trash2,
+  X,
+} from 'lucide-react';
 
 import { MenuPageShell } from '@/components/dashboard/menu-manager/menu-page-shell';
 import {
@@ -192,77 +200,97 @@ export default function ProductEditPage() {
         <MenuPageShell
           title="Edit product"
           description="Update menu item details, pricing, and variations."
-          loading={loading}
+          loading={false}
         >
-          {showNotFound ? (
-            <Card>
-              <CardContent className="flex flex-col gap-3 p-6">
-                <p className="text-sm text-muted-foreground">
-                  Product not found. It may have been deleted.
-                </p>
-                <Button type="button" asChild className="w-fit">
-                  <Link href="/product">Back to products</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : categories.length === 0 ? (
-            <Card>
-              <CardContent className="flex flex-col gap-3 p-6">
-                <p className="text-sm text-muted-foreground">
-                  Create at least one category before editing products.
-                </p>
-                <Button type="button" asChild className="w-fit">
-                  <Link href="/categories">Go to Categories</Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ) : item ? (
-            <Card>
-              <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
-                <CardTitle className="text-lg">{item.name}</CardTitle>
-                <Button type="button" variant="outline" onClick={goToProducts}>
-                  <ArrowLeft className="mr-2 h-4 w-4" />
-                  Back to products
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <ProductFormFields
-                  categories={categories}
-                  form={{ ...form, categoryId: resolvedCategoryId }}
-                  onFormChange={(patch) =>
-                    setForm((f) => ({ ...f, ...patch }))
-                  }
-                  variationRows={variationRows}
-                  onVariationRowsChange={setVariationRows}
-                />
-                <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-                  <Button
-                    type="button"
-                    disabled={saving || !isDirty}
-                    onClick={() => setSaveConfirmOpen(true)}
-                  >
-                    {saving ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Saving…
-                      </>
-                    ) : (
-                      <>
-                        <Save className="h-4 w-4 mr-2" />
-                        <span>Save changes</span>
-                      </>
-                    )}
-                  </Button>
-                  <Button type="button" variant="outline" onClick={goToProducts}>
-                    <>
-                      <ArrowLeft className="h-4 w-4 mr-2" />
-                      <span>Cancel</span>
-                    </>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ) : null}
+          {loading ? (
+            <p className="text-sm text-muted-foreground">
+              <Loader2 className="animate-spin text-primary text-center mx-auto" />
+            </p>
+          ) : (
+            <>
+              {showNotFound ? (
+                <Card>
+                  <CardContent className="flex flex-col gap-3 p-6">
+                    <p className="text-sm text-muted-foreground">
+                      Product not found. It may have been deleted.
+                    </p>
+                    <Button type="button" asChild className="w-fit">
+                      <Link href="/product">Back to products</Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : categories?.length === 0 && !loading ? (
+                <Card>
+                  <CardContent className="flex flex-col gap-3 p-6">
+                    <p className="text-sm text-muted-foreground">
+                      Create at least one category before editing products.
+                    </p>
+                    <Button type="button" asChild className="w-fit">
+                      <Link href="/categories">
+                        <span>Go to Categories</span>
+                        <ArrowRight className="ml-2 h-4 w-4" />{' '}
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : item ? (
+                <Card>
+                  <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 space-y-0">
+                    <CardTitle className="text-lg">{item.name}</CardTitle>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={goToProducts}
+                    >
+                      <ArrowLeft className="mr-2 h-4 w-4" />
+                      Back to products
+                    </Button>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <ProductFormFields
+                      categories={categories}
+                      form={{ ...form, categoryId: resolvedCategoryId }}
+                      onFormChange={(patch) =>
+                        setForm((f) => ({ ...f, ...patch }))
+                      }
+                      variationRows={variationRows}
+                      onVariationRowsChange={setVariationRows}
+                    />
+                    <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                      <Button
+                        type="button"
+                        disabled={saving || !isDirty}
+                        onClick={() => setSaveConfirmOpen(true)}
+                      >
+                        {saving ? (
+                          <>
+                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            Saving…
+                          </>
+                        ) : (
+                          <>
+                            <Save className="h-4 w-4 mr-2" />
+                            <span>Save Changes</span>
+                          </>
+                        )}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={goToProducts}
+                        disabled={saving}
+                      >
+                        <>
+                          <X className="h-4 w-4 mr-2" />
+                          <span>Cancel</span>
+                        </>
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : null}
+            </>
+          )}
         </MenuPageShell>
 
         <AlertDialog
@@ -277,15 +305,24 @@ export default function ProductEditPage() {
               <AlertDialogDescription>{leaveMessage}</AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel type="button" className="bg-gray-100 text-gray-900 hover:bg-gray-200 hover:text-gray-900">
+              <AlertDialogCancel
+                type="button"
+
+                className="bg-gray-100 text-gray-900 hover:bg-gray-200 hover:text-gray-900"
+              >
                 <>
-                  <Cross className="h-4 w-4 mr-2" />
-                  <span>Keep editing</span></>
+                  <X className="h-4 w-4 mr-2" />
+                  <span>Keep Editing</span>
+                </>
               </AlertDialogCancel>
-              <AlertDialogAction type="button" onClick={confirmLeave} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              <AlertDialogAction
+                type="button"
+                onClick={confirmLeave}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
                 <>
                   <Trash2 className="h-4 w-4 mr-2" />
-                  <span>Leave without saving</span>
+                  <span>Leave Without Saving</span>
                 </>
               </AlertDialogAction>
             </AlertDialogFooter>

@@ -10,7 +10,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
-import { Loader2, Plus, Save } from 'lucide-react';
+import { Loader2, Plus, Save, X } from 'lucide-react';
 
 interface CreateProductSaveConfirmationProps {
   open: boolean;
@@ -53,7 +53,8 @@ export function CreateProductSaveConfirmation({
               disabled={loading}
               className="mt-0"
             >
-              Cancel
+              <X className="mr-2 h-4 w-4" />
+              <span>Cancel</span>
             </AlertDialogCancel>
             <Button
               type="button"

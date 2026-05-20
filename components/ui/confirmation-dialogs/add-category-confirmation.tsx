@@ -11,34 +11,33 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { ReloadIcon } from '@radix-ui/react-icons';
-import { Loader2, Trash2, X } from 'lucide-react';
+import { FolderPlus, Loader2, Plus, X } from 'lucide-react';
 
-interface DeleteConfirmationProps {
+interface AddCategoryConfirmationProps {
   open: boolean;
-  title?: string;
-  description?: string;
-  itemName?: string;
+  categoryName: string;
   loading?: boolean;
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
+  title?: string;
+  description?: string;
   confirmText?: string;
   cancelText?: string;
 }
 
-export function DeleteConfirmation({
+export function AddCategoryConfirmation({
   open,
-  title = 'Delete Item',
-  description = 'This action cannot be undone. This will permanently delete the data from the server.',
-  itemName,
+  categoryName,
   loading = false,
   onConfirm,
   onCancel,
-  confirmText = 'Delete',
+  title = 'Add category',
+  description = 'This will create a new menu category. You can add products to it afterward.',
+  confirmText = 'Add category',
   cancelText = 'Cancel',
-}: DeleteConfirmationProps) {
-  /** When true, dialog is closing because the user confirmed — do not run onCancel (avoids clearing parent ids before async delete starts). */
+}: AddCategoryConfirmationProps) {
   const confirmClickedRef = React.useRef(false);
+  const trimmed = categoryName.trim();
 
   return (
     <AlertDialog
@@ -54,34 +53,36 @@ export function DeleteConfirmation({
     >
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>
-            {itemName ? `${title} "${itemName}"?` : title}
-          </AlertDialogTitle>
-          <AlertDialogDescription>
-            {description}
-          </AlertDialogDescription>
+          <div className="flex items-start gap-3">
+            <div className="space-y-2 text-left">
+              <AlertDialogTitle>
+                {trimmed ? `${title} "${trimmed}"?` : title}
+              </AlertDialogTitle>
+              <AlertDialogDescription>{description}</AlertDialogDescription>
+            </div>
+          </div>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel onClick={onCancel} disabled={loading}>
-            <X className="h-4 w-4 mr-2" />
+          <AlertDialogCancel type="button" onClick={onCancel} disabled={loading}>
+            <X className="mr-2 h-4 w-4" aria-hidden />
             {cancelText}
           </AlertDialogCancel>
           <AlertDialogAction
+            type="button"
+            disabled={loading || !trimmed}
             onClick={() => {
               confirmClickedRef.current = true;
-              onConfirm();
+              void onConfirm();
             }}
-            disabled={loading}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {loading ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                <span>Deleting...</span>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                <span>Adding…</span>
               </>
             ) : (
               <>
-                <Trash2 className="h-4 w-4 mr-2" />
+                <Plus className="mr-2 h-4 w-4" aria-hidden />
                 <span>{confirmText}</span>
               </>
             )}

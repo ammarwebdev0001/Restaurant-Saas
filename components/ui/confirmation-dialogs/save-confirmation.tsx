@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, X } from 'lucide-react';
 
 interface SaveConfirmationProps {
   open: boolean;
@@ -50,7 +50,8 @@ export function SaveConfirmation({
         </AlertDialogHeader>
         <AlertDialogFooter>
           <AlertDialogCancel onClick={onCancel} disabled={loading}>
-            {cancelText}
+            <X className="h-4 w-4 mr-2" />
+            <span>{cancelText}</span>
           </AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}

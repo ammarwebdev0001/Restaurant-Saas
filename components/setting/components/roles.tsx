@@ -3,7 +3,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { ChevronDown, Loader2, Plus, Save, Trash2 } from 'lucide-react';
+import {
+  ChevronDown,
+  Loader2,
+  Plus,
+  RefreshCcw,
+  Save,
+  Trash2,
+} from 'lucide-react';
 import { DASHBOARD_MODULES } from '@/constant/dashboardModules';
 import {
   Collapsible,
@@ -33,7 +40,10 @@ import {
   toggleModuleAction,
 } from '@/lib/dashboard-permissions';
 import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
-import { DeleteConfirmation, SaveConfirmation } from '@/components/ui/confirmation-dialogs';
+import {
+  DeleteConfirmation,
+  SaveConfirmation,
+} from '@/components/ui/confirmation-dialogs';
 import type { PermissionAction } from '@/constant/dashboardModules';
 
 type RoleRow = {
@@ -239,190 +249,202 @@ export default function RolesCard({
             </p>
           ) : (
             <>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-            <div className="flex-1 space-y-2">
-              <label htmlFor="new-role-name" className="text-sm font-medium">
-                New role name
-              </label>
-              <Input
-                id="new-role-name"
-                placeholder="e.g. Shift manager"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-              />
-            </div>
-            <Button
-              type="button"
-              className="text-white sm:mb-0"
-              onClick={() => void handleCreate()}
-              disabled={creating}
-            >
-              {creating ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  <span>Creating...</span>
-                </>
-              ) : (
-                <>
-                  <Plus className="mr-2 h-4 w-4" />
-                  Create role
-                </>
-              )}
-            </Button>
-          </div>
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                <div className="flex-1 space-y-2">
+                  <label
+                    htmlFor="new-role-name"
+                    className="text-sm font-medium"
+                  >
+                    New role name
+                  </label>
+                  <Input
+                    id="new-role-name"
+                    placeholder="e.g. Shift manager"
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                  />
+                </div>
+                <Button
+                  type="button"
+                  className="text-white sm:mb-0"
+                  onClick={() => void handleCreate()}
+                  disabled={creating}
+                >
+                  {creating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Creating...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Plus className="mr-2 h-4 w-4" />
+                      Create role
+                    </>
+                  )}
+                </Button>
+              </div>
 
-          {loading ? (
-            <p className="text-sm text-muted-foreground">Loading roles…</p>
-          ) : roles.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No roles yet. Add one to assign to employees later.
-            </p>
-          ) : editableRoles.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              Create a custom role above to configure staff access.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {editableRoles.map((r) => {
-                const draft = drafts[r.id];
-                if (!draft) return null;
-                const dirty = isDirty(r.id);
-                return (
-                  <Collapsible key={r.id} defaultOpen={false}>
-                    <div className="rounded-lg border bg-card">
-                      <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                        <CollapsibleTrigger className="flex w-full items-center gap-2 text-left font-medium hover:underline sm:w-auto [&[data-state=open]_svg]:rotate-180">
-                          <ChevronDown className="h-4 w-4 shrink-0 transition-transform" />
-                          <span>{draft.name || 'Untitled role'}</span>
-                          {r.slug ? (
-                            <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
-                              Preset
-                            </span>
-                          ) : null}
-                          {dirty ? (
-                            <span className="text-xs font-normal text-amber-600 dark:text-amber-400">
-                              Unsaved changes
-                            </span>
-                          ) : null}
-                        </CollapsibleTrigger>
-                        <div className="flex flex-wrap gap-2 pl-6 sm:pl-0">
-                          {!r.slug ? (
-                            <Button
-                              type="button"
-                              variant="outline"
-                              className="text-destructive hover:bg-destructive/10"
-                              onClick={() => setDeleteId(r.id)}
-                            >
-                              <Trash2 className="mr-1 h-3.5 w-3.5" />
-                              Delete
-                            </Button>
-                          ) : null}
-                          <Button
-                            type="button"
-                            className="text-white"
-                            disabled={!dirty || savingId === r.id}
-                            onClick={() => setConfirmSaveId(r.id)}
-                          >
-                            {savingId === r.id ? (
-                              <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Saving...</span></>
-                            ) : (
-                              <>
-                                <Save className="h-4 w-4 mr-2" />
-                                <span>Save</span>
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </div>
-                      <CollapsibleContent>
-                        <div className="border-t px-4 pb-4 pt-2">
-                          <div className="mb-4 max-w-md space-y-2">
-                            <label className="text-sm font-medium">
-                              Role name
-                            </label>
-                            <Input
-                              value={draft.name}
-                              onChange={(e) =>
-                                updateDraft(r.id, { name: e.target.value })
-                              }
-                            />
+              {loading ? (
+                <p className="text-sm text-muted-foreground">
+                  <Loader2 className=" animate-spin text-primary text-center mx-auto" />{' '}
+                </p>
+              ) : roles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No roles yet. Add one to assign to employees later.
+                </p>
+              ) : editableRoles.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Create a custom role above to configure staff access.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {editableRoles.map((r) => {
+                    const draft = drafts[r.id];
+                    if (!draft) return null;
+                    const dirty = isDirty(r.id);
+                    return (
+                      <Collapsible key={r.id} defaultOpen={false}>
+                        <div className="rounded-lg border bg-card">
+                          <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                            <CollapsibleTrigger className="flex w-full items-center gap-2 text-left font-medium hover:underline sm:w-auto [&[data-state=open]_svg]:rotate-180">
+                              <ChevronDown className="h-4 w-4 shrink-0 transition-transform" />
+                              <span>{draft.name || 'Untitled role'}</span>
+                              {r.slug ? (
+                                <span className="rounded-md bg-muted px-1.5 py-0.5 text-xs font-normal text-muted-foreground">
+                                  Preset
+                                </span>
+                              ) : null}
+                              {dirty ? (
+                                <span className="text-xs font-normal text-amber-600 dark:text-amber-400">
+                                  Unsaved changes
+                                </span>
+                              ) : null}
+                            </CollapsibleTrigger>
+                            <div className="flex flex-wrap gap-2 pl-6 sm:pl-0">
+                              {!r.slug ? (
+                                <Button
+                                  type="button"
+                                  variant="outline"
+                                  className="text-destructive hover:bg-destructive/10"
+                                  onClick={() => setDeleteId(r.id)}
+                                >
+                                  <Trash2 className="mr-1 h-3.5 w-3.5" />
+                                  Delete
+                                </Button>
+                              ) : null}
+                              <Button
+                                type="button"
+                                className="text-white"
+                                disabled={!dirty || savingId === r.id}
+                                onClick={() => setConfirmSaveId(r.id)}
+                              >
+                                {savingId === r.id ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />{' '}
+                                    <span>Saving...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Save className="h-4 w-4 mr-2" />
+                                    <span>Save</span>
+                                  </>
+                                )}
+                              </Button>
+                            </div>
                           </div>
-                          <div className="overflow-x-auto rounded-md border">
-                            <Table>
-                              <TableHeader>
-                                <TableRow>
-                                  <TableHead>Module</TableHead>
-                                  <TableHead className="text-center">
-                                    Access
-                                  </TableHead>
-                                  <TableHead className="text-center">
-                                    Edit
-                                  </TableHead>
-                                  <TableHead className="text-center">
-                                    Delete
-                                  </TableHead>
-                                </TableRow>
-                              </TableHeader>
-                              <TableBody>
-                                {(() => {
-                                  const permRows = rowsFromPermissions(
-                                    draft.permissions
-                                  );
-                                  return DASHBOARD_MODULES.map((m) => {
-                                    const row = permRows.get(m.moduleKey)!;
-                                    return (
-                                      <TableRow key={m.moduleKey}>
-                                        <TableCell className="font-medium">
-                                          {m.title}
-                                        </TableCell>
-                                        {(
-                                          ['access', 'edit', 'delete'] as const
-                                        ).map((action) => (
-                                          <TableCell
-                                            key={action}
-                                            className="text-center"
-                                          >
-                                            <input
-                                              type="checkbox"
-                                              className="h-4 w-4 accent-primary"
-                                              checked={
-                                                action === 'access'
-                                                  ? row.access
-                                                  : action === 'edit'
-                                                    ? row.edit
-                                                    : row.delete
-                                              }
-                                              onChange={(e) =>
-                                                togglePermission(
-                                                  r.id,
-                                                  m.moduleKey,
-                                                  action,
-                                                  e.target.checked
-                                                )
-                                              }
-                                            />
-                                          </TableCell>
-                                        ))}
-                                      </TableRow>
-                                    );
-                                  });
-                                })()}
-                              </TableBody>
-                            </Table>
-                          </div>
-                          <p className="mt-2 text-xs text-muted-foreground">
-                            Access lets the role open the module. Edit and
-                            delete are enforced when you wire employee sessions
-                            to these roles.
-                          </p>
+                          <CollapsibleContent>
+                            <div className="border-t px-4 pb-4 pt-2">
+                              <div className="mb-4 max-w-md space-y-2">
+                                <label className="text-sm font-medium">
+                                  Role name
+                                </label>
+                                <Input
+                                  value={draft.name}
+                                  onChange={(e) =>
+                                    updateDraft(r.id, { name: e.target.value })
+                                  }
+                                />
+                              </div>
+                              <div className="overflow-x-auto rounded-md border">
+                                <Table>
+                                  <TableHeader>
+                                    <TableRow>
+                                      <TableHead>Module</TableHead>
+                                      <TableHead className="text-center">
+                                        Access
+                                      </TableHead>
+                                      <TableHead className="text-center">
+                                        Edit
+                                      </TableHead>
+                                      <TableHead className="text-center">
+                                        Delete
+                                      </TableHead>
+                                    </TableRow>
+                                  </TableHeader>
+                                  <TableBody>
+                                    {(() => {
+                                      const permRows = rowsFromPermissions(
+                                        draft.permissions
+                                      );
+                                      return DASHBOARD_MODULES.map((m) => {
+                                        const row = permRows.get(m.moduleKey)!;
+                                        return (
+                                          <TableRow key={m.moduleKey}>
+                                            <TableCell className="font-medium">
+                                              {m.title}
+                                            </TableCell>
+                                            {(
+                                              [
+                                                'access',
+                                                'edit',
+                                                'delete',
+                                              ] as const
+                                            ).map((action) => (
+                                              <TableCell
+                                                key={action}
+                                                className="text-center"
+                                              >
+                                                <input
+                                                  type="checkbox"
+                                                  className="h-4 w-4 accent-primary"
+                                                  checked={
+                                                    action === 'access'
+                                                      ? row.access
+                                                      : action === 'edit'
+                                                        ? row.edit
+                                                        : row.delete
+                                                  }
+                                                  onChange={(e) =>
+                                                    togglePermission(
+                                                      r.id,
+                                                      m.moduleKey,
+                                                      action,
+                                                      e.target.checked
+                                                    )
+                                                  }
+                                                />
+                                              </TableCell>
+                                            ))}
+                                          </TableRow>
+                                        );
+                                      });
+                                    })()}
+                                  </TableBody>
+                                </Table>
+                              </div>
+                              <p className="mt-2 text-xs text-muted-foreground">
+                                Access lets the role open the module. Edit and
+                                delete are enforced when you wire employee
+                                sessions to these roles.
+                              </p>
+                            </div>
+                          </CollapsibleContent>
                         </div>
-                      </CollapsibleContent>
-                    </div>
-                  </Collapsible>
-                );
-              })}
-            </div>
-          )}
+                      </Collapsible>
+                    );
+                  })}
+                </div>
+              )}
             </>
           )}
         </CardContent>
@@ -433,7 +455,16 @@ export default function RolesCard({
             onClick={() => void fetchRoles()}
             disabled={loading}
           >
-            Refresh list
+            {loading ? (
+              <>
+                <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />{' '}
+                <span> Refreshing...</span>
+              </>
+            ) : (
+              <>
+                <RefreshCcw className="h-4 w-4 mr-2" /> <span>Refresh</span>
+              </>
+            )}
           </Button>
         </CardFooter>
       </Card>
@@ -456,7 +487,9 @@ export default function RolesCard({
         open={deleteId !== null}
         title="Delete Role"
         description="This cannot be undone. Roles that are still assigned to employees cannot be removed."
-        itemName={deleteId ? roles.find(r => r.id === deleteId)?.name : undefined}
+        itemName={
+          deleteId ? roles.find((r) => r.id === deleteId)?.name : undefined
+        }
         loading={deleting}
         onConfirm={async () => {
           await confirmDelete();

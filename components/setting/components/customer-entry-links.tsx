@@ -14,6 +14,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 
 export function CustomerEntryLinks() {
   const [slug, setSlug] = useState<string | null>(null);
@@ -41,9 +42,7 @@ export function CustomerEntryLinks() {
   }, []);
 
   useEffect(() => {
-    setPublicBase(
-      typeof window !== 'undefined' ? window.location.origin : ''
-    );
+    setPublicBase(typeof window !== 'undefined' ? window.location.origin : '');
   }, []);
 
   const webAppPath = slug ? `/web-app/${encodeURIComponent(slug)}` : '';
@@ -68,7 +67,9 @@ export function CustomerEntryLinks() {
       <Card>
         <CardHeader>
           <CardTitle>Website & kiosk</CardTitle>
-          <CardDescription>Loading your store links…</CardDescription>
+          <CardDescription>
+            <Loader2 className=" animate-spin text-primary text-center mx-auto" />{' '}
+          </CardDescription>
         </CardHeader>
       </Card>
     );
@@ -110,7 +111,7 @@ export function CustomerEntryLinks() {
           <CardTitle>Public URLs</CardTitle>
           <CardDescription>
             Share or configure these absolute links (your current domain +
-            path). Use them as redirect targets, kiosk bookmarks, or QR codes.
+            path). Use them as redirect targets.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

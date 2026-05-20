@@ -40,7 +40,7 @@ import type {
   TransactionHistoryResponse,
   TransactionHistoryRow,
 } from '@/types/transaction-history';
-import { Loader2 } from 'lucide-react';
+import { Loader2, RefreshCcw } from 'lucide-react';
 
 const PAGE_SIZE = 20;
 
@@ -114,16 +114,34 @@ export function Records() {
 
   return (
     <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <CardTitle>Transaction History</CardTitle>
-          <CardDescription>
+      <div className="flex items-center justify-between">
+        {' '}
+        <div className="flex flex-col justify-center items-start gap-2">
+          <h1 className="text-2xl font-bold">Records</h1>{' '}
+          <p className="text-sm text-muted-foreground">
             Unified transaction records for orders, subscriptions, and register
             sales.
-          </CardDescription>
+          </p>
+        </div>
+        <Button type="button" variant="outline" onClick={() => void load()}>
+          {loading ? (
+            <>
+              <RefreshCcw className="h-4 w-4 mr-2 animate-spin" />{' '}
+              <span>Refreshing...</span>
+            </>
+          ) : (
+            <>
+              <RefreshCcw className="mr-2 h-4 w-4" /> <span>Refresh</span>
+            </>
+          )}
+        </Button>
+      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Transactions</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid gap-3 md:grid-cols-4">
+          <div className="grid gap-3 md:grid-cols-3">
             <Input
               placeholder="Search by transaction/order/subscription id..."
               value={q}
@@ -143,149 +161,161 @@ export function Records() {
                 <SelectItem value="REGISTER">Register</SelectItem>
               </SelectContent>
             </Select>
-            <Button type="button" variant="outline" onClick={() => void load()}>
-              Refresh
-            </Button>
+
             <div className="text-sm text-muted-foreground md:text-right">
               {total} records
             </div>
           </div>
 
-          <div className="grid gap-3 md:grid-cols-3">
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">
-                  Orders in current page
-                </p>
-                <p className="text-2xl font-semibold">{stats.orderCount}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">
-                  Subscriptions in current page
-                </p>
-                <p className="text-2xl font-semibold">{stats.subCount}</p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="p-4">
-                <p className="text-xs text-muted-foreground">
-                  Register in current page
-                </p>
-                <p className="text-2xl font-semibold">{stats.regCount}</p>
-              </CardContent>
-            </Card>
-          </div>
+          {loading ? (
+            <>
+              <Loader2 className="  animate-spin text-primary text-center mx-auto" />{' '}
+            </>
+          ) : (
+            <>
+              <div className="grid gap-3 md:grid-cols-3">
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Orders in current page
+                    </p>
+                    <p className="text-2xl font-semibold">{stats.orderCount}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Subscriptions in current page
+                    </p>
+                    <p className="text-2xl font-semibold">{stats.subCount}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">
+                      Register in current page
+                    </p>
+                    <p className="text-2xl font-semibold">{stats.regCount}</p>
+                  </CardContent>
+                </Card>
+              </div>
 
-          <div className="rounded-md border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Transaction ID</TableHead>
-                  <TableHead className="hidden md:table-cell">
-                    Order / Subscription
-                  </TableHead>
-                  <TableHead className="hidden lg:table-cell">Source</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead className="hidden lg:table-cell">When</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center text-muted-foreground"
-                    >
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    </TableCell>
-                  </TableRow>
-                ) : error ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center text-destructive"
-                    >
-                      {error}
-                    </TableCell>
-                  </TableRow>
-                ) : rows.length === 0 ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={8}
-                      className="text-center text-muted-foreground"
-                    >
-                      No records found.
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  rows.map((row) => (
-                    <TableRow key={row.key}>
-                      <TableCell>
-                        <Badge variant="secondary">{kindBadge(row.kind)}</Badge>
-                      </TableCell>
-                      <TableCell className="font-mono text-xs">
-                        {row.transactionId}
-                      </TableCell>
-                      <TableCell className="hidden font-mono text-xs md:table-cell">
-                        {row.referenceId ?? '—'}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell">
-                        {row.source}
-                      </TableCell>
-                      <TableCell>{row.status}</TableCell>
-                      <TableCell className="text-right tabular-nums">
-                        {money(row.amount, row.currency)}
-                      </TableCell>
-                      <TableCell className="hidden lg:table-cell text-muted-foreground">
-                        {new Date(row.createdAt).toLocaleString()}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          onClick={() => {
-                            setActive(row);
-                            setDetailOpen(true);
-                          }}
-                        >
-                          View
-                        </Button>
-                      </TableCell>
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Type</TableHead>
+                      {/* <TableHead>Transaction ID</TableHead> */}
+                      {/* <TableHead className="hidden md:table-cell">
+                        Order / Subscription
+                      </TableHead> */}
+                      <TableHead className="hidden lg:table-cell">
+                        Source
+                      </TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                      <TableHead className="hidden lg:table-cell">
+                        When
+                      </TableHead>
+                      <TableHead className="text-right">Action</TableHead>
                     </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </div>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="text-center text-muted-foreground"
+                        >
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        </TableCell>
+                      </TableRow>
+                    ) : error ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="text-center text-destructive"
+                        >
+                          {error}
+                        </TableCell>
+                      </TableRow>
+                    ) : rows.length === 0 ? (
+                      <TableRow>
+                        <TableCell
+                          colSpan={8}
+                          className="text-center text-muted-foreground"
+                        >
+                          No records found.
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      rows.map((row) => (
+                        <TableRow key={row.key}>
+                          <TableCell>
+                            <Badge variant="secondary">
+                              {kindBadge(row.kind)}
+                            </Badge>
+                          </TableCell>
+                          {/* <TableCell className="font-mono text-xs">
+                        {row.transactionId}
+                      </TableCell> */}
+                          {/* <TableCell className="hidden font-mono text-xs md:table-cell">
+                            {row.referenceId ?? '—'}
+                          </TableCell> */}
+                          <TableCell className="hidden lg:table-cell">
+                            {row.source}
+                          </TableCell>
+                          <TableCell>{row.status}</TableCell>
+                          <TableCell className="text-right tabular-nums">
+                            {money(row.amount, row.currency)}
+                          </TableCell>
+                          <TableCell className="hidden lg:table-cell text-muted-foreground">
+                            {new Date(row.createdAt).toLocaleString()}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              onClick={() => {
+                                setActive(row);
+                                setDetailOpen(true);
+                              }}
+                            >
+                              View
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
 
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-muted-foreground">
-              Page {page} of {totalPages}
-            </p>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                disabled={page <= 1 || loading}
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-              >
-                Previous
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={page >= totalPages || loading}
-                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-              >
-                Next
-              </Button>
-            </div>
-          </div>
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-muted-foreground">
+                  Page {page} of {totalPages}
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={page <= 1 || loading}
+                    onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={page >= totalPages || loading}
+                    onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
@@ -299,9 +329,9 @@ export function Records() {
         <SheetContent>
           <SheetHeader>
             <SheetTitle>Transaction details</SheetTitle>
-            <SheetDescription className="font-mono text-xs">
+            {/* <SheetDescription className="font-mono text-xs">
               {active?.transactionId}
-            </SheetDescription>
+            </SheetDescription> */}
           </SheetHeader>
           {active ? (
             <div className="mt-4 space-y-3 text-sm">
@@ -333,12 +363,12 @@ export function Records() {
                   <p>{new Date(active.createdAt).toLocaleString()}</p>
                 </div>
               </div>
-              <div className="rounded-md border p-3">
+              {/* <div className="rounded-md border p-3">
                 <p className="text-xs text-muted-foreground">
                   Order / Subscription reference
                 </p>
                 <p className="font-mono text-xs">{active.referenceId ?? '—'}</p>
-              </div>
+              </div> */}
               {active.customerName ? (
                 <div className="rounded-md border p-3">
                   <p className="text-xs text-muted-foreground">Customer</p>
