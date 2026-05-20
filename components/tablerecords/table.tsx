@@ -247,7 +247,6 @@ export function Records() {
                       <TableCell className="text-right">
                         <Button
                           type="button"
-                          size="sm"
                           variant="ghost"
                           onClick={() => {
                             setActive(row);
@@ -272,7 +271,6 @@ export function Records() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 disabled={page <= 1 || loading}
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
               >
@@ -281,7 +279,6 @@ export function Records() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 disabled={page >= totalPages || loading}
                 onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               >

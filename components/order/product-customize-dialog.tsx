@@ -984,7 +984,6 @@ export function ProductCustomizeDialog({
                       {picker?.kind === 'group-multi' ? (
                         <Button
                           type="button"
-                          size="sm"
                           onClick={() => {
                             const nextPicker = getNextPendingPicker(
                               selectedVariationId,
@@ -1008,7 +1007,6 @@ export function ProductCustomizeDialog({
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
                         onClick={() => setPicker(null)}
                       >
                         Close

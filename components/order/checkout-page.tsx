@@ -414,7 +414,6 @@ export default function CheckoutPageClient({
                     </p>
                   </div>
                   <Button
-                    size="sm"
                     variant={cutlery ? 'default' : 'outline'}
                     onClick={() => setCutlery((prev) => !prev)}
                     type="button"

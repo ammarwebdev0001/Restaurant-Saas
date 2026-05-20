@@ -461,8 +461,7 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
                         <IconPlus className="h-4 w-4" />
                       </Button>
                       <Button
-                        size="sm"
-                        variant="ghost"
+                        variant="destructive"
                         onClick={() => removeFromCart(line.lineId)}
                         type="button"
                       >

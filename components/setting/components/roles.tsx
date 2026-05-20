@@ -310,7 +310,6 @@ export default function RolesCard({
                             <Button
                               type="button"
                               variant="outline"
-                              size="sm"
                               className="text-destructive hover:bg-destructive/10"
                               onClick={() => setDeleteId(r.id)}
                             >
@@ -320,7 +319,6 @@ export default function RolesCard({
                           ) : null}
                           <Button
                             type="button"
-                            size="sm"
                             className="text-white"
                             disabled={!dirty || savingId === r.id}
                             onClick={() => setConfirmSaveId(r.id)}
@@ -432,7 +430,6 @@ export default function RolesCard({
           <Button
             type="button"
             variant="outline"
-            size="sm"
             onClick={() => void fetchRoles()}
             disabled={loading}
           >

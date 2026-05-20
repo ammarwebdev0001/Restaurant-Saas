@@ -65,7 +65,6 @@ export function PosLayoutHeader() {
         <Button
           type="button"
           variant="ghost"
-          size="sm"
           className="hidden gap-1.5 text-muted-foreground sm:inline-flex"
           title="Back to dashboard"
           onClick={requestDashboard}

@@ -136,8 +136,7 @@ export default function OnboardingStep3Page() {
               {rows.length > 1 && (
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="sm"
+                  variant="destructive"
                   onClick={() => removeRow(i)}
                 >
                   <>

@@ -97,7 +97,6 @@ export function HeroSection({
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 className="border-[#cbd5e1] bg-white text-[#0f172a] hover:bg-[#f1f5f9]"
               >
                 App Store
@@ -105,7 +104,6 @@ export function HeroSection({
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 className="border-[#cbd5e1] bg-white text-[#0f172a] hover:bg-[#f1f5f9]"
               >
                 Google Play

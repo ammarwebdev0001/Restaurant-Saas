@@ -336,7 +336,6 @@ export function KdsManagerBoard() {
                         {[10, 15, 30].map((m) => (
                           <Button
                             key={m}
-                            size="sm"
                             type="button"
                             variant={
                               (prepMinutes[o.id] ?? 10) === m

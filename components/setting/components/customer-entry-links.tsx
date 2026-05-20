@@ -125,7 +125,6 @@ export function CustomerEntryLinks() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 className="shrink-0 gap-1"
                 onClick={() => void copyText('Website URL', webAppUrl)}
               >
@@ -143,7 +142,6 @@ export function CustomerEntryLinks() {
               <Button
                 type="button"
                 variant="outline"
-                size="sm"
                 className="shrink-0 gap-1"
                 onClick={() => void copyText('Kiosk URL', kioskUrl)}
               >

@@ -14,9 +14,9 @@ export default function RecommendationsPage() {
         <MenuPageShell
           title="Recommendations"
           description="Link add-on options to products (e.g. choose a sauce or drink from another category)."
-          loading={loading}
+          loading={false}
         >
-          <RecommendationsTab categories={categories} onRefresh={load} />
+          <RecommendationsTab categories={categories} onRefresh={load} loading={loading} />
         </MenuPageShell>
       </ErrorBoundary>
     </div>

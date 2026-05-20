@@ -6,6 +6,7 @@ const page = () => {
   return (
     <div className=" w-full ">
       <ErrorBoundary>
+        
         <Orders />
       </ErrorBoundary>
     </div>

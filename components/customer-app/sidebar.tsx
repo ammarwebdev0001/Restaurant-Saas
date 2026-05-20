@@ -19,7 +19,7 @@ import {
   IconShoppingCart,
   IconTruck,
 } from '@tabler/icons-react';
-import { User2Icon, UserIcon } from 'lucide-react';
+import { Loader2, User2Icon, UserIcon } from 'lucide-react';
 
 type Store = {
   id: string;
@@ -258,8 +258,8 @@ export function Sidebar({
         </div>
       )}
 
-      <Card className="overflow-hidden rounded-3xl border border-[#fdba74] bg-white shadow-xl">
-        <CardContent className="space-y-4">
+      <Card className="overflow-hidden rounded-3xl border border-[#fdba74] bg-white shadow-xl ">
+        <CardContent className="space-y-4 ">
           <div className="flex items-center justify-center gap-2 py-5">
             <Button
               variant={mode === 'delivery' ? 'default' : 'outline'}
@@ -349,12 +349,10 @@ export function Sidebar({
               <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
                 {t('selectBranch')}
               </p>
-              <div className="max-h-72 space-y-3 overflow-y-auto pr-1">
-                {branchesLoading && (
-                  <p className="text-xs text-[#64748b]">
-                    {t('loadingBranches')}
-                  </p>
-                )}
+              <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
+                {branchesLoading && 
+                  <Loader2 className="h-4 w-4 animate-spin text-primary text-center mx-auto" />
+                }
                 {!branchesLoading && activeStores?.length === 0 && (
                   <p className="text-xs text-[#64748b]">
                     {t('noBranchesTakeaway')}
@@ -392,7 +390,6 @@ export function Sidebar({
                         variant={
                           selectedStoreId === store.id ? 'default' : 'outline'
                         }
-                        size="sm"
                         className={
                           selectedStoreId === store.id
                             ? 'bg-primary text-primary-foreground hover:brightness-95'

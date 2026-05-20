@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { RefreshCw, Eye } from 'lucide-react';
+import { RefreshCw, Eye, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -159,7 +159,6 @@ function OrdersTable({
                       asChild
                       type="button"
                       variant="outline"
-                      size="sm"
                       className="h-8"
                     >
                       <Link
@@ -176,7 +175,6 @@ function OrdersTable({
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
                     className="h-8 gap-1 px-2"
                     onClick={() => onView(row)}
                   >
@@ -347,15 +345,10 @@ export function SalesOrdersTabs() {
 
       <Card className="w-full">
         <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
-          <div>
-            <p className="text-sm text-muted-foreground w-full">
-              {loading ? 'Loading…' : ''}
-            </p>
-          </div>
+       
           <Button
             type="button"
             variant="outline"
-            size="sm"
             className="gap-1"
             disabled={loading}
             onClick={() => load()}
@@ -385,7 +378,7 @@ export function SalesOrdersTabs() {
                 Checkout orders with source <strong>Online</strong>.
               </p>
               {loading && onlineOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
+                <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
               ) : (
                 <OrdersTable rows={onlineOrders} onView={openDetail} />
               )}
@@ -396,7 +389,7 @@ export function SalesOrdersTabs() {
                 walk-in transactions.
               </p>
               {loading && posOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
+                <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
               ) : (
                 <OrdersTable rows={posOrders} onView={openDetail} />
               )}
@@ -406,7 +399,7 @@ export function SalesOrdersTabs() {
                 Orders placed from the in-venue <strong>kiosk</strong>.
               </p>
               {loading && kioskOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Loading…</p>
+                <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
               ) : (
                 <OrdersTable rows={kioskOrders} onView={openDetail} />
               )}
@@ -424,7 +417,7 @@ export function SalesOrdersTabs() {
 
           <div className="mt-4 flex-1 overflow-y-auto pr-1">
             {detailLoading && (
-              <p className="text-sm text-muted-foreground">Loading details…</p>
+              <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
             )}
 
             {!detailLoading &&

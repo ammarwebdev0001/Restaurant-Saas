@@ -21,7 +21,6 @@ export type LandingAuthActionsProps = {
 export default function LandingAuthActions({
   loggedOutLabel = 'Get Started',
   loggedOutClassName,
-  loggedInTriggerClassName,
   loadingClassName,
   menuClassName,
 }: LandingAuthActionsProps = {}) {
@@ -43,7 +42,7 @@ export default function LandingAuthActions({
 
   if (status === 'loading') {
     return (
-      <Button size="sm" disabled className={loadingClassName}>
+      <Button  disabled className={loadingClassName}>
         <Loader2 className="h-4 w-4 animate-spin" />
       </Button>
     );
@@ -51,7 +50,7 @@ export default function LandingAuthActions({
 
   if (!session?.user) {
     return (
-      <Button size="sm" asChild className={loggedOutClassName}>
+      <Button  asChild className={loggedOutClassName}>
         <Link href="/register">
             <span>{loggedOutLabel}</span>
         </Link>

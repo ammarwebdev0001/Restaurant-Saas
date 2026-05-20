@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { toast } from 'react-toastify';
-import { Cross, Loader2, Loader2Icon, Plus, Save, Trash, Trash2 } from 'lucide-react';
+import { Cross, Loader2, Loader2Icon, Pencil, Plus, Save, Trash, Trash2, X } from 'lucide-react';
 
 type BranchRow = {
   id: string;
@@ -222,7 +222,7 @@ export function BranchedPage() {
                   ) : (
                     <>
                     <Save className="h-4 w-4 mr-2" />
-                    <span>Update branch</span>
+                    <span>Update Branch</span>
                     </>
                   )}
                 </Button>
@@ -240,7 +240,7 @@ export function BranchedPage() {
                   ) : (
                     <>
                     <Trash2 className="h-4 w-4 mr-2" />
-                    <span>Delete branch</span>
+                    <span>Delete Branch</span>
                     </>
                   )}
                 </Button>
@@ -251,8 +251,8 @@ export function BranchedPage() {
                   onClick={resetForm}
                 >
                   <>
-                    <Cross className="h-4 w-4 mr-2" />
-                    <span>Cancel edit</span>
+                    <X className="h-4 w-4 mr-2" />
+                    <span>Cancel</span>
                   </>
                 </Button>
               </>
@@ -262,13 +262,13 @@ export function BranchedPage() {
                 onClick={() => setConfirmAddOpen(true)}
                 disabled={saving || atBranchLimit}
               >
-                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Adding...</span></> : <><Plus className="h-4 w-4 mr-2" /> <span>Add new branch</span></>}
+                {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Adding...</span></> : <><Plus className="h-4 w-4 mr-2" /> <span>Add New Branch</span></>}
               </Button>
             )}
           </div>
 
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading branches...</p>
+            <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
           ) : branches.length === 0 ? (
             <p className="text-sm text-muted-foreground">
               No branches found yet. Add your first branch now.
@@ -299,11 +299,13 @@ export function BranchedPage() {
                     <div className="mt-2">
                       <Button
                         type="button"
-                        size="sm"
                         variant="outline"
                         onClick={() => startEdit(b)}
                       >
-                        Edit
+                        <>
+                          <Pencil className="h-4 w-4 mr-2" />
+                          <span>Edit</span>
+                        </>
                       </Button>
                     </div>
                   </div>

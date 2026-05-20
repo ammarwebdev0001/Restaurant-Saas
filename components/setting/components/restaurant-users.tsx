@@ -381,10 +381,10 @@ export default function RestaurantUsersCard({
                             <Button
                               type="button"
                               variant="ghost"
-                              size="sm"
                               className="text-destructive"
                               onClick={() => void cancelInvite(p.id)}
                             >
+                              
                               Cancel
                             </Button>
                           </TableCell>
@@ -472,7 +472,6 @@ export default function RestaurantUsersCard({
                               <Button
                                 type="button"
                                 variant="ghost"
-                                size="sm"
                                 className="text-destructive"
                                 onClick={() => void removeEmployee(emp.id)}
                               >
@@ -514,7 +513,6 @@ export default function RestaurantUsersCard({
         <Button
           type="button"
           variant="outline"
-          size="sm"
           onClick={() => void fetchAll()}
           disabled={loading}
         >

@@ -2,6 +2,7 @@
 
 import {
   CheckCircle,
+  Loader2,
   Minus,
   Plus,
   ShoppingBag,
@@ -776,7 +777,7 @@ export function KioskApp({ slug }: { slug: string }) {
   if (menuLoading && !menu) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#f8fafc] p-6">
-        <p className="text-[#64748b]">{t('loadingKiosk')}</p>
+        <Loader2 className="h-10 w-10 animate-spin text-primary text-center mx-auto" />
       </div>
     );
   }
@@ -855,7 +856,6 @@ export function KioskApp({ slug }: { slug: string }) {
                   <Button
                     type="button"
                     variant="outline"
-                    size="sm"
                     className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
                   >
                     {t('language')}: {uiLang.toUpperCase()}
@@ -882,7 +882,6 @@ export function KioskApp({ slug }: { slug: string }) {
                 <Button
                   type="button"
                   variant="outline"
-                  size="sm"
                   className="border-[#e2e8f0] bg-white text-[#0f172a] hover:bg-[#f8fafc]"
                   onClick={() => setStep('cart')}
                 >
@@ -1003,7 +1002,6 @@ export function KioskApp({ slug }: { slug: string }) {
                 <div className="mb-4 flex gap-2 overflow-x-auto pb-2 md:hidden">
                   <Button
                     type="button"
-                    size="sm"
                     variant={categoryId === 'all' ? 'default' : 'outline'}
                     onClick={() => setCategoryId('all')}
                   >
@@ -1013,7 +1011,6 @@ export function KioskApp({ slug }: { slug: string }) {
                     <Button
                       key={c.id}
                       type="button"
-                      size="sm"
                       variant={categoryId === c.id ? 'default' : 'outline'}
                       className="shrink-0"
                       onClick={() => setCategoryId(c.id)}

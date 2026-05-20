@@ -134,12 +134,11 @@ export default function OnboardingStep2Page() {
             <Button
               type="button"
               variant="outline"
-              size="sm"
               onClick={addMenuBannerRow}
             >
               <>
                 <Plus className="h-4 w-4 mr-2" />
-                <span>Add menu banner</span>
+                <span>Add Banner</span>
               </>
             </Button>
           </div>
