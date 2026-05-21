@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+import { toast } from 'react-toastify';
 import {
   RefreshCw,
   CheckCircle2,
@@ -19,6 +20,7 @@ import {
   KdsOrderActionDialog,
   type KdsOrderActionKind,
 } from '@/components/kds/kds-order-action-dialog';
+import { kdsAxiosErrorMessage } from '@/lib/kds-api-errors';
 
 type Ticket = {
   id: string;
@@ -284,8 +286,9 @@ export function KdsKitchenScreen() {
         '/api/restaurant/kds/tickets?status=making'
       );
       setTickets(res.data.data ?? []);
-    } catch {
+    } catch (err) {
       setTickets([]);
+      toast.error(kdsAxiosErrorMessage(err, 'load', 'Could not load kitchen tickets.'));
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -320,7 +323,7 @@ export function KdsKitchenScreen() {
   async function updateStatus(
     ticketId: string,
     status: 'completed' | 'canceled'
-  ) {
+  ): Promise<boolean> {
     if (status === 'completed') {
       setActiveCompleteCount((prev) => prev + 1);
       setActiveCompletingTicketId(ticketId);
@@ -330,7 +333,19 @@ export function KdsKitchenScreen() {
     }
     try {
       await axios.patch(`/api/restaurant/kds/tickets/${ticketId}`, { status });
+      toast.success(
+        status === 'completed' ? 'Order marked complete' : 'Order canceled'
+      );
       await load();
+      return true;
+    } catch (err) {
+      toast.error(
+        kdsAxiosErrorMessage(
+          err,
+          status === 'completed' ? 'complete' : 'cancel'
+        )
+      );
+      return false;
     } finally {
       if (status === 'completed') {
         setActiveCompleteCount((prev) => {
@@ -594,11 +609,11 @@ export function KdsKitchenScreen() {
         onConfirm={async () => {
           if (!pendingAction) return;
           const { kind, ticketId } = pendingAction;
-          await updateStatus(
+          const ok = await updateStatus(
             ticketId,
             kind === 'complete' ? 'completed' : 'canceled'
           );
-          setPendingAction(null);
+          if (ok) setPendingAction(null);
         }}
       />
     </div>

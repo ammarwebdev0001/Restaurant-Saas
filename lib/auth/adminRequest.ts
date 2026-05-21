@@ -16,7 +16,7 @@ export async function requirePlatformAdmin(_req?: NextRequest) {
   }
 
   if (!isPlatformAdmin(email, role)) {
-    return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
+    return { error: NextResponse.json({ error: "Access Blocked" }, { status: 403 }) };
   }
 
   return { session, email, role };

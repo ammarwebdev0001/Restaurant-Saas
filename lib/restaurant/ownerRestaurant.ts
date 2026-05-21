@@ -25,7 +25,7 @@ export async function getRestaurantForOwnerRequest(
       status === 401
         ? ("Unauthorized" as const)
         : status === 403
-          ? ("Forbidden" as const)
+          ? ("Access Blocked" as const)
           : ("No restaurant found for this account" as const);
     return { error, status };
   }

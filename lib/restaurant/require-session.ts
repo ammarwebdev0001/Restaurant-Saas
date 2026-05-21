@@ -92,7 +92,7 @@ export async function requireRestaurantSession(
       return {
         ok: false,
         response: NextResponse.json(
-          { error: `Forbidden: missing ${label} permission` },
+          { error: `Access Blocked: missing ${label} permission` },
           { status: 403 }
         ),
       };

@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
     !user ||
     legacyRoleFromAccountRole(user.accountRole ?? null) !== "OWNER"
   ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json({ error: "Access Blocked" }, { status: 403 });
   }
 
   const json = await req.json();

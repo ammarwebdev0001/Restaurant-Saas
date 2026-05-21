@@ -21,6 +21,7 @@ import {
   KdsOrderActionDialog,
   type KdsOrderActionKind,
 } from '@/components/kds/kds-order-action-dialog';
+import { kdsFetchErrorMessage } from '@/lib/kds-api-errors';
 
 type PendingOrder = {
   id: string;
@@ -120,11 +121,16 @@ export function KdsManagerBoard() {
         method: 'GET',
         cache: 'no-store',
       });
-      if (!res.ok) throw new Error('Failed to load');
+      if (!res.ok) {
+        toast.error(await kdsFetchErrorMessage(res, 'load'));
+        setOrders([]);
+        return;
+      }
       const json = (await res.json()) as { data?: PendingOrder[] };
       setOrders(json.data ?? []);
     } catch {
       setOrders([]);
+      toast.error('Could not load pending orders.');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -170,13 +176,13 @@ export function KdsManagerBoard() {
     return null;
   }
 
-  async function proceed(orderId: string) {
+  async function proceed(orderId: string): Promise<boolean> {
     const minutes = resolveMinutesForOrder(orderId);
     if (minutes === null) {
       toast.warn(
         `Enter a valid prep time (${MIN_CUSTOM_MINUTES}–${MAX_CUSTOM_MINUTES} minutes), or use a preset.`
       );
-      return;
+      return false;
     }
     setActiveSubmitCount((prev) => prev + 1);
     setActiveSubmittingOrderId(orderId);
@@ -189,8 +195,16 @@ export function KdsManagerBoard() {
           selectedMinutes: minutes,
         }),
       });
-      if (!res.ok) throw new Error('Failed to proceed');
+      if (!res.ok) {
+        toast.error(await kdsFetchErrorMessage(res, 'proceed'));
+        return false;
+      }
+      toast.success('Order sent to kitchen');
       await load();
+      return true;
+    } catch {
+      toast.error('Could not proceed order.');
+      return false;
     } finally {
       setActiveSubmitCount((prev) => {
         const next = Math.max(0, prev - 1);
@@ -202,7 +216,7 @@ export function KdsManagerBoard() {
     }
   }
 
-  async function cancelOrder(orderId: string) {
+  async function cancelOrder(orderId: string): Promise<boolean> {
     setActiveCancelCount((prev) => prev + 1);
     setActiveCancelOrderId(orderId);
     try {
@@ -213,15 +227,15 @@ export function KdsManagerBoard() {
         }
       );
       if (!res.ok) {
-        const body = (await res.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error || 'Failed to cancel');
+        toast.error(await kdsFetchErrorMessage(res, 'cancel'));
+        return false;
       }
       toast.success('Order canceled');
       await load();
-    } catch (error) {
-      const msg =
-        error instanceof Error ? error.message : 'Could not cancel order';
-      toast.error(msg);
+      return true;
+    } catch {
+      toast.error('Could not cancel order.');
+      return false;
     } finally {
       setActiveCancelCount((prev) => {
         const next = Math.max(0, prev - 1);
@@ -530,9 +544,11 @@ export function KdsManagerBoard() {
         onConfirm={async () => {
           if (!pendingAction) return;
           const { kind, orderId } = pendingAction;
-          if (kind === 'proceed') await proceed(orderId);
-          else await cancelOrder(orderId);
-          setPendingAction(null);
+          const ok =
+            kind === 'proceed'
+              ? await proceed(orderId)
+              : await cancelOrder(orderId);
+          if (ok) setPendingAction(null);
         }}
       />
     </div>

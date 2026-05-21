@@ -208,9 +208,10 @@ export function BranchedPage() {
               onChange={(e) => setAddress(e.target.value)}
             />
             <Input
+              type="tel"
               placeholder="Phone"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(e.target.value.replace(/[^0-9]/g, ''))}
             />
           </div>
           <div className="flex flex-wrap gap-2">

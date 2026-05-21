@@ -34,7 +34,7 @@ export async function getRestaurantIdForRequest(
       status === 401
         ? 'Unauthorized'
         : status === 403
-          ? 'Forbidden'
+          ? 'Access Blocked'
           : status === 404
             ? 'Restaurant not found'
             : 'Request failed';
