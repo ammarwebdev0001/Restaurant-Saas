@@ -128,11 +128,11 @@ function loadPayPalSdk(clientId: string, currency: string): Promise<void> {
 function phaseMessage(phase: PaymentPhase): string {
   switch (phase) {
     case 'capture':
-      return 'Processing your payment…';
+      return 'Processing your Secure Payment…';
     case 'complete':
-      return 'Payment successful. Redirecting…';
+      return 'Payment Successful! Redirecting…';
     default:
-      return 'Processing payment…';
+      return 'Processing Secure Payment…';
   }
 }
 
@@ -146,17 +146,17 @@ function PayPalProcessingOverlay({
   if (!mounted || typeof document === 'undefined') return null;
   return createPortal(
     <div
-      className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-4 bg-background/85 px-6 backdrop-blur-sm"
+      className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-4 bg-black/75 px-6 backdrop-blur-sm"
       role="alertdialog"
       aria-modal="true"
       aria-busy="true"
       aria-live="polite"
     >
       <Loader2 className="h-12 w-12 animate-spin text-primary" aria-hidden />
-      <p className="max-w-sm text-center text-base font-semibold text-foreground">
+      <p className="max-w-sm text-center text-base font-semibold text-white">
         {message}
       </p>
-      <p className="max-w-xs text-center text-sm text-muted-foreground">
+      <p className="max-w-xs text-center text-sm text-white/80">
         Please do not close this page until you are redirected.
       </p>
     </div>,
@@ -414,8 +414,7 @@ export function PayPalCheckoutButtons({
       >
         {sdkLoading ? (
           <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
-            <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
-            Loading payment options…
+            <Loader2 className="shrink-0 animate-spin text-primary text-center mx-auto" aria-hidden />   
           </div>
         ) : null}
         <div ref={paypalSlotRef} className="min-h-[44px]" />

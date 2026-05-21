@@ -813,7 +813,7 @@ export function KioskApp({ slug }: { slug: string }) {
           !hasBanner && 'bg-[#f8fafc]'
         )}
       >
-        <header className="sticky top-0 z-20 border-b border-[#e2e8f0] bg-white/95 px-4 py-3 text-[#0f172a] backdrop-blur">
+        <header className="sticky top-0 z-2000 border-b border-[#e2e8f0] bg-white/95 px-4 py-3 text-[#0f172a] backdrop-blur">
           <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-3">
               {menu.logoUrl ? (
