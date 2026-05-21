@@ -9,6 +9,8 @@ export type SalesOrderRow =
       status: string;
       paymentStatus?: string | null;
       transactionId?: string | null;
+      /** Delivery / Pickup (online) or Dine in / Take away (kiosk), etc. */
+      method?: string | null;
       createdAt: string;
     }
   | {
@@ -23,18 +25,39 @@ export type SalesOrderRow =
       createdAt: string;
     };
 
+export type SalesChannelStats = {
+  totalOrders: number;
+  totalAmount: number;
+  revenueAmount: number;
+  revenueOrders: number;
+  pending: { count: number; amount: number };
+  canceled: { count: number; amount: number };
+};
+
 export type SalesOrdersStats = {
-  online: { count: number; totalAmount: number };
-  pos: { count: number; totalAmount: number };
-  kiosk: { count: number; totalAmount: number };
-  all: { count: number; totalAmount: number };
+  online: SalesChannelStats;
+  pos: SalesChannelStats;
+  kiosk: SalesChannelStats;
+};
+
+export type SalesOrdersPagination = {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
 };
 
 export type SalesOrdersApiResponse = {
-  onlineOrders: SalesOrderRow[];
-  posOrders: SalesOrderRow[];
-  kioskOrders: SalesOrderRow[];
+  orders: SalesOrderRow[];
   stats: SalesOrdersStats;
-  /** @deprecated Combined list for legacy clients */
-  orders?: SalesOrderRow[];
+  pagination: SalesOrdersPagination;
+  /** @deprecated Use `orders` + `pagination` */
+  onlineOrders?: SalesOrderRow[];
+  /** @deprecated */
+  posOrders?: SalesOrderRow[];
+  /** @deprecated */
+  kioskOrders?: SalesOrderRow[];
 };
+
+export type SalesOrdersTab = 'online' | 'pos' | 'kiosk';
+export type SalesOrdersStatusFilter = 'all' | 'completed' | 'pending' | 'canceled';

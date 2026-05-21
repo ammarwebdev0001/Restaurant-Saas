@@ -290,9 +290,13 @@ export function Sidebar({
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
+                type="tel"
                 placeholder={t('phoneNumber')}
                 value={customerPhone}
-                onChange={(event) => setCustomerPhone(event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value.replace(/\D/g, '');
+                  setCustomerPhone(value);
+                }}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
@@ -341,18 +345,22 @@ export function Sidebar({
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <Input
+                type="tel"
                 placeholder={t('phoneNumber')}
                 value={customerPhone}
-                onChange={(event) => setCustomerPhone(event.target.value)}
+                onChange={(event) => {
+                  const value = event.target.value.replace(/\D/g, '');
+                  setCustomerPhone(value);
+                }}
                 className="rounded-2xl border-[#e2e8f0] bg-white text-[#0f172a] placeholder:text-[#94a3b8]"
               />
               <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
                 {t('selectBranch')}
               </p>
               <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
-                {branchesLoading && 
+                {branchesLoading && (
                   <Loader2 className="h-4 w-4 animate-spin text-primary text-center mx-auto" />
-                }
+                )}
                 {!branchesLoading && activeStores?.length === 0 && (
                   <p className="text-xs text-[#64748b]">
                     {t('noBranchesTakeaway')}

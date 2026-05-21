@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { Loader2 } from 'lucide-react';
 
 import { AcceptedPaymentMethods } from '@/components/payments/accepted-payment-methods';
 
@@ -34,10 +36,13 @@ export type PayPalCheckoutButtonsProps = {
   payload?: unknown;
   metadata?: PayPalCheckoutMetadata;
   disabled?: boolean;
+  /** Full-page blocking overlay while PayPal creates, captures, and completes redirect. Default true. */
+  showPageOverlay?: boolean;
+  onProcessingChange?: (processing: boolean) => void;
   onApproved: (info: {
     paypalOrderId: string;
     capture: PayPalCaptureResponse;
-  }) => void;
+  }) => void | Promise<void>;
   onError?: (message: string) => void;
   onCancel?: () => void;
 };
@@ -47,6 +52,8 @@ type PayPalSdkConfig = {
   currency: string;
   mode: 'live' | 'sandbox';
 };
+
+type PaymentPhase = 'idle' | 'capture' | 'complete';
 
 let cachedConfig: PayPalSdkConfig | null = null;
 let configPromise: Promise<PayPalSdkConfig> | null = null;
@@ -118,11 +125,50 @@ function loadPayPalSdk(clientId: string, currency: string): Promise<void> {
   return p;
 }
 
+function phaseMessage(phase: PaymentPhase): string {
+  switch (phase) {
+    case 'capture':
+      return 'Processing your payment…';
+    case 'complete':
+      return 'Payment successful. Redirecting…';
+    default:
+      return 'Processing payment…';
+  }
+}
+
+function PayPalProcessingOverlay({
+  message,
+  mounted,
+}: {
+  message: string;
+  mounted: boolean;
+}) {
+  if (!mounted || typeof document === 'undefined') return null;
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[200] flex flex-col items-center justify-center gap-4 bg-background/85 px-6 backdrop-blur-sm"
+      role="alertdialog"
+      aria-modal="true"
+      aria-busy="true"
+      aria-live="polite"
+    >
+      <Loader2 className="h-12 w-12 animate-spin text-primary" aria-hidden />
+      <p className="max-w-sm text-center text-base font-semibold text-foreground">
+        {message}
+      </p>
+      <p className="max-w-xs text-center text-sm text-muted-foreground">
+        Please do not close this page until you are redirected.
+      </p>
+    </div>,
+    document.body
+  );
+}
+
 /**
  * Renders inline **PayPal** and **Debit or Credit Card** buttons (Visa /
- * Mastercard / Amex via PayPal Guest Checkout). On success the captured
- * server response is forwarded to `onApproved` so the caller can route the
- * user, clear local cart state, etc.
+ * Mastercard / Amex via PayPal Guest Checkout). Shows a full-page loading
+ * overlay only when PayPal approves the payment (capture + redirect), not
+ * while the customer enters card details in the PayPal window.
  */
 export function PayPalCheckoutButtons({
   amount,
@@ -133,6 +179,8 @@ export function PayPalCheckoutButtons({
   payload,
   metadata,
   disabled,
+  showPageOverlay = true,
+  onProcessingChange,
   onApproved,
   onError,
   onCancel,
@@ -140,17 +188,18 @@ export function PayPalCheckoutButtons({
   const paypalSlotRef = useRef<HTMLDivElement>(null);
   const cardSlotRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
+  const [sdkLoading, setSdkLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [processing, setProcessing] = useState(false);
+  const [phase, setPhase] = useState<PaymentPhase>('idle');
+  const [portalMounted, setPortalMounted] = useState(false);
   const [resolvedCurrency, setResolvedCurrency] = useState<string>(
     (currency ?? 'EUR').toUpperCase()
   );
 
-  // Stable JSON keys so the effect doesn't reinitialize every render.
   const metadataKey = useMemo(() => JSON.stringify(metadata ?? {}), [metadata]);
   const payloadKey = useMemo(() => JSON.stringify(payload ?? null), [payload]);
 
-  // Keep latest values in refs so the SDK callbacks see fresh data
-  // without re-rendering buttons each time props change.
   const latestRef = useRef({
     amount,
     currency: resolvedCurrency,
@@ -176,9 +225,20 @@ export function PayPalCheckoutButtons({
     onCancel,
   };
 
+  const setProcessingState = (active: boolean, nextPhase: PaymentPhase = 'idle') => {
+    setProcessing(active);
+    setPhase(active ? nextPhase : 'idle');
+    onProcessingChange?.(active);
+  };
+
+  useEffect(() => {
+    setPortalMounted(true);
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     setError(null);
+    setSdkLoading(true);
     (async () => {
       try {
         const config = await fetchPayPalConfig();
@@ -193,6 +253,8 @@ export function PayPalCheckoutButtons({
         const msg = e instanceof Error ? e.message : 'PayPal failed to load.';
         setError(msg);
         onError?.(msg);
+      } finally {
+        if (!cancelled) setSdkLoading(false);
       }
     })();
     return () => {
@@ -222,18 +284,18 @@ export function PayPalCheckoutButtons({
         metadata: latestMetadata,
       } = latestRef.current;
       const res = await fetch('/api/paypal/create-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: latestAmount,
-          currency: latestCurrency,
-          source: latestSource,
-          title: latestTitle,
-          metadata: latestMetadata,
-          ...(latestEndpoint && latestPayload != null
-            ? { endpoint: latestEndpoint, payload: latestPayload }
-            : {}),
-        }),
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            amount: latestAmount,
+            currency: latestCurrency,
+            source: latestSource,
+            title: latestTitle,
+            metadata: latestMetadata,
+            ...(latestEndpoint && latestPayload != null
+              ? { endpoint: latestEndpoint, payload: latestPayload }
+              : {}),
+          }),
       });
       const body = (await res.json().catch(() => ({}))) as {
         id?: string;
@@ -250,23 +312,33 @@ export function PayPalCheckoutButtons({
     };
 
     const onApprove = async (data: { orderID: string }) => {
-      const res = await fetch('/api/paypal/capture-order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: data.orderID }),
-      });
-      const body = (await res.json().catch(() => ({}))) as PayPalCaptureResponse;
-      if (!res.ok || !body.paid) {
-        throw new Error(
-          typeof body.error === 'string'
-            ? body.error
-            : 'Payment could not be confirmed.'
+      setProcessingState(true, 'capture');
+      try {
+        const res = await fetch('/api/paypal/capture-order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: data.orderID }),
+        });
+        const body = (await res.json().catch(() => ({}))) as PayPalCaptureResponse;
+        if (!res.ok || !body.paid) {
+          throw new Error(
+            typeof body.error === 'string'
+              ? body.error
+              : 'Payment could not be confirmed.'
+          );
+        }
+        setPhase('complete');
+        await Promise.resolve(
+          latestRef.current.onApproved({
+            paypalOrderId: data.orderID,
+            capture: body,
+          })
         );
+        // Keep overlay visible during navigation; page unloads on redirect.
+      } catch (e) {
+        setProcessingState(false);
+        handleError(e);
       }
-      latestRef.current.onApproved({
-        paypalOrderId: data.orderID,
-        capture: body,
-      });
     };
 
     const handleError = (err: unknown) => {
@@ -275,7 +347,11 @@ export function PayPalCheckoutButtons({
       latestRef.current.onError?.(msg);
     };
 
-    const renderButton = (fundingSource: string, slot: HTMLDivElement | null, label: 'paypal' | 'pay') => {
+    const renderButton = (
+      fundingSource: string,
+      slot: HTMLDivElement | null,
+      label: 'paypal' | 'pay'
+    ) => {
       if (!slot) return;
       const btn = paypal.Buttons({
         fundingSource,
@@ -288,13 +364,20 @@ export function PayPalCheckoutButtons({
         },
         createOrder,
         onApprove,
-        onError: handleError,
+        onError: (err: unknown) => {
+          setProcessingState(false);
+          handleError(err);
+        },
         onCancel: () => {
+          setProcessingState(false);
           latestRef.current.onCancel?.();
         },
       });
       if (btn.isEligible()) {
-        btn.render(slot).catch(handleError);
+        btn.render(slot).catch((err: unknown) => {
+          setProcessingState(false);
+          handleError(err);
+        });
       }
     };
 
@@ -305,9 +388,11 @@ export function PayPalCheckoutButtons({
       if (paypalSlot) paypalSlot.innerHTML = '';
       if (cardSlot) cardSlot.innerHTML = '';
     };
-  }, [ready, resolvedCurrency]);
+  }, [ready, resolvedCurrency, metadataKey, payloadKey]);
 
-  if (error) {
+  const blocked = disabled || processing;
+
+  if (error && !processing) {
     return (
       <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-200">
         {error}
@@ -316,24 +401,33 @@ export function PayPalCheckoutButtons({
   }
 
   return (
-    <div
-      className={`flex flex-col gap-2 ${disabled ? 'pointer-events-none opacity-60' : ''}`}
-      aria-busy={!ready}
-    >
-      {!ready ? (
-        <div className="rounded-md border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
-          Loading payment options…
-        </div>
+    <>
+      {showPageOverlay && processing ? (
+        <PayPalProcessingOverlay
+          message={phaseMessage(phase)}
+          mounted={portalMounted}
+        />
       ) : null}
-      <div ref={paypalSlotRef} className="min-h-[44px]" />
-      <div ref={cardSlotRef} className="min-h-[44px]" />
-      <AcceptedPaymentMethods
-        size="sm"
-        showPayPal
-        showLabel
-        label="Pay with PayPal or card"
-        className="pt-1"
-      />
-    </div>
+      <div
+        className={`relative flex flex-col gap-2 ${blocked ? 'pointer-events-none opacity-60' : ''}`}
+        aria-busy={sdkLoading || processing}
+      >
+        {sdkLoading ? (
+          <div className="flex items-center gap-2 rounded-md border border-zinc-200 bg-zinc-50 px-3 py-3 text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900/40 dark:text-zinc-400">
+            <Loader2 className="h-4 w-4 shrink-0 animate-spin" aria-hidden />
+            Loading payment options…
+          </div>
+        ) : null}
+        <div ref={paypalSlotRef} className="min-h-[44px]" />
+        <div ref={cardSlotRef} className="min-h-[44px]" />
+        <AcceptedPaymentMethods
+          size="sm"
+          showPayPal
+          showLabel
+          label="Pay with PayPal or Card"
+          className="pt-1"
+        />
+      </div>
+    </>
   );
 }

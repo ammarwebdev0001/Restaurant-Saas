@@ -1,0 +1,43 @@
+/** Parse `Fulfillment:` line from order address snapshot (online / kiosk / POS). */
+export function parseFulfillmentFromAddressSnapshot(
+  address: string | null | undefined
+): string | null {
+  if (!address?.trim()) return null;
+  const match = address.match(/^Fulfillment:\s*(.+)$/im);
+  return match?.[1]?.trim() ?? null;
+}
+
+/** User-facing method label for sales list and order detail. */
+export function salesOrderMethodLabel(opts: {
+  address?: string | null;
+  sourceType: string;
+  tableLabel?: string | null;
+}): string | null {
+  if (opts.tableLabel?.trim()) {
+    return `Table ${opts.tableLabel.trim()}`;
+  }
+
+  const raw = parseFulfillmentFromAddressSnapshot(opts.address);
+  if (!raw) return null;
+
+  const lower = raw.toLowerCase();
+  const source = opts.sourceType.toUpperCase();
+
+  if (source === 'ONLINE') {
+    if (lower.includes('delivery')) return 'Delivery';
+    if (lower.includes('pick')) return 'Pickup';
+  }
+
+  if (source === 'KIOSK') {
+    if (lower.includes('dine')) return 'Dine in';
+    if (lower.includes('take')) return 'Take away';
+  }
+
+  if (source === 'POS' || source === 'OTHER') {
+    if (lower.includes('dine') || lower.includes('table')) return raw;
+    if (lower.includes('take')) return 'Take away';
+    if (lower.includes('delivery')) return 'Delivery';
+  }
+
+  return raw;
+}

@@ -105,10 +105,10 @@ function moduleMetric(
     case 'dashboard':
       return {
         value: String(ordersWindow),
-        hint: `Orders (${data.days ?? 7} days)`,
+        hint: `Completed orders (${data.days ?? 7} days)`,
       };
     case 'sales':
-      return { value: String(c.orders), hint: 'Total orders' };
+      return { value: String(c.orders), hint: 'Completed orders' };
     case 'pos':
       return { value: String(c.posOrders), hint: 'POS orders' };
     case 'kds':
@@ -236,7 +236,7 @@ export default function DashboardAnalytics() {
         <div>
           <h2 className="text-lg font-semibold tracking-tight">Overview</h2>
           <p className="text-sm text-muted-foreground">
-            Online, POS, and kiosk performance with selectable day ranges.
+            Completed orders only — online, POS, and kiosk with selectable day ranges.
           </p>
         </div>
         {slug ? (
@@ -284,10 +284,10 @@ export default function DashboardAnalytics() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
-                    Total orders (last 7 days)
+                    Completed orders (last 7 days)
                   </CardTitle>
                   <CardDescription>
-                    Daily total orders for Starter plan.
+                    Daily completed orders for Starter plan.
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -349,10 +349,10 @@ export default function DashboardAnalytics() {
               <Card>
                 <CardHeader>
                   <CardTitle className="text-base">
-                    Total revenue (last 7 days)
+                    Completed revenue (last 7 days)
                   </CardTitle>
                   <CardDescription>
-                    Full-width daily revenue chart for Starter plan.
+                    Revenue from completed orders only (Starter plan).
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="pt-0">
@@ -391,10 +391,10 @@ export default function DashboardAnalytics() {
                 <CardHeader className="gap-4 md:flex-row md:items-start md:justify-between">
                   <div>
                     <CardTitle className="text-base">
-                      Orders trend ({analytics.days ?? selectedDays} days)
+                      Completed orders trend ({analytics.days ?? selectedDays} days)
                     </CardTitle>
                     <CardDescription>
-                      Full-width area chart by channel: Online, POS, and Kiosk.
+                      Completed orders by channel: Online, POS, and Kiosk.
                     </CardDescription>
                   </div>
 
@@ -608,10 +608,10 @@ export default function DashboardAnalytics() {
                 <Card>
                   <CardHeader>
                     <CardTitle className="text-base">
-                      Channel mix (orders & revenue)
+                      Channel mix (completed orders & revenue)
                     </CardTitle>
                     <CardDescription>
-                      Donut charts for share of orders and revenue.
+                      Share of completed orders and revenue by channel.
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="pt-0">

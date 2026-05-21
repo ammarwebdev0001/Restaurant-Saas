@@ -63,8 +63,25 @@ export async function GET(_req: NextRequest) {
       db.branch.count({ where: { restaurantId } }),
       db.menuCategory.count({ where: { restaurantId } }),
       db.menuItem.count({ where: { restaurantId } }),
-      db.order.count({ where: { restaurantId } }),
-      db.order.count({ where: { restaurantId, sourceType: 'POS' } }),
+      db.order.count({
+        where: {
+          restaurantId,
+          OR: [
+            { status: { equals: 'completed', mode: 'insensitive' } },
+            { status: { equals: 'complete', mode: 'insensitive' } },
+          ],
+        },
+      }),
+      db.order.count({
+        where: {
+          restaurantId,
+          sourceType: 'POS',
+          OR: [
+            { status: { equals: 'completed', mode: 'insensitive' } },
+            { status: { equals: 'complete', mode: 'insensitive' } },
+          ],
+        },
+      }),
       db.customer.count({ where: { restaurantId } }),
       db.menuItemOffer.count({
         where: { baseItem: { restaurantId } } },
@@ -77,7 +94,14 @@ export async function GET(_req: NextRequest) {
       }),
       db.employee.count({ where: { restaurantId } }),
       db.order.findMany({
-        where: { restaurantId, createdAt: { gte: from } },
+        where: {
+          restaurantId,
+          createdAt: { gte: from },
+          OR: [
+            { status: { equals: 'completed', mode: 'insensitive' } },
+            { status: { equals: 'complete', mode: 'insensitive' } },
+          ],
+        },
         select: { createdAt: true, total: true, sourceType: true },
       }),
     ]);

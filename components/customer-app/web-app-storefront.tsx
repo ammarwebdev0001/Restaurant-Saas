@@ -3,9 +3,7 @@
 import { useEffect, useState } from 'react';
 import type { CSSProperties } from 'react';
 
-import { HeroSection } from '@/components/customer-app/hero-section';
 import { Sidebar } from '@/components/customer-app/sidebar';
-import { StoreMenu } from '@/components/customer-app/store-menu';
 import { buildThemeCssVars } from '@/lib/restaurant-theme';
 
 export function WebAppStorefront({ slug }: { slug: string }) {

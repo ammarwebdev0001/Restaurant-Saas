@@ -3,10 +3,13 @@
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { useRouter } from 'next/navigation';
 import { IconArrowLeft, IconMinus, IconPlus, IconTrash } from '@tabler/icons-react';
+import { toast } from 'react-toastify';
 import { useTranslation } from 'react-i18next';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Dialog,
   DialogContent,
@@ -162,11 +165,43 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
   const [menuRestaurant, setMenuRestaurant] = useState<CustomerMenuRestaurant | null>(null);
   const [offersOpen, setOffersOpen] = useState(false);
   const [themePrimaryColor, setThemePrimaryColor] = useState<string | null>(null);
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
   const router = useRouter();
 
   useEffect(() => {
     setCart(parseCartFromStorage(localStorage.getItem(`cart-${orderId}`)));
   }, [orderId]);
+
+  useEffect(() => {
+    setCustomerName(orderInfo?.addressName?.trim() ?? '');
+    setCustomerPhone(orderInfo?.customerPhone?.trim() ?? '');
+  }, [orderInfo?.addressName, orderInfo?.customerPhone, orderId]);
+
+  const orderInfoWithCustomer = useMemo((): OrderInfo | undefined => {
+    if (!orderInfo) return undefined;
+    return {
+      ...orderInfo,
+      addressName: customerName.trim(),
+      customerPhone: customerPhone.trim(),
+    };
+  }, [orderInfo, customerName, customerPhone]);
+
+  const customerDetailsValid =
+    customerName.trim().length > 0 && customerPhone.trim().length > 0;
+
+  const proceedToCheckout = () => {
+    if (!customerDetailsValid) {
+      toast.error(t('customerDetailsRequired'));
+      return;
+    }
+    router.push(
+      orderPathWithQuery(
+        `/order/${orderType}/${encodeURIComponent(orderId)}/checkout`,
+        orderInfoWithCustomer
+      )
+    );
+  };
 
   const updateCart = (next: CartLine[]) => {
     setCart(next);
@@ -357,13 +392,18 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
                 <div>
                   <strong>{t('mode')}:</strong> {orderInfo.mode}
                 </div>
+                <div>
+                  <strong>{t('name')}:</strong>{' '}
+                  {customerName.trim() || orderInfo.addressName || 'N/A'}
+                </div>
+                <div>
+                  <strong>{t('phoneLabel')}:</strong>{' '}
+                  {customerPhone.trim() || orderInfo.customerPhone || 'N/A'}
+                </div>
                 {orderInfo.mode === 'delivery' ? (
                   <>
                     <div>
                       <strong>{t('address')}:</strong> {orderInfo.address || 'N/A'}
-                    </div>
-                    <div>
-                      <strong>{t('name')}:</strong> {orderInfo.addressName || 'N/A'}
                     </div>
                     <div>
                       <strong>{t('apartment')}:</strong> {orderInfo.apartment || 'N/A'}
@@ -496,14 +536,8 @@ export default function CartPageClient({ orderType, orderId, orderInfo }: CartPa
                 ) : null}
                 <Button
                   className="w-full"
-                  onClick={() =>
-                    router.push(
-                      orderPathWithQuery(
-                        `/order/${orderType}/${encodeURIComponent(orderId)}/checkout`,
-                        orderInfo
-                      )
-                    )
-                  }
+                  disabled={!customerDetailsValid}
+                  onClick={proceedToCheckout}
                   type="button"
                 >
                   {t('proceedToCheckout')}

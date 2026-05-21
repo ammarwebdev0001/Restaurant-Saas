@@ -2,13 +2,14 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Lock, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Lock, ShieldCheck, UserPlus } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { PayPalCheckoutButtons } from '@/components/payments/paypal-checkout-buttons';
+import { useState } from 'react';
 
 type Props = {
   plan: string;
@@ -38,7 +39,8 @@ export function PaymentCheckoutClient({
   restaurantId,
 }: Props) {
   const router = useRouter();
-
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const amount = (() => {
     if (typeof priceMajor === 'number' && priceMajor > 0) return priceMajor;
     const match = priceLabel.match(/[\d]+(?:[\.,][\d]+)?/);
@@ -47,7 +49,10 @@ export function PaymentCheckoutClient({
   })();
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-white px-4 py-12 text-zinc-900 dark:bg-black dark:text-white sm:px-6 lg:px-8">
+    <main
+      className="relative min-h-screen overflow-hidden bg-white px-4 py-12 text-zinc-900 dark:bg-black dark:text-white sm:px-6 lg:px-8"
+      aria-busy={loading}
+    >
       <div className="pointer-events-none absolute -left-24 top-0 h-72 w-72 rounded-full bg-fire-500/20 blur-3xl dark:bg-fire-500/25" />
       <div className="pointer-events-none absolute -bottom-24 right-0 h-72 w-72 rounded-full bg-fire-300/20 blur-3xl dark:bg-fire-700/20" />
       <div className="relative mx-auto grid max-w-5xl gap-8 lg:grid-cols-[1fr_380px]">
@@ -129,21 +134,31 @@ export function PaymentCheckoutClient({
                 amount={amount}
                 title={`${planName} subscription`}
                 source="subscription"
+                disabled={loading}
                 metadata={{
                   plan,
                   restaurantId,
                   ...(userEmail ? { userEmail } : {}),
                 }}
-                onApproved={({ capture }) => {
-                  if (capture.planSynced) {
-                    toast.success('Subscription updated. Welcome to Dashboard!');
-                    router.replace('/dashboard');
-                    router.refresh();
-                    return;
+                onProcessingChange={setLoading}
+                onApproved={async ({ capture }) => {
+                  try {
+                    if (capture && capture.planSynced) {
+                      toast.success('Subscription updated. Welcome to Dashboard!');
+                      router.replace('/dashboard');
+                      router.refresh();
+                      return;
+                    }
+                    toast.error(
+                      'Payment captured but subscription could not be updated. Contact support.'
+                    );
+                  } catch (error) {
+                    setError(
+                      error instanceof Error
+                        ? error.message
+                        : 'An unknown error occurred'
+                    );
                   }
-                  toast.error(
-                    'Payment captured but subscription could not be created. Contact support.'
-                  );
                 }}
                 onError={(msg) => toast.error(msg)}
               />
@@ -159,11 +174,11 @@ export function PaymentCheckoutClient({
               </p>
             )}
             <div className="flex flex-wrap gap-2">
-              <Button variant="outline" className="flex-1" asChild type="button">
-                <Link href="/pricing">Back to pricing</Link>
+              <Button variant="outline" className="flex-1" asChild type="button" disabled={loading}>
+                <Link href="/pricing"> <ArrowLeft className="h-4 w-4 mr-2" /> Back to pricing</Link>
               </Button>
-              <Button variant="ghost" className="flex-1" asChild type="button">
-                <Link href="/restaurant-signup">Restaurant signup</Link>
+              <Button variant="ghost" className="flex-1" asChild type="button" disabled={loading}>
+                <Link href="/restaurant-signup"> <UserPlus className="h-4 w-4 mr-2" /> Restaurant signup</Link>
               </Button>
             </div>
           </CardContent>

@@ -1099,8 +1099,8 @@ export function KioskApp({ slug }: { slug: string }) {
             </div>
             {cart.length === 0 ? (
               <>
-              <div className="flex flex-row items-center justify-start gap-2">
-              <p className="text-[#64748b]">Your cart is empty.</p>
+              <div className="flex flex-col items-center justify-start gap-2">
+              <p className="text-[#64748b] w-full text-center">Your cart is empty.</p>
               <Button
                 type="button"
                 variant="default"
@@ -1195,6 +1195,41 @@ export function KioskApp({ slug }: { slug: string }) {
                     </span>
                   </div>
                 </div>
+                {fulfillment === 'take_away' ? (
+                  <div className="space-y-3 rounded-xl border border-[#e2e8f0] bg-[#f8fafc] p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[#64748b]">
+                      {t('customerDetails')}
+                    </p>
+                    <div className="space-y-2">
+                      <Label htmlFor="kiosk-customer-name">{t('yourName')}</Label>
+                      <Input
+                        id="kiosk-customer-name"
+                        placeholder={t('yourName')}
+                        value={customerName}
+                        onChange={(e) => setCustomerName(e.target.value)}
+                        maxLength={120}
+                        autoComplete="name"
+                        className="border-[#e2e8f0] bg-white text-[#0f172a]"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="kiosk-customer-phone">{t('phoneNumber')}</Label>
+                      <Input
+                        id="kiosk-customer-phone"
+                        type="tel"
+                        placeholder={t('phoneNumber')}
+                        value={customerPhone}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          setCustomerPhone(value);
+                        }}
+                        maxLength={40}
+                        autoComplete="tel"
+                        className="border-[#e2e8f0] bg-white text-[#0f172a]"
+                      />
+                    </div>
+                  </div>
+                ) : null}
                 <textarea
                   placeholder="Cooking instructions (e.g. make it mild)"
                   value={cookingNote}
@@ -1211,7 +1246,16 @@ export function KioskApp({ slug }: { slug: string }) {
                 <Button
                   type="button"
                   className="w-full bg-primary py-6 text-base font-semibold text-primary-foreground hover:brightness-95"
-                  onClick={() => setStep('checkout')}
+                  onClick={() => {
+                    if (
+                      fulfillment === 'take_away' &&
+                      (!customerName.trim() || !customerPhone.trim())
+                    ) {
+                      toast.warn(t('customerDetailsRequired'));
+                      return;
+                    }
+                    setStep('checkout');
+                  }}
                 >
                   <CheckCircle
                   className="mr-2 h-4 w-4"
@@ -1283,7 +1327,8 @@ export function KioskApp({ slug }: { slug: string }) {
                     fulfillment: fulfillment ?? '',
                   }}
                   disabled={placing}
-                  onApproved={({ capture }) => {
+                  onProcessingChange={setPlacing}
+                  onApproved={async ({ capture }) => {
                     const placedId =
                       capture.shortOrderId ?? capture.orderId ?? '';
                     const ticket = capture.ticketNumber;

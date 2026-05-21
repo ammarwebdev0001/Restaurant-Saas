@@ -320,7 +320,10 @@ export default function CheckoutPageClient({
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div
+      className="min-h-screen bg-background text-foreground"
+      aria-busy={submitting}
+    >
       <div className="mx-auto max-w-7xl px-4 py-8">
         <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
@@ -511,7 +514,8 @@ export default function CheckoutPageClient({
                         orderType,
                       }}
                       disabled={submitting}
-                      onApproved={({ capture }) => {
+                      onProcessingChange={setSubmitting}
+                      onApproved={async ({ capture }) => {
                         const slug = orderInfo?.restaurantSlug ?? '';
                         const ref =
                           capture.shortOrderId ?? capture.orderId ?? '';

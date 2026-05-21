@@ -45,7 +45,7 @@ export function SalesOrdersList({
     setError(null);
     try {
       const res = await axios.get<SalesOrdersApiResponse>(
-        '/api/restaurant/sales-orders'
+        '/api/restaurant/sales-orders?tab=online&page=1&status=all'
       );
       const d = res.data;
       setRows(

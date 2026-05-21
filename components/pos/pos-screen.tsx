@@ -1202,7 +1202,9 @@ export function PosScreen() {
             ) : (
               filteredProducts.length === 0 && (
                 <div className="col-span-full py-16 text-center text-sm text-muted-foreground">
-                  <p className="text-[#64748b]">No products match this category or search.</p>
+                  <p className="text-[#64748b]">
+                    No products match this category or search.
+                  </p>
                   <Button
                     type="button"
                     variant="default"
@@ -1218,7 +1220,7 @@ export function PosScreen() {
           </div>
         </ScrollArea>
         {/* Checkout */}
-        <div className="flex min-h-0 flex-col gap-3 border-t bg-muted/20 p-3 lg:border-t-0" >
+        <div className="flex min-h-0 flex-col gap-3 border-t bg-muted/20 p-3 lg:border-t-0">
           <div className="grid grid-cols-4 gap-2">
             {modeButtons.map((b) => {
               const active = orderMode === b.id;
@@ -1420,7 +1422,7 @@ export function PosScreen() {
                   size="icon"
                   onClick={() => setArchivedOrdersOpen(true)}
                 >
-                    <Archive className="h-5 w-5" /> 
+                  <Archive className="h-5 w-5" />
                   <span className="text-xs font-medium mb-2 bg-primary/10 text-primary rounded-full p-0.5">
                     {archivedOrders.length}
                   </span>
@@ -1506,7 +1508,9 @@ export function PosScreen() {
           </SheetHeader>
           <div className="mt-4 min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
             {loadingPendingKitchen ? (
-              <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
+              <p className="text-sm text-muted-foreground">
+                <Loader2 className="animate-spin text-primary text-center mx-auto" />
+              </p>
             ) : pendingKitchenOrders.length === 0 ? (
               <p className="text-sm text-muted-foreground">
                 No POS orders waiting for the kitchen.
@@ -1861,7 +1865,10 @@ export function PosScreen() {
                           className="h-9 bg-background"
                           inputMode="tel"
                           value={customerPhone}
-                          onChange={(e) => setCustomerPhone(e.target.value)}
+                          onChange={(event) => {
+                            const value = event.target.value.replace(/\D/g, '');
+                            setCustomerPhone(value);
+                          }}
                         />
                       </div>
                       {isDeliveryMode ? (
@@ -1895,7 +1902,6 @@ export function PosScreen() {
               <>
                 <X className="mr-2 h-4 w-4" /> <span>Cancel</span>
               </>
-        
             </Button>
 
             <Button
@@ -1916,7 +1922,16 @@ export function PosScreen() {
               }}
             >
               <>
-                <Check className="mr-2 h-4 w-4" /> <span>Place Order</span>
+                {savingOrder ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />{' '}
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-2" /> <span>Place Order</span>
+                  </>
+                )}
               </>
             </Button>
           </DialogFooter>
@@ -2009,7 +2024,17 @@ export function PosScreen() {
               disabled={sendingToKitchen || !kitchenSendOrder}
               onClick={() => void sendOrderToKitchen()}
             >
-              {sendingToKitchen ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> <span>Sending...</span></> : <><Check className="h-4 w-4 mr-2" /> <span>Proceed to kitchen</span></>}
+              {sendingToKitchen ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />{' '}
+                  <span>Sending...</span>
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4 mr-2" />{' '}
+                  <span>Proceed to kitchen</span>
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

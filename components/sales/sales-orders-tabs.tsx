@@ -2,12 +2,29 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { RefreshCw, Eye, Loader2 } from 'lucide-react';
-import Link from 'next/link';
+import { RefreshCw, Eye, Loader2, Search } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination';
+import { salesOrderMethodLabel } from '@/lib/order-fulfillment';
+import { salesOrderStatusBucket } from '@/lib/sales-order-status';
 import {
   Sheet,
   SheetContent,
@@ -27,9 +44,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { orderSourceLabel } from '@/lib/order-source-label';
 import eventBus from '@/lib/even';
 import type {
+  SalesChannelStats,
   SalesOrderRow,
   SalesOrdersApiResponse,
+  SalesOrdersPagination,
   SalesOrdersStats,
+  SalesOrdersStatusFilter,
+  SalesOrdersTab,
 } from '@/types/sales-order';
 import type { TransactionData } from '@/types/transaction';
 import { cn } from '@/lib/utils';
@@ -49,6 +70,7 @@ type MenuOrderDetail = {
   status: string;
   sourceType: string;
   address: string | null;
+  tableLabel?: string | null;
   taxAmount: number;
   discountAmount: number;
   createdAt: string;
@@ -80,19 +102,138 @@ type MenuOrderDetail = {
   }>;
 };
 
-const emptyStats: SalesOrdersStats = {
-  online: { count: 0, totalAmount: 0 },
-  pos: { count: 0, totalAmount: 0 },
-  kiosk: { count: 0, totalAmount: 0 },
-  all: { count: 0, totalAmount: 0 },
+const emptyChannel: SalesChannelStats = {
+  totalOrders: 0,
+  totalAmount: 0,
+  revenueAmount: 0,
+  revenueOrders: 0,
+  pending: { count: 0, amount: 0 },
+  canceled: { count: 0, amount: 0 },
 };
+
+const emptyStats: SalesOrdersStats = {
+  online: { ...emptyChannel },
+  pos: { ...emptyChannel },
+  kiosk: { ...emptyChannel },
+};
+
+function StatusBadge({ status }: { status: string }) {
+  const bucket = salesOrderStatusBucket(status);
+  return (
+    <Badge
+      variant="outline"
+      className={cn(
+        'font-medium capitalize',
+        bucket === 'completed' &&
+          'border-green-600/40 bg-green-600 text-white hover:bg-green-600',
+        bucket === 'pending' &&
+          'border-yellow-500/50 bg-yellow-400 text-yellow-950 hover:bg-yellow-400',
+        bucket === 'canceled' &&
+          'border-destructive/40 bg-destructive text-destructive-foreground hover:bg-destructive'
+      )}
+    >
+      {status}
+    </Badge>
+  );
+}
+
+function SalesOrdersPaginationBar({
+  pagination,
+  page,
+  onPageChange,
+  loading,
+}: {
+  pagination: SalesOrdersPagination;
+  page: number;
+  onPageChange: (p: number) => void;
+  loading: boolean;
+}) {
+  const { totalPages, total, pageSize } = pagination;
+  if (totalPages <= 1 && total <= pageSize) return null;
+
+  const from = total === 0 ? 0 : (page - 1) * pageSize + 1;
+  const to = Math.min(page * pageSize, total);
+
+  return (
+    <div className="flex flex-col items-center justify-between gap-3 sm:flex-row w-full">
+      <Pagination>
+        <PaginationContent className="w-full flex items-center justify-between">
+          <p className="text-xs text-muted-foreground">
+            Showing {from}–{to} of {total}
+          </p>
+          <div className="flex items-center justify-end">
+            <PaginationItem>
+              <PaginationPrevious
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (page > 1 && !loading) onPageChange(page - 1);
+                }}
+                className={page <= 1 ? 'pointer-events-none opacity-50' : ''}
+              />
+            </PaginationItem>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(
+                (p) =>
+                  p === 1 ||
+                  p === totalPages ||
+                  (p >= page - 1 && p <= page + 1)
+              )
+              .map((p, idx, arr) => {
+                const prev = arr[idx - 1];
+                const showEllipsis = prev != null && p - prev > 1;
+                return (
+                  <span key={p} className="flex items-center">
+                    {showEllipsis ? (
+                      <PaginationItem>
+                        <span className="px-2 text-muted-foreground">…</span>
+                      </PaginationItem>
+                    ) : null}
+                    <PaginationItem>
+                      <PaginationLink
+                        href="#"
+                        isActive={p === page}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (!loading) onPageChange(p);
+                        }}
+                      >
+                        {p}
+                      </PaginationLink>
+                    </PaginationItem>
+                  </span>
+                );
+              })}
+            <PaginationItem>
+              <PaginationNext
+                href="#"
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (page < totalPages && !loading) onPageChange(page + 1);
+                }}
+                className={
+                  page >= totalPages ? 'pointer-events-none opacity-50' : ''
+                }
+              />
+            </PaginationItem>
+          </div>
+        </PaginationContent>
+      </Pagination>
+    </div>
+  );
+}
 
 function OrdersTable({
   rows,
   onView,
+  pageOffset = 0,
+  showMethodColumn = false,
 }: {
   rows: SalesOrderRow[];
   onView: (row: SalesOrderRow) => void;
+  pageOffset?: number;
+  showMethodColumn?: boolean;
 }) {
   return (
     <div className="rounded-md border">
@@ -103,6 +244,9 @@ function OrdersTable({
             <TableHead className="w-[50px]">Token</TableHead>
             <TableHead className="w-[100px] text-center">Ticket #</TableHead>
             <TableHead className="hidden sm:table-cell">Source</TableHead>
+            {showMethodColumn ? (
+              <TableHead className="hidden md:table-cell">Method</TableHead>
+            ) : null}
             <TableHead className="text-right">Total</TableHead>
             <TableHead className="hidden md:table-cell">Status</TableHead>
             <TableHead className="hidden md:table-cell">Payment</TableHead>
@@ -117,7 +261,7 @@ function OrdersTable({
           {rows.length === 0 ? (
             <TableRow>
               <TableCell
-                colSpan={11}
+                colSpan={showMethodColumn ? 12 : 11}
                 className="text-center text-muted-foreground"
               >
                 No orders in this tab.
@@ -127,7 +271,7 @@ function OrdersTable({
             rows.map((row, index) => (
               <TableRow key={`${row.kind}-${row.id}`}>
                 <TableCell className="text-center tabular-nums text-muted-foreground">
-                  {index + 1}
+                  {pageOffset + index + 1}
                 </TableCell>
                 <TableCell className="max-w-[140px] truncate font-mono text-xs">
                   {row.trackingToken ?? row.id}
@@ -141,11 +285,22 @@ function OrdersTable({
                     {orderSourceLabel(row.sourceType)}
                   </Badge>
                 </TableCell>
+                {showMethodColumn ? (
+                  <TableCell className="hidden md:table-cell">
+                    {row.kind === 'menu_order' && row.method ? (
+                      <Badge variant="secondary" className="font-normal">
+                        {row.method}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </TableCell>
+                ) : null}
                 <TableCell className="text-right tabular-nums">
                   €{formatMoney(row.total)}
                 </TableCell>
-                <TableCell className="hidden text-muted-foreground md:table-cell">
-                  {row.status}
+                <TableCell className="hidden md:table-cell">
+                  <StatusBadge status={row.status} />
                 </TableCell>
                 <TableCell className="hidden text-muted-foreground md:table-cell">
                   {'paymentStatus' in row ? row.paymentStatus ?? '—' : '—'}
@@ -192,15 +347,22 @@ function OrdersTable({
 }
 
 export function SalesOrdersTabs() {
-  const [onlineOrders, setOnlineOrders] = useState<SalesOrderRow[]>([]);
-  const [posOrders, setPosOrders] = useState<SalesOrderRow[]>([]);
-  const [kioskOrders, setKioskOrders] = useState<SalesOrderRow[]>([]);
+  const [orders, setOrders] = useState<SalesOrderRow[]>([]);
   const [stats, setStats] = useState<SalesOrdersStats>(emptyStats);
+  const [pagination, setPagination] = useState<SalesOrdersPagination>({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'online' | 'pos' | 'kiosk'>(
-    'online'
-  );
+  const [activeTab, setActiveTab] = useState<SalesOrdersTab>('online');
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [statusFilter, setStatusFilter] =
+    useState<SalesOrdersStatusFilter>('all');
 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [activeRow, setActiveRow] = useState<SalesOrderRow | null>(null);
@@ -214,27 +376,46 @@ export function SalesOrdersTabs() {
     setLoading(true);
     setError(null);
     try {
+      const params = new URLSearchParams({
+        tab: activeTab,
+        page: String(page),
+        status: statusFilter,
+      });
+      if (search.trim()) params.set('search', search.trim());
       const res = await axios.get<SalesOrdersApiResponse>(
-        '/api/restaurant/sales-orders'
+        `/api/restaurant/sales-orders?${params.toString()}`
       );
-      setOnlineOrders(res.data.onlineOrders ?? []);
-      setPosOrders(res.data.posOrders ?? []);
-      setKioskOrders(res.data.kioskOrders ?? []);
+      setOrders(res.data.orders ?? []);
       setStats(res.data.stats ?? emptyStats);
+      setPagination(
+        res.data.pagination ?? {
+          page: 1,
+          pageSize: 10,
+          total: 0,
+          totalPages: 0,
+        }
+      );
     } catch {
       setError('Could not load orders.');
-      setOnlineOrders([]);
-      setPosOrders([]);
-      setKioskOrders([]);
+      setOrders([]);
       setStats(emptyStats);
+      setPagination({ page: 1, pageSize: 10, total: 0, totalPages: 0 });
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [activeTab, page, search, statusFilter]);
 
   useEffect(() => {
-    load();
+    void load();
   }, [load]);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      setSearch(searchInput);
+      setPage(1);
+    }, 350);
+    return () => window.clearTimeout(t);
+  }, [searchInput]);
 
   useEffect(() => {
     const handler = () => load();
@@ -290,25 +471,27 @@ export function SalesOrdersTabs() {
   const activeLabel =
     activeTab === 'online' ? 'Online' : activeTab === 'pos' ? 'POS' : 'Kiosk';
 
+  const pageOffset = (pagination.page - 1) * pagination.pageSize;
+
   return (
     <div className="space-y-4">
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 w-full">
         <Card className="w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              {activeLabel} — orders
+              Total {activeLabel} orders
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-semibold tabular-nums">
-              {loading ? '…' : activeStats.count}
+              {loading ? '…' : activeStats.totalOrders}
             </p>
           </CardContent>
         </Card>
         <Card className="w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              {activeLabel} — total amount
+              Total amount
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -320,52 +503,101 @@ export function SalesOrdersTabs() {
         <Card className="w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total — orders
+              Revenue (completed)
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">
-              {loading ? '…' : stats.all.count}
+          <CardContent className="space-y-1">
+            <p className="text-2xl font-semibold tabular-nums text-green-700 dark:text-green-400">
+              {loading ? '…' : `€${formatMoney(activeStats.revenueAmount)}`}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {loading ? '…' : `${activeStats.revenueOrders} completed orders`}
             </p>
           </CardContent>
         </Card>
         <Card className="w-full">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total — total amount
+              Pending & canceled
             </CardTitle>
           </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-semibold tabular-nums">
-              {loading ? '…' : `€${formatMoney(stats.all.totalAmount)}`}
-            </p>
+          <CardContent className="space-y-2 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium text-yellow-700 dark:text-yellow-400">
+                Pending
+              </span>
+              <span className="tabular-nums">
+                {loading
+                  ? '…'
+                  : `${activeStats.pending.count} · €${formatMoney(activeStats.pending.amount)}`}
+              </span>
+            </div>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="font-medium text-destructive">Canceled</span>
+              <span className="tabular-nums">
+                {loading
+                  ? '…'
+                  : `${activeStats.canceled.count} · €${formatMoney(activeStats.canceled.amount)}`}
+              </span>
+            </div>
           </CardContent>
         </Card>
       </div>
 
       <Card className="w-full">
-        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2">
-       
-          <Button
-            type="button"
-            variant="outline"
-            className="gap-1"
-            disabled={loading}
-            onClick={() => load()}
-          >
-            <RefreshCw
-              className={cn('h-3.5 w-3.5', loading && 'animate-spin')}
-            />
-            Refresh
-          </Button>
-        </CardHeader>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2 pb-2"></CardHeader>
         <CardContent className="space-y-4">
           {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
+            <div className="relative min-w-[200px] flex-1">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                className="pl-8"
+                placeholder="Search tracking or ticket #"
+                value={searchInput}
+                onChange={(e) => setSearchInput(e.target.value)}
+              />
+            </div>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v as SalesOrdersStatusFilter);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-full sm:w-[180px]">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All statuses</SelectItem>
+                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="canceled">Canceled</SelectItem>
+              </SelectContent>
+            </Select>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="gap-1"
+              disabled={loading}
+              onClick={() => load()}
+            >
+              <RefreshCw
+                className={cn('h-3.5 w-3.5', loading && 'animate-spin')}
+              />
+              Refresh
+            </Button>
+          </div>
 
           <Tabs
             defaultValue="online"
             value={activeTab}
-            onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+            onValueChange={(v) => {
+              setActiveTab(v as SalesOrdersTab);
+              setPage(1);
+            }}
             className="w-full"
           >
             <TabsList className="grid h-auto w-full max-w-full grid-cols-1 gap-1 sm:grid-cols-3">
@@ -373,35 +605,79 @@ export function SalesOrdersTabs() {
               <TabsTrigger value="pos">POS orders</TabsTrigger>
               <TabsTrigger value="kiosk">Kiosk orders</TabsTrigger>
             </TabsList>
-            <TabsContent value="online" className="mt-4 space-y-2">
+            <TabsContent value="online" className="mt-4 space-y-3">
               <p className="text-xs text-muted-foreground">
                 Checkout orders with source <strong>Online</strong>.
               </p>
-              {loading && onlineOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
+              {loading && orders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  <Loader2 className="mx-auto animate-spin text-primary" />
+                </p>
               ) : (
-                <OrdersTable rows={onlineOrders} onView={openDetail} />
+                <>
+                  <OrdersTable
+                    rows={orders}
+                    onView={openDetail}
+                    pageOffset={pageOffset}
+                    showMethodColumn
+                  />
+                  <SalesOrdersPaginationBar
+                    pagination={pagination}
+                    page={page}
+                    onPageChange={setPage}
+                    loading={loading}
+                  />
+                </>
               )}
             </TabsContent>
-            <TabsContent value="pos" className="mt-4 space-y-2">
+            <TabsContent value="pos" className="mt-4 space-y-3">
               <p className="text-xs text-muted-foreground">
                 POS menu orders, other in-store menu orders, and register /
                 walk-in transactions.
               </p>
-              {loading && posOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
+              {loading && orders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  <Loader2 className="mx-auto animate-spin text-primary" />
+                </p>
               ) : (
-                <OrdersTable rows={posOrders} onView={openDetail} />
+                <>
+                  <OrdersTable
+                    rows={orders}
+                    onView={openDetail}
+                    pageOffset={pageOffset}
+                  />
+                  <SalesOrdersPaginationBar
+                    pagination={pagination}
+                    page={page}
+                    onPageChange={setPage}
+                    loading={loading}
+                  />
+                </>
               )}
             </TabsContent>
-            <TabsContent value="kiosk" className="mt-4 space-y-2">
+            <TabsContent value="kiosk" className="mt-4 space-y-3">
               <p className="text-xs text-muted-foreground">
                 Orders placed from the in-venue <strong>kiosk</strong>.
               </p>
-              {loading && kioskOrders.length === 0 ? (
-                <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
+              {loading && orders.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  <Loader2 className="mx-auto animate-spin text-primary" />
+                </p>
               ) : (
-                <OrdersTable rows={kioskOrders} onView={openDetail} />
+                <>
+                  <OrdersTable
+                    rows={orders}
+                    onView={openDetail}
+                    pageOffset={pageOffset}
+                    showMethodColumn
+                  />
+                  <SalesOrdersPaginationBar
+                    pagination={pagination}
+                    page={page}
+                    onPageChange={setPage}
+                    loading={loading}
+                  />
+                </>
               )}
             </TabsContent>
           </Tabs>
@@ -412,12 +688,13 @@ export function SalesOrdersTabs() {
         <SheetContent className="flex w-full flex-col sm:max-w-lg">
           <SheetHeader>
             <SheetTitle>Order details</SheetTitle>
-            
           </SheetHeader>
 
           <div className="mt-4 flex-1 overflow-y-auto pr-1">
             {detailLoading && (
-              <p className="text-sm text-muted-foreground"><Loader2 className="animate-spin text-primary text-center mx-auto" /></p>
+              <p className="text-sm text-muted-foreground">
+                <Loader2 className="animate-spin text-primary text-center mx-auto" />
+              </p>
             )}
 
             {!detailLoading &&
@@ -432,6 +709,26 @@ export function SalesOrdersTabs() {
               activeRow?.kind === 'menu_order' &&
               menuDetail && (
                 <div className="space-y-4 text-sm">
+                  {(() => {
+                    const methodLabel =
+                      activeRow.method ??
+                      salesOrderMethodLabel({
+                        address: menuDetail.address,
+                        sourceType: menuDetail.sourceType,
+                        tableLabel: menuDetail.tableLabel,
+                      });
+                    if (!methodLabel) return null;
+                    return (
+                      <div className=" bg-primary/5 px-2 py-2 text-center">
+                        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                          Method
+                        </p>
+                        <p className="mt-2 text-xl font-bold tracking-tight text-foreground">
+                          {methodLabel}
+                        </p>
+                      </div>
+                    );
+                  })()}
                   <div className="grid grid-cols-2 gap-2">
                     <div>
                       <p className="text-muted-foreground">Tracking ID</p>
@@ -447,7 +744,7 @@ export function SalesOrdersTabs() {
                     </div>
                     <div>
                       <p className="text-muted-foreground">Status</p>
-                      <p className="font-medium">{menuDetail.status}</p>
+                      <StatusBadge status={menuDetail.status} />
                     </div>
                     <div>
                       <p className="text-muted-foreground">Source</p>

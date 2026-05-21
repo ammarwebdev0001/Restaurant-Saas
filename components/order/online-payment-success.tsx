@@ -3,12 +3,13 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { Check, Copy } from 'lucide-react';
+import { ArrowRight, Check, Copy, Home, TrainTrack } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { OrderInfo } from '@/components/order/order-types';
+import { TrackNextIcon } from '@radix-ui/react-icons';
 
 function formatTokenNumber(ticket: number | null): string {
   if (ticket == null || ticket < 0) return '—';
@@ -166,6 +167,16 @@ export function OnlinePaymentSuccess({
               </div>
             </div>
             <div className="flex gap-2">
+              
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push(storefrontHome)}
+                disabled={!restaurantSlug}
+              >
+                <Home className="h-4 w-4 mr-2" />
+                Back to Home
+              </Button>
               <Button asChild>
                 <Link
                   href={`/web-app/${encodeURIComponent(restaurantSlug)}/track-order${
@@ -175,15 +186,8 @@ export function OnlinePaymentSuccess({
                   }`}
                 >
                   Track your order
+                  <ArrowRight className="h-4 w-4 ml-2" />
                 </Link>
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => router.push(storefrontHome)}
-                disabled={!restaurantSlug}
-              >
-                Back to Home
               </Button>
             </div>
           </CardContent>

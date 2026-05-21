@@ -31,6 +31,7 @@ export async function GET(
         status: true,
         sourceType: true,
         address: true,
+        tableLabel: true,
         taxAmount: true,
         discountAmount: true,
         createdAt: true,
