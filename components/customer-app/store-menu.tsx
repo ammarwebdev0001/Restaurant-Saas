@@ -1,5 +1,6 @@
 'use client';
 
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 type MenuItemLite = {
@@ -73,10 +74,10 @@ export function StoreMenu({ slug }: { slug: string }) {
   }, [slug]);
 
   if (loading) {
-    return <p className="text-sm text-[#64748b]">Loading menu…</p>;
+    return <Loader2 className="animate-spin text-primary text-center mx-auto" />;
   }
   if (error) {
-    return <p className="text-sm text-[#b45309]">{error}</p>;
+    return <AlertCircle className="text-destructive text-center mx-auto" />;
   }
   if (categories.length === 0) {
     return (
