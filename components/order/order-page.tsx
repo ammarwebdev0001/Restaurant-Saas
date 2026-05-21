@@ -32,7 +32,7 @@ import { orderPathWithQuery } from '@/lib/order-search-params';
 import { setUiLanguage } from '@/lib/i18n/client';
 import type { UiLanguage } from '@/lib/i18n/resources';
 import { cn } from '@/lib/utils';
-import { ArrowUp, Pencil, Search, Trash2, X } from 'lucide-react';
+import { ArrowUp, Loader2, Pencil, Search, Trash2, X } from 'lucide-react';
 
 export type OrderPageProps = {
   orderType: 'delivery' | 'pickUp';
@@ -916,7 +916,7 @@ export default function OrderPageClient({
             {orderInfo?.restaurantName ?? 'Enjoy Tacos'}
           </h1>
           <div className="flex items-center gap-2">
-            <div className="text-primary text-muted-foreground">
+            <div className="text-primary ">
               {orderType === 'delivery' ? t('delivery') : t('pickUp')}{' '}
               {t('order')} - {orderId}
             </div>
@@ -1125,9 +1125,7 @@ export default function OrderPageClient({
            
 
             {menuLoading ? (
-              <p className="text-sm text-muted-foreground">
-                {t('loadingMenu')}
-              </p>
+              <Loader2 className="animate-spin text-primary text-center mx-auto" />
             ) : (
               <section className="mb-8 min-w-0">
                 <h2 className="mb-4 text-xl font-semibold">
