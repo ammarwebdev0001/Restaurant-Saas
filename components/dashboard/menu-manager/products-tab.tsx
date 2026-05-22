@@ -167,7 +167,6 @@ export function ProductsTab({ categories, onRefresh, loading }: Props) {
                   <Button
                     type="button"
                     asChild
-                    disabled={categories.length === 0}
                   >
                     <Link href="/product/create">
                       <Plus className="mr-2 h-4 w-4" />
@@ -182,8 +181,7 @@ export function ProductsTab({ categories, onRefresh, loading }: Props) {
             ) : (
               <div className="space-y-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-                  <div className="relative min-w-0 flex-1">
-                    {canEditProducts ? (
+                {canEditProducts ? (
                       <Button
                         type="button"
                         asChild
@@ -195,6 +193,8 @@ export function ProductsTab({ categories, onRefresh, loading }: Props) {
                         </Link>
                       </Button>
                     ) : null}
+                  <div className="relative min-w-0 flex-1">
+                   
                     <Search
                       className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground"
                       aria-hidden

@@ -63,11 +63,16 @@ export function CreateProductSaveConfirmation({
               onClick={() => void onSaveAndAddNew()}
             >
               {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
               ) : (
-                <Plus className="mr-2 h-4 w-4" />
+                <>
+                  <Plus className="mr-2 h-4 w-4" />
+                  <span>Save & add new</span>
+                </>
               )}
-              Save & add new
             </Button>
             <Button
               type="button"
@@ -75,11 +80,16 @@ export function CreateProductSaveConfirmation({
               onClick={() => void onSaveAndClose()}
             >
               {loading ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <span>Saving...</span>
+                </>
               ) : (
-                <Save className="mr-2 h-4 w-4" />
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  <span>Save & close</span>
+                </>
               )}
-              Save & close
             </Button>
           </div>
         </AlertDialogFooter>
