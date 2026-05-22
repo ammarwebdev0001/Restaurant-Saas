@@ -92,8 +92,27 @@ async function fetchPayPalConfig(): Promise<PayPalSdkConfig> {
 
 const sdkPromises = new Map<string, Promise<void>>();
 
+/** Align PayPal card-fields region with checkout currency (sandbox). */
+function buyerCountryForCurrency(currency: string): string | undefined {
+  switch (currency.toUpperCase()) {
+    case 'EUR':
+      return 'DE';
+    case 'GBP':
+      return 'GB';
+    case 'USD':
+      return 'US';
+    case 'AUD':
+      return 'AU';
+    case 'CAD':
+      return 'CA';
+    default:
+      return undefined;
+  }
+}
+
 function loadPayPalSdk(clientId: string, currency: string): Promise<void> {
-  const key = `${clientId}:${currency}`;
+  const buyerCountry = buyerCountryForCurrency(currency);
+  const key = `${clientId}:${currency}:${buyerCountry ?? 'auto'}`;
   const existing = sdkPromises.get(key);
   if (existing) return existing;
   const p = new Promise<void>((resolve, reject) => {
@@ -114,6 +133,9 @@ function loadPayPalSdk(clientId: string, currency: string): Promise<void> {
       'disable-funding': 'paylater,credit',
       intent: 'capture',
     });
+    if (buyerCountry) {
+      params.set('buyer-country', buyerCountry);
+    }
     script.src = `https://www.paypal.com/sdk/js?${params.toString()}`;
     script.async = true;
     script.dataset.paypalSdk = 'true';
@@ -342,7 +364,11 @@ export function PayPalCheckoutButtons({
     };
 
     const handleError = (err: unknown) => {
-      const msg = err instanceof Error ? err.message : 'Payment failed.';
+      const raw = err instanceof Error ? err.message : String(err ?? '');
+      const msg =
+        /ADD_SHIPPING_ERROR|shipping/i.test(raw)
+          ? 'Card payment could not start. Refresh the page and try again, or use the PayPal button.'
+          : raw.trim() || 'Payment failed.';
       setError(msg);
       latestRef.current.onError?.(msg);
     };

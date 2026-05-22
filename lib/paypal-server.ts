@@ -127,6 +127,8 @@ export async function createPayPalOrder(params: {
         return_url: params.returnUrl,
         cancel_url: params.cancelUrl,
         user_action: 'PAY_NOW',
+        shipping_preference: 'NO_SHIPPING',
+        landing_page: 'NO_PREFERENCE',
       },
     }),
     cache: 'no-store',
