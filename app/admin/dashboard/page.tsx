@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Building2, CreditCard, FlaskConical } from 'lucide-react';
+import { Building2, CreditCard, FlaskConical, Loader2 } from 'lucide-react';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -28,7 +28,7 @@ export default function AdminDashboardPage() {
   }
 
   if (!data) {
-    return <p className="text-sm text-muted-foreground">Loading overview…</p>;
+    return <Loader2 className="text-primary animate-spin text-center mx-auto" />;
   }
 
   return (

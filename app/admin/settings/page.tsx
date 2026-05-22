@@ -59,7 +59,7 @@ export default function AdminSettingsPage() {
   };
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading settings…</p>;
+    return <Loader2 className="text-primary animate-spin text-center mx-auto" />;
   }
 
   return (
@@ -88,7 +88,7 @@ export default function AdminSettingsPage() {
           ))}
           <Button type="button" disabled={saving} onClick={() => setShowSaveConfirmation(true)}>
             {saving ? <>
-            <Loader2 className="h-4 w-4 animate-spin" />
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
             <span>Saving...</span>
               </> : <>
               <Save className="h-4 w-4 mr-2" />

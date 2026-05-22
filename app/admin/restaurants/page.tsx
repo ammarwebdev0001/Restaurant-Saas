@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { Loader2 } from 'lucide-react';
 
 type Row = {
   id: string;
@@ -43,7 +44,7 @@ export default function AdminRestaurantsPage() {
   }, []);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading restaurants…</p>;
+    return <Loader2 className="text-primary animate-spin text-center mx-auto" />;
   }
 
   return (

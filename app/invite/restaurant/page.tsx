@@ -7,6 +7,7 @@ import { signOut, useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
 
 import { Button } from '@/components/ui/button';
+import { Check, Loader2, LogOut } from 'lucide-react';
 
 type VerifyPayload = {
   restaurantName: string;
@@ -110,7 +111,7 @@ function InviteRestaurantContent() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
-        <p className="text-sm text-muted-foreground">Loading invitation…</p>
+        <Loader2 className="text-primary animate-spin text-center mx-auto w-10 h-10" />
       </main>
     );
   }
@@ -144,7 +145,7 @@ function InviteRestaurantContent() {
         </p>
 
         {status === 'loading' ? (
-          <p className="mt-4 text-sm text-muted-foreground">Checking session…</p>
+          <Loader2 className="text-primary animate-spin text-center mx-auto w-10 h-10" />
         ) : status === 'unauthenticated' ? (
           <div className="mt-4 space-y-3">
             <p className="text-sm text-muted-foreground">
@@ -171,7 +172,10 @@ function InviteRestaurantContent() {
               type="button"
               onClick={() => void signOut({ callbackUrl: '/login' })}
             >
-              Sign out
+              <>
+                <LogOut className="h-4 w-4 mr-2" />
+                <span>Sign out</span>
+              </>
             </Button>
           </div>
         ) : (
@@ -180,7 +184,17 @@ function InviteRestaurantContent() {
             disabled={accepting}
             onClick={() => void accept()}
           >
-            {accepting ? 'Accepting…' : 'Accept invitation'}
+            {accepting ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Accepting…
+              </>
+            ) : (
+              <>
+                <Check className="h-4 w-4 mr-2" />
+                <span>Accept invitation</span>
+              </>
+            )}
           </Button>
         )}
       </div>
@@ -192,8 +206,8 @@ export default function InviteRestaurantPage() {
   return (
     <Suspense
       fallback={
-        <main className="flex min-h-screen items-center justify-center">
-          <p className="text-sm text-muted-foreground">Loading…</p>
+        <main className="flex min-h-screen items-center justify-center bg-muted/40 p-6">
+          <Loader2 className="mx-auto h-10 w-10 animate-spin text-primary" />
         </main>
       }
     >

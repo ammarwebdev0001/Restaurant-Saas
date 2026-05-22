@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Loader2 } from 'lucide-react';
 
 type RequestRow = {
   id: string;
@@ -59,7 +60,7 @@ export default function AdminRequestsPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-sm text-muted-foreground">Loading requests…</p>
+            <Loader2 className="text-primary animate-spin text-center mx-auto" />
           ) : error ? (
             <p className="text-sm text-destructive">{error}</p>
           ) : rows.length === 0 ? (

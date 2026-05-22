@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
 import { toast } from 'react-toastify';
-import { Loader2, RefreshCcw, Trash2, UserPlus } from 'lucide-react';
+import { Loader2, RefreshCcw, Trash2, UserPlus, X } from 'lucide-react';
 
 import { RESTAURANT_ROLE_SLUG } from '@/lib/restaurant-roles';
 import {
@@ -16,6 +16,16 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Table,
   TableBody,
@@ -47,6 +57,10 @@ type RestaurantUsersCardProps = {
   roleBasedSettingsAllowed?: boolean;
 };
 
+type ConfirmAction =
+  | { kind: 'remove'; employee: EmployeeRow }
+  | { kind: 'cancel_invite'; invite: PendingInvite };
+
 export default function RestaurantUsersCard({
   roleBasedSettingsAllowed = true,
 }: RestaurantUsersCardProps) {
@@ -61,6 +75,14 @@ export default function RestaurantUsersCard({
   const [confirmPassword, setConfirmPassword] = useState('');
   const [roleId, setRoleId] = useState('');
   const [savingEmployeeId, setSavingEmployeeId] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<ConfirmAction | null>(null);
+  const [confirmLoading, setConfirmLoading] = useState(false);
+  const [removingEmployeeId, setRemovingEmployeeId] = useState<string | null>(
+    null
+  );
+  const [cancellingInviteId, setCancellingInviteId] = useState<string | null>(
+    null
+  );
 
   const loadAssignableRoles = useCallback(async () => {
     const res = await axios.get<{ roles: RoleOption[] }>(
@@ -221,10 +243,11 @@ export default function RestaurantUsersCard({
       toast.error('You are offline.');
       return;
     }
-    if (!confirm('Remove this person from the restaurant?')) return;
+    setRemovingEmployeeId(employeeId);
     try {
       await axios.delete(`/api/restaurant/employees/${employeeId}`);
       toast.success('Removed from team.');
+      setConfirmAction(null);
       await fetchAll();
     } catch (err: any) {
       toast.error(
@@ -232,13 +255,22 @@ export default function RestaurantUsersCard({
           ? err.response.data.error
           : err.message ?? 'Could not remove.'
       );
+    } finally {
+      setRemovingEmployeeId(null);
+      setConfirmLoading(false);
     }
   }
 
   async function cancelInvite(inviteId: string) {
+    if (!navigator.onLine) {
+      toast.error('You are offline.');
+      return;
+    }
+    setCancellingInviteId(inviteId);
     try {
       await axios.delete(`/api/restaurant/invites/${inviteId}`);
       toast.success('Invitation cancelled.');
+      setConfirmAction(null);
       await fetchAll();
     } catch (err: any) {
       toast.error(
@@ -246,6 +278,23 @@ export default function RestaurantUsersCard({
           ? err.response.data.error
           : err.message ?? 'Could not cancel invite.'
       );
+    } finally {
+      setCancellingInviteId(null);
+      setConfirmLoading(false);
+    }
+  }
+
+  async function handleConfirmAction() {
+    if (!confirmAction || confirmLoading) return;
+    if (!navigator.onLine) {
+      toast.error('You are offline.');
+      return;
+    }
+    setConfirmLoading(true);
+    if (confirmAction.kind === 'remove') {
+      await removeEmployee(confirmAction.employee.id);
+    } else {
+      await cancelInvite(confirmAction.invite.id);
     }
   }
 
@@ -384,9 +433,27 @@ export default function RestaurantUsersCard({
                               type="button"
                               variant="ghost"
                               className="text-destructive"
-                              onClick={() => void cancelInvite(p.id)}
+                              disabled={
+                                cancellingInviteId === p.id || confirmLoading
+                              }
+                              onClick={() =>
+                                setConfirmAction({
+                                  kind: 'cancel_invite',
+                                  invite: p,
+                                })
+                              }
                             >
-                              Cancel
+                              {cancellingInviteId === p.id ? (
+                                <>
+                                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                  <span>Cancelling…</span>
+                                </>
+                              ) : (
+                                <>
+                                  <Trash2 className="h-4 w-4 mr-2" />
+                                  <span>Cancel</span>
+                                </>
+                              )}
                             </Button>
                           </TableCell>
                         </TableRow>
@@ -474,12 +541,28 @@ export default function RestaurantUsersCard({
                                 type="button"
                                 variant="ghost"
                                 className="text-destructive"
-                                onClick={() => void removeEmployee(emp.id)}
+                                disabled={
+                                  removingEmployeeId === emp.id ||
+                                  confirmLoading
+                                }
+                                onClick={() =>
+                                  setConfirmAction({
+                                    kind: 'remove',
+                                    employee: emp,
+                                  })
+                                }
                               >
-                                <>
-                                  <Trash2 className="h-4 w-4 mr-2" />
-                                  <span>Remove</span>
-                                </>
+                                {removingEmployeeId === emp.id ? (
+                                  <>
+                                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                    <span>Removing…</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Trash2 className="h-4 w-4 mr-2" />
+                                    <span>Remove</span>
+                                  </>
+                                )}
                               </Button>
                             )}
                           </TableCell>
@@ -512,6 +595,73 @@ export default function RestaurantUsersCard({
           )}
         </Button>
       </CardFooter>
+
+      <AlertDialog
+        open={!!confirmAction}
+        onOpenChange={(open) => {
+          if (!open && !confirmLoading) setConfirmAction(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmAction?.kind === 'remove'
+                ? 'Remove team member?'
+                : 'Cancel invitation?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmAction?.kind === 'remove' ? (
+                <>
+                  Remove <strong>{confirmAction.employee.name}</strong>
+                  {confirmAction.employee.email ? (
+                    <> ({confirmAction.employee.email})</>
+                  ) : null}{' '}
+                  from this restaurant? They will lose access immediately.
+                </>
+              ) : confirmAction?.kind === 'cancel_invite' ? (
+                <>
+                  Cancel the pending invitation for{' '}
+                  <strong>{confirmAction.invite.email}</strong>? They will not
+                  be able to join using the current invite link.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={confirmLoading}>
+              <X className="h-4 w-4 mr-2" />
+              Keep
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={confirmLoading}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={(e) => {
+                e.preventDefault();
+                void handleConfirmAction();
+              }}
+            >
+              {confirmLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {confirmAction?.kind === 'remove'
+                    ? 'Removing…'
+                    : 'Cancelling…'}
+                </>
+              ) : confirmAction?.kind === 'remove' ? (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  <span>Remove</span>
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  <span>Cancel invitation</span>
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

@@ -4,15 +4,16 @@ import Link from 'next/link';
 import { useSession } from 'next-auth/react';
 
 import { isPlatformAdminSession } from '@/lib/auth/admin';
+import { Loader2 } from 'lucide-react';
 
 export function AdminGate({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
 
   if (status === 'loading') {
     return (
-      <div className="flex min-h-[50vh] items-center justify-center text-sm text-muted-foreground">
-        Loading…
-      </div>
+        <div className="flex min-h-screen items-center justify-center ">
+          <Loader2 className="text-primary animate-spin text-center mx-auto w-10 h-10" />
+        </div>
     );
   }
 

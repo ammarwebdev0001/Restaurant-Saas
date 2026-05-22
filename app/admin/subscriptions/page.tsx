@@ -2,13 +2,19 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { Loader2, Pencil, Save } from 'lucide-react';
+import { Loader2, Pencil, Save, X } from 'lucide-react';
 import { toast } from 'react-toastify';
 
 import { SubscriptionEditDialog } from '@/components/admin/subscription-edit-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Dialog,
   DialogContent,
@@ -67,7 +73,8 @@ export default function AdminSubscriptionsPage() {
   const [planDescription, setPlanDescription] = useState('');
   const [planFeaturesText, setPlanFeaturesText] = useState('');
   const [savingPlan, setSavingPlan] = useState(false);
-  const [showCatalogSaveConfirmation, setShowCatalogSaveConfirmation] = useState(false);
+  const [showCatalogSaveConfirmation, setShowCatalogSaveConfirmation] =
+    useState(false);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -121,7 +128,9 @@ export default function AdminSubscriptionsPage() {
     } catch (e: unknown) {
       const err = e as { response?: { data?: { error?: unknown } } };
       const msg =
-        typeof err.response?.data?.error === 'string' ? err.response.data.error : 'Could not update plan';
+        typeof err.response?.data?.error === 'string'
+          ? err.response.data.error
+          : 'Could not update plan';
       toast.error(msg);
     } finally {
       setSavingPlan(false);
@@ -133,20 +142,28 @@ export default function AdminSubscriptionsPage() {
   };
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return (
+      <Loader2 className="text-primary animate-spin text-center mx-auto" />
+    );
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Subscription Management</h1>
-        <p className="text-sm text-muted-foreground">Plans, trial periods, expiry dates, and payment logs per restaurant.</p>
+        <h1 className="text-2xl font-semibold tracking-tight">
+          Subscription Management
+        </h1>
+        <p className="text-sm text-muted-foreground">
+          Plans, trial periods, expiry dates, and payment logs per restaurant.
+        </p>
       </div>
 
       <Card>
         <CardHeader>
           <CardTitle>Plans &amp; status</CardTitle>
-          <CardDescription>Edit trial windows and plan tiers for each tenant.</CardDescription>
+          <CardDescription>
+            Edit trial windows and plan tiers for each tenant.
+          </CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           <Table>
@@ -165,7 +182,9 @@ export default function AdminSubscriptionsPage() {
                 <TableRow key={r.id}>
                   <TableCell className="font-medium">{r.name}</TableCell>
                   <TableCell>
-                    <code className="rounded bg-muted px-1 text-xs">{r.subdomain}</code>
+                    <code className="rounded bg-muted px-1 text-xs">
+                      {r.subdomain}
+                    </code>
                   </TableCell>
                   <TableCell className="max-w-[180px] truncate text-muted-foreground">
                     {r.owner.email ?? '—'}
@@ -174,7 +193,9 @@ export default function AdminSubscriptionsPage() {
                     {r.subscription ? (
                       <Badge variant="outline">{r.subscription.plan}</Badge>
                     ) : (
-                      <span className="text-xs text-muted-foreground">Not set</span>
+                      <span className="text-xs text-muted-foreground">
+                        Not set
+                      </span>
                     )}
                   </TableCell>
                   <TableCell>
@@ -195,7 +216,12 @@ export default function AdminSubscriptionsPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button type="button" size="icon" variant="outline" onClick={() => setEdit(r)}>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setEdit(r)}
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -204,7 +230,9 @@ export default function AdminSubscriptionsPage() {
             </TableBody>
           </Table>
           {rows.length === 0 && (
-            <p className="py-8 text-center text-sm text-muted-foreground">No restaurants yet.</p>
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              No restaurants yet.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -213,7 +241,8 @@ export default function AdminSubscriptionsPage() {
         <CardHeader>
           <CardTitle>Pricing catalog (3 fixed plans)</CardTitle>
           <CardDescription>
-            Admin can update name, price, description, and features for Starter, Growth, and Scale.
+            Admin can update name, price, description, and features for Starter,
+            Growth, and Scale.
           </CardDescription>
         </CardHeader>
         <CardContent className="overflow-x-auto">
@@ -239,7 +268,12 @@ export default function AdminSubscriptionsPage() {
                     {p.description}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button type="button" size="icon" variant="outline" onClick={() => setEditingPlan(p)}>
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="outline"
+                      onClick={() => setEditingPlan(p)}
+                    >
                       <Pencil className="h-4 w-4" />
                     </Button>
                   </TableCell>
@@ -248,7 +282,9 @@ export default function AdminSubscriptionsPage() {
             </TableBody>
           </Table>
           {catalogPlans.length === 0 && (
-            <p className="py-6 text-sm text-muted-foreground">No pricing plans found.</p>
+            <p className="py-6 text-sm text-muted-foreground">
+              No pricing plans found.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -277,14 +313,15 @@ export default function AdminSubscriptionsPage() {
       >
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>
-              Edit plan {editingPlan?.plan ?? ''}
-            </DialogTitle>
+            <DialogTitle>Edit plan {editingPlan?.plan ?? ''}</DialogTitle>
           </DialogHeader>
           <div className="grid gap-3">
             <div className="grid gap-1">
               <Label>Name</Label>
-              <Input value={planName} onChange={(e) => setPlanName(e.target.value)} />
+              <Input
+                value={planName}
+                onChange={(e) => setPlanName(e.target.value)}
+              />
             </div>
             <div className="grid gap-1">
               <Label>Price (int)</Label>
@@ -303,7 +340,10 @@ export default function AdminSubscriptionsPage() {
             </div>
             <div className="grid gap-1">
               <Label>Description</Label>
-              <Input value={planDescription} onChange={(e) => setPlanDescription(e.target.value)} />
+              <Input
+                value={planDescription}
+                onChange={(e) => setPlanDescription(e.target.value)}
+              />
             </div>
             <div className="grid gap-1">
               <Label>Features (one per line)</Label>
@@ -315,12 +355,29 @@ export default function AdminSubscriptionsPage() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" type="button" onClick={() => setEditingPlan(null)}>
-              Cancel
+            <Button
+              variant="outline"
+              type="button"
+              disabled={savingPlan}
+              onClick={() => setEditingPlan(null)}
+            >
+              <X className="h-4 w-4 mr-2" /> <span>Cancel</span>
             </Button>
-            <Button type="button" disabled={savingPlan} onClick={handleCatalogSaveClick}>
-              {savingPlan ? <><Loader2 className="h-4 w-4 animate-spin" /> <span>Saving...</span></> : <><Save
-               className="h-4 w-4 mr-2" /> <span>Save</span></>}
+            <Button
+              type="button"
+              disabled={savingPlan}
+              onClick={handleCatalogSaveClick}
+            >
+              {savingPlan ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />{' '}
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" /> <span>Save</span>
+                </>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
