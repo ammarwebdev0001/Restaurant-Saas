@@ -30,6 +30,7 @@ export function allPlatformAdminPermissionNames(): string[] {
   return tokensForModules(PLATFORM_ADMIN_MODULES);
 }
 
+/** All restaurant dashboard tokens (every module × access, edit, delete). */
 export function allRestaurantOwnerPermissionNames(): string[] {
   return tokensForModules(DASHBOARD_MODULES);
 }

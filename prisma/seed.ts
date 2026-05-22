@@ -2,7 +2,10 @@ import { PrismaClient } from '@prisma/client';
 import { fakeProductStockComplete } from './fake-data';
 import { seedPlatformAdminUser } from './seed-admin-user';
 import { seedDemoRestaurant } from './seed-demo-restaurant';
-import { refreshAllRestaurantOwnerRoles } from './seed-restaurant-roles';
+import {
+  ensureAllRestaurantsOwnerRoles,
+  refreshAllRestaurantOwnerRoles,
+} from './seed-restaurant-roles';
 import { seedDefaultGlobalRoles } from './seed-roles';
 
 const prisma = new PrismaClient();
@@ -10,6 +13,7 @@ const prisma = new PrismaClient();
 async function main() {
   await seedDefaultGlobalRoles(prisma);
   await seedPlatformAdminUser(prisma);
+  await ensureAllRestaurantsOwnerRoles(prisma);
   await refreshAllRestaurantOwnerRoles(prisma);
   await seedDemoRestaurant(prisma);
 

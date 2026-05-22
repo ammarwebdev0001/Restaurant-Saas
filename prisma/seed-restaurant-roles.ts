@@ -96,7 +96,7 @@ export async function ensureRestaurantOwnerEmployee(
   });
 }
 
-/** Re-apply full dashboard permissions on every restaurant Owner/Admin role. */
+/** Re-apply full dashboard permissions on every restaurant Owner preset role. */
 export async function refreshAllRestaurantOwnerRoles(
   prisma: PrismaClient
 ): Promise<void> {
@@ -104,14 +104,9 @@ export async function refreshAllRestaurantOwnerRoles(
   const roles = await prisma.role.findMany({
     where: {
       restaurantId: { not: null },
-      slug: {
-        in: [
-          RESTAURANT_PRESET_ROLE_SLUG.OWNER,
-          RESTAURANT_PRESET_ROLE_SLUG.ADMIN,
-        ],
-      },
+      slug: RESTAURANT_PRESET_ROLE_SLUG.OWNER,
     },
-    select: { id: true },
+    select: { id: true, restaurantId: true },
   });
 
   for (const role of roles) {
@@ -120,7 +115,26 @@ export async function refreshAllRestaurantOwnerRoles(
 
   if (roles.length > 0) {
     console.log(
-      `[seed] Refreshed full permissions on ${roles.length} restaurant Owner/Admin role(s)`
+      `[seed] Refreshed ${full.length} permissions on ${roles.length} restaurant Owner role(s)`
+    );
+  }
+}
+
+/** Ensure each restaurant has Owner/Admin presets and the account owner is on Owner. */
+export async function ensureAllRestaurantsOwnerRoles(
+  prisma: PrismaClient
+): Promise<void> {
+  const restaurants = await prisma.restaurant.findMany({
+    select: { id: true, ownerId: true },
+  });
+
+  for (const { id, ownerId } of restaurants) {
+    await ensureRestaurantOwnerEmployee(prisma, id, ownerId);
+  }
+
+  if (restaurants.length > 0) {
+    console.log(
+      `[seed] Ensured Owner preset + employee for ${restaurants.length} restaurant(s)`
     );
   }
 }
