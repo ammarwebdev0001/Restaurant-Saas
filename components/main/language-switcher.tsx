@@ -13,7 +13,19 @@ const LANGUAGES: { code: UiLanguage; nativeLabel: string; short: string }[] = [
   { code: 'es', nativeLabel: 'Español', short: 'ES' },
 ];
 
-export function LanguageSwitcher() {
+type LanguageSwitcherProps = {
+  /** Floating action button (marketing) vs inline in a toolbar (customer header). */
+  variant?: 'fab' | 'inline';
+  /** Styles for primary-colored headers (web-app). */
+  tone?: 'default' | 'onPrimary';
+  className?: string;
+};
+
+export function LanguageSwitcher({
+  variant = 'fab',
+  tone = 'default',
+  className,
+}: LanguageSwitcherProps) {
   const { t, i18n } = useTranslation();
   const [open, setOpen] = React.useState(false);
   const [mounted, setMounted] = React.useState(false);
@@ -51,15 +63,40 @@ export function LanguageSwitcher() {
     setOpen(false);
   };
 
+  const label = t('marketing.languageSwitcher.label');
+
+  const isFab = variant === 'fab';
+  const onPrimary = tone === 'onPrimary';
+
   return (
     <div
       ref={containerRef}
-      className="fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2 sm:bottom-6 sm:right-6"
+      className={cn(
+        isFab
+          ? 'fixed bottom-5 right-5 z-50 flex flex-col items-end gap-2 sm:bottom-6 sm:right-6'
+          : 'relative flex flex-col items-end',
+        className
+      )}
     >
       {open && (
-        <div className="w-48 overflow-hidden rounded-xl border border-zinc-200 bg-white/95 p-1.5 shadow-[0_18px_50px_-20px] shadow-black/30 backdrop-blur-md dark:border-zinc-800 dark:bg-black/95 dark:shadow-black">
-          <p className="px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-            {t('marketing.languageSwitcher.label')}
+        <div
+          role="listbox"
+          aria-label={label}
+          className={cn(
+            'z-50 w-48 overflow-hidden rounded-xl border p-1.5 shadow-[0_18px_50px_-20px_rgba(15,23,42,0.35)] backdrop-blur-md',
+            isFab ? 'mb-0' : 'absolute right-0 top-full mt-2',
+            onPrimary
+              ? 'border-white/25 bg-white/95'
+              : 'border-zinc-200 bg-white/95 dark:border-zinc-800 dark:bg-black/95'
+          )}
+        >
+          <p
+            className={cn(
+              'px-3 pb-1 pt-2 text-[10px] font-semibold uppercase tracking-wider',
+              onPrimary ? 'text-zinc-500' : 'text-zinc-500 dark:text-zinc-400'
+            )}
+          >
+            {label}
           </p>
           {LANGUAGES.map((lang) => {
             const active = lang.code === currentCode;
@@ -67,21 +104,34 @@ export function LanguageSwitcher() {
               <button
                 key={lang.code}
                 type="button"
+                role="option"
+                aria-selected={active}
                 onClick={() => apply(lang.code)}
                 className={cn(
                   'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors',
                   active
-                    ? 'bg-fire-500/10 text-fire-500 dark:text-fire-400'
-                    : 'text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900',
+                    ? onPrimary
+                      ? 'bg-primary/10 text-primary'
+                      : 'bg-fire-500/10 text-fire-500 dark:text-fire-400'
+                    : onPrimary
+                      ? 'text-zinc-800 hover:bg-zinc-100'
+                      : 'text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900'
                 )}
               >
                 <span className="flex items-center gap-3">
-                  <span className="inline-flex h-6 w-7 items-center justify-center rounded bg-zinc-100 text-[10px] font-bold tracking-wider text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300">
+                  <span
+                    className={cn(
+                      'inline-flex h-6 w-7 items-center justify-center rounded text-[10px] font-bold tracking-wider',
+                      active && onPrimary
+                        ? 'bg-primary/15 text-primary'
+                        : 'bg-zinc-100 text-zinc-700 dark:bg-zinc-900 dark:text-zinc-300'
+                    )}
+                  >
                     {lang.short}
                   </span>
                   <span className="font-medium">{lang.nativeLabel}</span>
                 </span>
-                {active ? <Check className="h-4 w-4" aria-hidden="true" /> : null}
+                {active ? <Check className="h-4 w-4 shrink-0" aria-hidden /> : null}
               </button>
             );
           })}
@@ -93,15 +143,27 @@ export function LanguageSwitcher() {
         onClick={() => setOpen((prev) => !prev)}
         aria-haspopup="listbox"
         aria-expanded={open}
-        aria-label={t('marketing.languageSwitcher.label') as string}
-        className="group flex h-12 items-center gap-2 rounded-full border border-zinc-200 bg-white pl-2 pr-4 text-sm font-semibold text-zinc-900 shadow-[0_14px_40px_-12px] shadow-black/30 transition-all hover:border-fire-500 hover:text-fire-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:shadow-black/60 dark:hover:border-fire-400 dark:hover:text-fire-400"
+        aria-label={label}
+        className={cn(
+          'group flex items-center gap-2 rounded-full border text-sm font-semibold transition-all',
+          isFab ? 'h-12 pl-2 pr-4' : 'h-10 pl-1.5 pr-3.5',
+          onPrimary
+            ? 'border-white/30 bg-white/15 text-white shadow-[0_8px_24px_-8px_rgba(0,0,0,0.35)] hover:border-white/50 hover:bg-white/25'
+            : 'border-zinc-200 bg-white pl-2 pr-4 text-zinc-900 shadow-[0_14px_40px_-12px_rgba(0,0,0,0.3)] hover:border-fire-500 hover:text-fire-500 dark:border-zinc-700 dark:bg-zinc-950 dark:text-white dark:hover:border-fire-400 dark:hover:text-fire-400'
+        )}
       >
-        <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-fire-500/15 text-fire-500 transition-colors group-hover:bg-fire-500/20">
-          <Globe className="h-4 w-4" aria-hidden="true" />
+        <span
+          className={cn(
+            'inline-flex items-center justify-center rounded-full transition-colors',
+            isFab ? 'h-8 w-8' : 'h-7 w-7',
+            onPrimary
+              ? 'bg-white/20 text-white group-hover:bg-white/30'
+              : 'bg-fire-500/15 text-fire-500 group-hover:bg-fire-500/20 dark:text-fire-400'
+          )}
+        >
+          <Globe className="h-4 w-4" aria-hidden />
         </span>
-        <span className="text-xs font-bold uppercase tracking-wider">
-          {current.short}
-        </span>
+        <span className="text-xs font-bold uppercase tracking-wider">{current.short}</span>
       </button>
     </div>
   );

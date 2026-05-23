@@ -2,11 +2,11 @@
 
 import { AlertCircle, Loader2 } from 'lucide-react';
 import { useEffect, useState } from 'react';
-
 type MenuItemLite = {
   id: string;
   name: string;
   description?: string | null;
+  imageUrl?: string | null;
   price: number;
   salePrice?: number | null;
   attributeGroups?: {
@@ -90,24 +90,41 @@ export function StoreMenu({ slug }: { slug: string }) {
   }
 
   return (
-    <div className="space-y-8 text-[#0f172a]">
-      <h2 className="text-lg font-semibold text-[#0f172a]">Menu</h2>
+    <div className="space-y-10 text-[#0f172a]">
       {categories.map((cat) => (
         <section key={cat.id} className="space-y-3">
-          <h3 className="text-sm font-medium uppercase tracking-wide text-[#64748b]">
+          <h3 className="text-xs font-semibold uppercase tracking-widest text-primary">
             {cat.name}
           </h3>
-          <ul className="space-y-4">
+          <ul className="grid gap-4 sm:grid-cols-2">
             {cat.items.map((item) => (
               <li
                 key={item.id}
-                className="rounded-xl border border-[#e2e8f0] bg-white/95 p-4 shadow-sm backdrop-blur"
+                className="group flex gap-4 rounded-2xl border border-[var(--restaurant-glass-border,#e2e8f0)] bg-white/90 p-4 shadow-sm transition hover:border-primary/30 hover:shadow-md"
               >
+                <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl bg-gradient-to-br from-primary/15 to-primary/5">
+                  {item.imageUrl?.trim() ? (
+                    <img
+                      src={item.imageUrl.trim()}
+                      alt=""
+                      className="h-full w-full object-cover transition group-hover:scale-105"
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-xl font-bold text-primary/35">
+                      {item.name.charAt(0)}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <p className="font-medium text-[#0f172a]">{item.name}</p>
+                  <div className="min-w-0">
+                    <p className="font-medium text-[#0f172a] group-hover:text-primary">
+                      {item.name}
+                    </p>
                     {item.description ? (
-                      <p className="mt-1 text-sm text-[#64748b]">{item.description}</p>
+                      <p className="mt-1 line-clamp-2 text-sm text-[#64748b]">
+                        {item.description}
+                      </p>
                     ) : null}
                   </div>
                   <div className="shrink-0 text-right">
@@ -175,6 +192,7 @@ export function StoreMenu({ slug }: { slug: string }) {
                     </ul>
                   </div>
                 ) : null}
+                </div>
               </li>
             ))}
           </ul>

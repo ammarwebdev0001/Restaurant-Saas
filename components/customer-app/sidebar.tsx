@@ -47,6 +47,7 @@ type SidebarProps = {
   setSelectedStoreId: (id: string | null) => void;
   /** When set (e.g. `/web-app/{slug}`), order flow loads menu via `restaurantSlug` query. */
   restaurantSlug?: string;
+  className?: string;
 };
 
 export function Sidebar({
@@ -65,6 +66,7 @@ export function Sidebar({
   selectedStoreId,
   setSelectedStoreId,
   restaurantSlug,
+  className,
 }: SidebarProps) {
   const { t } = useTranslation();
   const [activeStores, setActiveStores] = useState<Store[]>();
@@ -178,7 +180,9 @@ export function Sidebar({
   };
 
   return (
-    <section className="md:sticky max-w-2xl md:top-20 md:z-50 flex flex-col gap-6 self-start rounded-3xl border border-[#e2e8f0] bg-white p-6 text-[#0f172a] shadow-[0_10px_40px_-10px_rgba(15,23,42,0.12)]">
+    <section
+      className={`md:sticky max-w-2xl md:top-20 md:z-50 flex flex-col gap-6 self-start rounded-3xl border border-[#e2e8f0] bg-white p-6 text-[#0f172a] shadow-[0_10px_40px_-10px_rgba(15,23,42,0.12)] ${className ?? ''}`}
+    >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-primary text-xl font-bold text-primary-foreground">

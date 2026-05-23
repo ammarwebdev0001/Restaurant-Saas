@@ -3,18 +3,10 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { IconMenu2 } from '@tabler/icons-react';
 import { useTranslation } from 'react-i18next';
 
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { LanguageSwitcher } from '@/components/main/language-switcher';
 import { buildThemeCssVars } from '@/lib/restaurant-theme';
-import { setUiLanguage } from '@/lib/i18n/client';
 import type { UiLanguage } from '@/lib/i18n/resources';
 
 type RestaurantBrand = {
@@ -43,12 +35,8 @@ export function Header() {
     themePrimaryColor: null,
   });
   const [logoLoadFailed, setLogoLoadFailed] = useState(false);
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const uiLang: UiLanguage = i18n.resolvedLanguage === 'en' ? 'en' : 'es';
-  const applyLanguage = (lang: UiLanguage) => {
-    setUiLanguage(lang);
-    void i18n.changeLanguage(lang);
-  };
 
   const inferredSubdomain = useMemo(() => {
     if (typeof window === 'undefined') return null;
@@ -116,10 +104,10 @@ export function Header() {
       : null;
 
   return (
-    <header className="border-b border-primary bg-primary px-6 py-4 text-primary-foreground backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between">
-        <div className="flex items-center gap-3">
-          <span className="inline-flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/40">
+    <header className="sticky top-0 z-50 border-b border-primary bg-primary px-6 py-4 text-primary-foreground shadow-md backdrop-blur supports-[backdrop-filter]:bg-primary/95">
+      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/20 ring-1 ring-white/40">
             {normalizedLogoUrl && !logoLoadFailed ? (
               <img
                 key={normalizedLogoUrl}
@@ -134,54 +122,16 @@ export function Header() {
               </span>
             )}
           </span>
-          <span className="text-lg font-semibold tracking-wide text-primary-foreground">
+          <span className="truncate text-lg font-semibold tracking-wide text-primary-foreground">
             {brand.name ?? 'Restaurant'}
           </span>
         </div>
-        <div className="flex items-center gap-3">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="secondary"
-                className="border border-primary/20 bg-white text-primary hover:bg-white/95"
-              >
-                {t('language')}: {uiLang.toUpperCase()}
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                onSelect={() => {
-                  applyLanguage('es');
-                }}
-                onClick={() => {
-                  applyLanguage('es');
-                }}
-              >
-                Espanol
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  applyLanguage('en');
-                }}
-                onClick={() => {
-                  applyLanguage('en');
-                }}
-              >
-                English
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <span className="text-sm text-primary-foreground/85">
+
+        <div className="flex shrink-0 items-center gap-3 sm:gap-4">
+          <span className="hidden text-sm text-primary-foreground/85 sm:inline">
             {uiLang === 'en' ? 'Welcome' : 'Bienvenido'}
           </span>
-          <Button
-            type="button"
-            variant="secondary"
-            className="rounded-full border border-primary/20 bg-white text-primary hover:bg-white/95"
-          >
-            <IconMenu2 className="h-4 w-4" />
-          </Button>
+          <LanguageSwitcher variant="inline" tone="onPrimary" />
         </div>
       </div>
     </header>

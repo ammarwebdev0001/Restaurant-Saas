@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 
 export function Footer() {
   return (
-    <footer className="border-t border-primary bg-primary px-6 py-10 text-primary-foreground z-50">
+    <footer className="relative z-50 border-t border-primary bg-primary px-6 py-10 text-primary-foreground shadow-[0_-4px_24px_rgba(15,23,42,0.08)]">
       <div className="mx-auto grid max-w-6xl grid-cols-1 gap-10 md:grid-cols-3">
         <div className="space-y-3">
           <p className="text-sm font-semibold text-white">Legal</p>

@@ -46,3 +46,21 @@
   --shadow-2xl: 0px 1px 3px 0px hsl(0 0% 0% / 0.25);
   color-scheme: light;
 }
+
+@keyframes storefront-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(2.5%, 3.5%) scale(1.06);
+  }
+}
+
+.storefront-blob {
+  animation: storefront-float 20s ease-in-out infinite;
+}
+
+.storefront-blob-delayed {
+  animation-delay: -7s;
+}

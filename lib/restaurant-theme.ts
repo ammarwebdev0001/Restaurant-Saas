@@ -27,6 +27,31 @@ function darken(hex: string, amount: number): string {
   return rgbToHex(r * (1 - amount), g * (1 - amount), b * (1 - amount));
 }
 
+function lighten(hex: string, amount: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return rgbToHex(
+    r + (255 - r) * amount,
+    g + (255 - g) * amount,
+    b + (255 - b) * amount
+  );
+}
+
+function mix(hexA: string, hexB: string, weightA: number): string {
+  const a = hexToRgb(hexA);
+  const b = hexToRgb(hexB);
+  const w = clamp(weightA, 0, 1);
+  return rgbToHex(
+    a.r * w + b.r * (1 - w),
+    a.g * w + b.g * (1 - w),
+    a.b * w + b.b * (1 - w)
+  );
+}
+
+export function hexToRgba(hex: string, alpha: number): string {
+  const { r, g, b } = hexToRgb(hex);
+  return `rgba(${r}, ${g}, ${b}, ${clamp(alpha, 0, 1)})`;
+}
+
 function luminance(hex: string): number {
   const { r, g, b } = hexToRgb(hex);
   const channels = [r, g, b].map((v) => {
@@ -59,5 +84,33 @@ export function buildThemeCssVars(primaryRaw?: string | null): ThemeCssVars {
     '--restaurant-primary-dark': primaryDark,
     '--primary-foreground': getThemePrimaryForeground(primary),
     '--sidebar-primary-foreground': getThemePrimaryForeground(primary),
+  };
+}
+
+/** Extra CSS variables for generative storefront backgrounds (mesh, glass, surfaces). */
+export function buildStorefrontThemeVars(primaryRaw?: string | null): ThemeCssVars {
+  const base = buildThemeCssVars(primaryRaw);
+  const primary = normalizeThemePrimaryColor(primaryRaw);
+  if (!primary) return base;
+
+  const glow = lighten(primary, 0.52);
+  const accent = lighten(primary, 0.22);
+  const deep = darken(primary, 0.32);
+  const surface = mix(primary, '#ffffff', 0.94);
+  const foreground = getThemePrimaryForeground(primary);
+
+  return {
+    ...base,
+    '--restaurant-glow': glow,
+    '--restaurant-accent': accent,
+    '--restaurant-deep': deep,
+    '--restaurant-surface': surface,
+    '--restaurant-glass': hexToRgba('#ffffff', 0.78),
+    '--restaurant-glass-border': hexToRgba(primary, 0.14),
+    '--restaurant-overlay-from': hexToRgba(deep, 0.55),
+    '--restaurant-overlay-mid': hexToRgba(primary, 0.28),
+    '--restaurant-overlay-to': hexToRgba('#0f172a', 0.35),
+    '--restaurant-hero-fg': foreground === '#ffffff' ? '#ffffff' : '#0f172a',
+    '--restaurant-hero-muted': foreground === '#ffffff' ? 'rgba(255,255,255,0.82)' : '#64748b',
   };
 }
