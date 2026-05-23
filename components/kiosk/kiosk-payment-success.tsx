@@ -4,6 +4,15 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Button } from '@/components/ui/button';
+import {
+  parseCustomerFromAddressSnapshot,
+  parseTableFromAddressSnapshot,
+} from '@/lib/order-fulfillment';
+import {
+  buildThermalReceiptHeaderHtml,
+  escapeHtml,
+  getThermalReceiptDocumentCss,
+} from '@/lib/thermal-receipt-html';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { IconHome, IconPrinter } from '@tabler/icons-react';
 
@@ -99,11 +108,14 @@ export function KioskPaymentSuccess({
     }
 
     try {
-      const [orderRes, restaurantRes] = await Promise.all([
+      const [orderRes, restaurantRes, branchesRes] = await Promise.all([
         fetch(`/api/kiosk/order-tracking?orderId=${encodeURIComponent(orderId)}`, {
           cache: 'no-store',
         }),
         fetch(`/api/customer/restaurant?slug=${encodeURIComponent(slug)}`, {
+          cache: 'no-store',
+        }),
+        fetch(`/api/customer/branches?slug=${encodeURIComponent(slug)}`, {
           cache: 'no-store',
         }),
       ]);
@@ -114,7 +126,11 @@ export function KioskPaymentSuccess({
           shortOrderId?: string;
           ticketNumber?: number | null;
           total?: number;
+          address?: string | null;
+          tableLabel?: string | null;
+          tableName?: string | null;
           createdAt?: string;
+          customer?: { name?: string | null; phone?: string | null } | null;
           payment?: { method?: string; status?: string; amount?: number } | null;
           items?: Array<{
             name: string;
@@ -132,6 +148,11 @@ export function KioskPaymentSuccess({
       const restaurantBody = (await restaurantRes.json().catch(() => ({}))) as {
         data?: { name?: string | null; logoUrl?: string | null } | null;
       };
+      const branchesBody = (await branchesRes.json().catch(() => ({}))) as {
+        data?: Array<{ name?: string | null }>;
+      };
+      const branchName =
+        branchesBody.data?.find((b) => b.name?.trim())?.name?.trim() ?? null;
 
       const details = orderBody.data;
       const restaurantName = restaurantBody.data?.name?.trim() || 'Restaurant';
@@ -145,6 +166,29 @@ export function KioskPaymentSuccess({
       const paymentMethod = details?.payment?.method ?? 'PayPal';
       const paymentState = details?.payment?.status ?? paymentStatus ?? 'pending';
       const paidAmount = details?.payment?.amount ?? total;
+
+      const fromAddress = parseCustomerFromAddressSnapshot(details?.address);
+      const customerName =
+        details?.customer?.name?.trim() || fromAddress.name || null;
+      const customerPhone =
+        details?.customer?.phone?.trim() || fromAddress.phone || null;
+      const tableName =
+        details?.tableName?.trim() ||
+        details?.tableLabel?.trim() ||
+        parseTableFromAddressSnapshot(details?.address);
+      const metaLines = [
+        tableName
+          ? `<div><strong>Table:</strong> ${escapeHtml(tableName)}</div>`
+          : '',
+        customerName
+          ? `<div><strong>Customer:</strong> ${escapeHtml(customerName)}</div>`
+          : '',
+        customerPhone
+          ? `<div><strong>Phone:</strong> ${escapeHtml(customerPhone)}</div>`
+          : '',
+      ]
+        .filter(Boolean)
+        .join('');
 
       const rows = items
         .map((it) => {
@@ -165,42 +209,30 @@ export function KioskPaymentSuccess({
         })
         .join('');
 
+      const receiptHeader = buildThermalReceiptHeaderHtml({
+        logoUrl,
+        brandName: restaurantName,
+        branchName,
+        dateTime: details?.createdAt
+          ? new Date(details.createdAt).toLocaleString()
+          : new Date().toLocaleString(),
+      });
+
       const html = `<!doctype html>
 <html>
 <head>
   <title>Kiosk Ticket</title>
-  <style>
-    @page { size: 2in auto; margin: 0.06in; }
-    html, body { width: 2in; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; color: #111; font-size: 10px; line-height: 1.35; }
-    .r { width: 100%; box-sizing: border-box; }
-    .center { text-align: center; }
-    .muted { color: #555; font-size: 9px; }
-    .brand { display:flex; align-items:center; justify-content:center; gap: 6px; margin-bottom: 4px; }
-    .logo { width:42px; height:42px; object-fit:cover; border-radius:999px; border:1px solid #ddd; }
-    .name { font-size: 12px; font-weight: 700; line-height: 1.2; max-width: 1.35in; }
-    .sep { border-top: 1px dashed #555; margin: 6px 0; }
-    table { width: 100%; border-collapse: collapse; }
-    th, td { padding: 2px 0; font-size: 9px; vertical-align: top; }
-    th { text-align: left; font-weight: 700; }
-    .qty, .amt { white-space: nowrap; text-align: right; }
-    .totals { margin-top: 4px; }
-    .totals div { display:flex; justify-content:space-between; margin-top: 1px; }
-    .grand { font-weight: 700; font-size: 11px; }
-  </style>
+  <style>${getThermalReceiptDocumentCss()}</style>
 </head>
 <body>
   <div class="r">
-    <div class="brand">
-      ${logoUrl ? `<img src="${logoUrl}" alt="Logo" class="logo" />` : ''}
-      <div class="name">${restaurantName}</div>
-    </div>
-    <div class="center muted">${details?.createdAt ? new Date(details.createdAt).toLocaleString() : new Date().toLocaleString()}</div>
+    ${receiptHeader}
     <div class="sep"></div>
     ${ticketNo != null ? `<div><strong>Ticket:</strong> #${ticketNo}</div>` : ''}
     <div><strong>Tracking:</strong> ${displayTrackingId ?? '—'}</div>
     <div><strong>Payment:</strong> ${paymentMethod}</div>
     <div><strong>Status:</strong> ${paymentState}</div>
+    ${metaLines ? `${metaLines}` : ''}
     <div class="sep"></div>
     <table>
       <thead>

@@ -70,6 +70,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import {
+  buildThermalReceiptHeaderHtml,
+  getThermalReceiptDocumentCss,
+} from '@/lib/thermal-receipt-html';
 import { toast } from 'react-toastify';
 import axios from 'axios';
 import eventBus from '@/lib/even';
@@ -563,51 +567,28 @@ export function PosScreen() {
       receiptMode === 'card_terminal'
         ? 'Card Terminal'
         : receiptMode.charAt(0).toUpperCase() + receiptMode.slice(1);
-    const brandName = branding.name || selectedBranchName || 'Restaurant';
-    const logoHtml = branding.logoUrl
-      ? `<img src="${branding.logoUrl}" alt="Logo" style="width:42px;height:42px;object-fit:cover;border-radius:999px;border:1px solid #ddd;" />`
-      : '';
+    const receiptHeader = buildThermalReceiptHeaderHtml({
+      logoUrl: branding.logoUrl,
+      brandName: branding.name || 'Restaurant',
+      branchName: selectedBranchName,
+      dateTime: new Date().toLocaleString(),
+    });
 
     const html = `<!doctype html>
 <html>
   <head>
     <title>Order Receipt</title>
-    <style>
-      @page { size: 2in auto; margin: 0.06in; }
-      html, body { width: 2in; margin: 0; padding: 0; }
-      body { font-family: Arial, sans-serif; color: #111; font-size: 10px; line-height: 1.35; }
-      .r { width: 100%; box-sizing: border-box; }
-      .center { text-align: center; }
-      .muted { color: #555; font-size: 9px; }
-      .brand { display:flex; align-items:center; justify-content:center; gap: 6px; margin-bottom: 4px; }
-      .name { font-size: 12px; font-weight: 700; line-height: 1.2; max-width: 1.35in; }
-      .branch { font-size: 9px; color: #555; margin-top: 1px; }
-      .sep { border-top: 1px dashed #555; margin: 6px 0; }
-      table { width: 100%; border-collapse: collapse; }
-      th, td { padding: 2px 0; font-size: 9px; vertical-align: top; }
-      th { text-align: left; font-weight: 700; }
-      .qty, .amt { white-space: nowrap; text-align: right; }
-      .totals { margin-top: 4px; }
-      .totals div { display:flex; justify-content:space-between; margin-top: 1px; }
-      .grand { font-weight: 700; font-size: 11px; }
-    </style>
+    <style>${getThermalReceiptDocumentCss()}</style>
   </head>
   <body>
     <div class="r">
-      <div class="brand">
-        ${logoHtml}
-        <div>
-          <div class="name">${brandName}</div>
-          <div class="branch">${selectedBranchName}</div>
-        </div>
-      </div>
-      <div class="center muted">${new Date().toLocaleString()}</div>
+      ${receiptHeader}
       <div class="sep"></div>
-      ${ticketNumber != null ? `<div><strong>Ticket:</strong> #${ticketNumber}</div>` : ''}
-      <div><strong>Tracking ID:</strong> ${orderRef}</div>
-      <div><strong>Mode:</strong> ${orderMode}</div>
-      <div><strong>Payment:</strong> ${paymentMethodLabel}</div>
-      <div><strong>Status:</strong> paid</div>
+      ${ticketNumber != null ? `<div style="font-size: 9px; color: #555; margin-top: 1px;"><strong>Ticket:</strong> #${ticketNumber}</div>` : ''}
+      <div style="font-size: 9px; color: #555; margin-top: 1px;"><strong>Tracking ID:</strong> ${orderRef}</div>
+      <div style="font-size: 9px; color: #555; margin-top: 1px;"><strong>Mode:</strong> ${orderMode}</div>
+      <div style="font-size: 9px; color: #555; margin-top: 1px;"><strong>Payment:</strong> ${paymentMethodLabel}</div>
+      <div style="font-size: 9px; color: #555; margin-top: 1px;"><strong>Status:</strong> paid</div>
     ${
       tableId
         ? `<div><strong>Table:</strong> ${diningTables.find((t) => t.id === tableId)?.name ?? tableId}</div>`

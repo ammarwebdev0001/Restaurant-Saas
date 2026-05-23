@@ -1,3 +1,25 @@
+/** Parse `Name:` / `Phone:` lines from order address snapshot (kiosk / online / POS). */
+export function parseCustomerFromAddressSnapshot(
+  address: string | null | undefined
+): { name: string | null; phone: string | null } {
+  if (!address?.trim()) return { name: null, phone: null };
+  const nameMatch = address.match(/^Name:\s*(.+)$/im);
+  const phoneMatch = address.match(/^Phone:\s*(.+)$/im);
+  return {
+    name: nameMatch?.[1]?.trim() ?? null,
+    phone: phoneMatch?.[1]?.trim() ?? null,
+  };
+}
+
+/** Parse `Table:` line from order address snapshot (kiosk dine-in / POS). */
+export function parseTableFromAddressSnapshot(
+  address: string | null | undefined
+): string | null {
+  if (!address?.trim()) return null;
+  const match = address.match(/^Table:\s*(.+)$/im);
+  return match?.[1]?.trim() ?? null;
+}
+
 /** Parse `Fulfillment:` line from order address snapshot (online / kiosk / POS). */
 export function parseFulfillmentFromAddressSnapshot(
   address: string | null | undefined

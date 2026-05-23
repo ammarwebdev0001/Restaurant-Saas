@@ -164,6 +164,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  let selectedTableId: string | undefined;
   let selectedTableName: string | undefined;
   if (fulfillment === 'dine_in') {
     if (!tableId) {
@@ -174,11 +175,12 @@ export async function POST(req: NextRequest) {
     }
     const table = await db.diningTable.findFirst({
       where: { id: tableId, restaurantId: restaurant.id },
-      select: { name: true },
+      select: { id: true, name: true },
     });
     if (!table) {
       return NextResponse.json({ error: 'Selected table not found' }, { status: 400 });
     }
+    selectedTableId = table.id;
     selectedTableName = table.name;
   }
 
@@ -219,6 +221,8 @@ export async function POST(req: NextRequest) {
           total: computedSubtotal,
           sourceType: OrderSourceType.KIOSK,
           address: addressSnapshot || null,
+          diningTableId: selectedTableId ?? undefined,
+          tableLabel: selectedTableName ?? undefined,
           taxAmount: 0,
           discountAmount: 0,
           idempotencyKey: idempotencyKey ?? undefined,
