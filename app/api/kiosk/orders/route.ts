@@ -5,6 +5,10 @@ import { z } from 'zod';
 
 import { db } from '@/lib/db';
 import {
+  kioskDineInCustomerDisplayName,
+  upsertKioskOrderCustomer,
+} from '@/lib/kiosk-customer';
+import {
   isPrismaUniqueViolation,
   parseOrderIdempotencyKey,
   recoverOrderFromIdempotencyConflict,
@@ -59,8 +63,12 @@ function buildKioskAddressSnapshot(
     `Fulfillment: ${fulfillment === 'dine_in' ? 'Dine in' : 'Take away'}`,
   ];
   if (tableName?.trim()) lines.push(`Table: ${tableName.trim()}`);
-  if (customerName?.trim()) lines.push(`Name: ${customerName.trim()}`);
-  if (customerPhone?.trim()) lines.push(`Phone: ${customerPhone.trim()}`);
+  if (fulfillment === 'dine_in' && tableName?.trim()) {
+    lines.push(`Name: ${kioskDineInCustomerDisplayName(tableName)}`);
+  } else {
+    if (customerName?.trim()) lines.push(`Name: ${customerName.trim()}`);
+    if (customerPhone?.trim()) lines.push(`Phone: ${customerPhone.trim()}`);
+  }
   if (cookingNote?.trim()) lines.push(`Cooking / notes: ${cookingNote.trim()}`);
   return lines.join('\n');
 }
@@ -211,10 +219,18 @@ export async function POST(req: NextRequest) {
       });
       const nextTicketNumber = (previousOrder?.ticketNumber ?? -1) + 1;
 
+      const customerId = await upsertKioskOrderCustomer(tx, restaurant.id, {
+        fulfillment,
+        tableId: selectedTableId,
+        tableName: selectedTableName,
+        customerName,
+        customerPhone,
+      });
+
       const order = await tx.order.create({
         data: {
           restaurantId: restaurant.id,
-          customerId: null,
+          customerId: customerId ?? undefined,
           ticketDate,
           ticketNumber: nextTicketNumber,
           status: 'pending',

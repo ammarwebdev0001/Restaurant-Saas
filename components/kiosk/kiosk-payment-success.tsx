@@ -8,6 +8,7 @@ import {
   parseCustomerFromAddressSnapshot,
   parseTableFromAddressSnapshot,
 } from '@/lib/order-fulfillment';
+import { isKioskSyntheticCustomerPhone } from '@/lib/kiosk-customer';
 import {
   buildThermalReceiptHeaderHtml,
   escapeHtml,
@@ -170,14 +171,19 @@ export function KioskPaymentSuccess({
       const fromAddress = parseCustomerFromAddressSnapshot(details?.address);
       const customerName =
         details?.customer?.name?.trim() || fromAddress.name || null;
-      const customerPhone =
+      const rawPhone =
         details?.customer?.phone?.trim() || fromAddress.phone || null;
+      const customerPhone = isKioskSyntheticCustomerPhone(rawPhone)
+        ? null
+        : rawPhone;
       const tableName =
         details?.tableName?.trim() ||
         details?.tableLabel?.trim() ||
         parseTableFromAddressSnapshot(details?.address);
+      const isDineInDisplayName =
+        !!customerName && customerName.toLowerCase().endsWith(' customer');
       const metaLines = [
-        tableName
+        tableName && !isDineInDisplayName
           ? `<div><strong>Table:</strong> ${escapeHtml(tableName)}</div>`
           : '',
         customerName

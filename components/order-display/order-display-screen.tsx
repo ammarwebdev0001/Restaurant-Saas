@@ -18,6 +18,7 @@ import type {
   OrderDisplayPayload,
   OrderDisplayTicket,
 } from '@/app/api/restaurant/order-display/route';
+import { isKioskSyntheticCustomerPhone } from '@/lib/kiosk-customer';
 
 const REFRESH_INTERVAL_MS = 5000;
 const VOICE_STORAGE_KEY = 'order-display:voice-enabled';
@@ -64,7 +65,7 @@ function speakAnnouncement(text: string): void {
  * watching the screen.
  */
 function maskPhone(raw: string | null): string {
-  if (!raw) return '—';
+  if (!raw || isKioskSyntheticCustomerPhone(raw)) return '—';
   const digits = raw.replace(/[^\d+]/g, '');
   if (digits.length <= 5) return digits;
   const head = digits.slice(0, 3);
