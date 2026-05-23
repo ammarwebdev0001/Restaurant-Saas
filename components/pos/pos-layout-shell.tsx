@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 
 import { PosCartGuardProvider } from '@/components/pos/pos-cart-guard-context';
 import { PosLayoutHeader } from '@/components/pos/pos-layout-header';
-
 export function PosLayoutShell({ children }: { children: ReactNode }) {
   return (
     <PosCartGuardProvider>

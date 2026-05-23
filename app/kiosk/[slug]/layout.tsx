@@ -10,9 +10,9 @@ type Props = {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
-  return metadataForRestaurantSlug(slug);
+  return metadataForRestaurantSlug(slug, 'Kiosk');
 }
 
-export default function WebAppSlugLayout({ children }: { children: ReactNode }) {
+export default function KioskSlugLayout({ children }: { children: ReactNode }) {
   return children;
 }

@@ -10,6 +10,7 @@ import { Analytics } from "@vercel/analytics/react";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "@/lib/i18n/client";
 import { OfflineBootstrap } from "@/components/offline/offline-bootstrap";
+import { RestaurantBrandingProvider } from "@/components/layout/restaurant-branding-provider";
 
 /**
  * Mount Vercel metrics after the first paint so they do not run in the same
@@ -44,9 +45,10 @@ export default function Providers({
       disableTransitionOnChange
     >
       <SessionProvider>
-        <NextTopLoader showSpinner={false} />
-        <OfflineBootstrap />
-        {children}
+        <RestaurantBrandingProvider>
+          <NextTopLoader showSpinner={false} />
+          <OfflineBootstrap />
+          {children}
         <ToastContainer
           position="top-right"
           autoClose={4000}
@@ -56,7 +58,8 @@ export default function Providers({
           draggable
           style={{ zIndex: 9999 }}
         />
-        <DeferredVercelMetrics />
+          <DeferredVercelMetrics />
+        </RestaurantBrandingProvider>
       </SessionProvider>
     </ThemeProvider>
   );

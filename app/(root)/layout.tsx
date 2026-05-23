@@ -14,17 +14,15 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { toast } from 'react-toastify';
 import axios from 'axios';
-import eventBus from '@/lib/even';
 import { cn } from '@/lib/utils';
 import { DASHBOARD_MODULES } from '@/constant/dashboardModules';
+import { useRestaurantBranding } from '@/components/layout/restaurant-branding-provider';
 
 const SIDEBAR_STORAGE_KEY = 'dashboard-sidebar-open';
 
 interface RootLayoutProps {
   children: React.ReactNode;
 }
-
-const DEFAULT_DOCUMENT_TITLE = 'Foodluk';
 
 function moduleKeyForPath(pathname: string): string | null {
   const exact = DASHBOARD_MODULES.find((m) => m.path === pathname);
@@ -39,12 +37,13 @@ const RootLayout = ({ children }: RootLayoutProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const { status: sessionStatus } = useSession();
-  const [restaurantName, setRestaurantName] = useState<string>('Restaurant');
-  const [restaurantSlug, setRestaurantSlug] = useState<string | null>(null);
-  const [restaurantLogoUrl, setRestaurantLogoUrl] = useState<string | null>(
-    null
-  );
-  const [logoFailed, setLogoFailed] = useState(false);
+  const {
+    restaurantName,
+    restaurantSlug,
+    logoUrl: restaurantLogoUrl,
+    logoFailed,
+    setLogoFailed,
+  } = useRestaurantBranding();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [subscriptionChecked, setSubscriptionChecked] = useState(false);
@@ -176,69 +175,6 @@ const RootLayout = ({ children }: RootLayoutProps) => {
       setMobileNavOpen((o) => !o);
     }
   };
-
-  useEffect(() => {
-    const fetchRestaurant = async () => {
-      try {
-        if (!navigator.onLine) {
-          toast.error('You are offline.');
-          return;
-        }
-
-        const response = await axios.get('/api/restaurant');
-        const name = response?.data?.data?.name as string | undefined;
-        const slug = response?.data?.data?.slug as string | undefined;
-        const logoUrl = response?.data?.data?.logoUrl as string | undefined;
-        setRestaurantName(name ?? 'Restaurant');
-        setRestaurantSlug(slug?.trim() ? slug.trim() : null);
-        setRestaurantLogoUrl(logoUrl ?? null);
-        setLogoFailed(false);
-      } catch (error: any) {
-        setRestaurantName('Restaurant');
-        setRestaurantSlug(null);
-        setRestaurantLogoUrl(null);
-        toast.error(error.response?.data?.error || error.message);
-      }
-    };
-
-    fetchRestaurant();
-
-    const handler = () => fetchRestaurant();
-    eventBus.on('fetchStoreData', handler);
-
-    return () => {
-      eventBus.removeListener('fetchStoreData', handler);
-    };
-  }, []);
-
-  useEffect(() => {
-    document.title = restaurantName;
-
-    const link =
-      (document.querySelector('link[rel="icon"]') as HTMLLinkElement | null) ??
-      (() => {
-        const el = document.createElement('link');
-        el.rel = 'icon';
-        document.head.appendChild(el);
-        return el;
-      })();
-
-    if (restaurantLogoUrl && !logoFailed) {
-      link.href = restaurantLogoUrl;
-    } else {
-      link.href = '/favicon.ico';
-    }
-  }, [restaurantName, restaurantLogoUrl, logoFailed]);
-
-  useEffect(() => {
-    return () => {
-      document.title = DEFAULT_DOCUMENT_TITLE;
-      const link = document.querySelector(
-        'link[rel="icon"]'
-      ) as HTMLLinkElement | null;
-      if (link) link.href = '/favicon.ico';
-    };
-  }, []);
 
   if (sessionStatus === 'loading' || sessionStatus === 'unauthenticated') {
     return (

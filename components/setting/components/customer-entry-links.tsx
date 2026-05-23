@@ -91,21 +91,6 @@ export function CustomerEntryLinks() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap gap-2">
-        <Button asChild className="gap-2">
-          <Link href={webAppPath} target="_blank" rel="noopener noreferrer">
-            Open website
-            <IconExternalLink className="h-4 w-4" aria-hidden />
-          </Link>
-        </Button>
-        <Button asChild variant="secondary" className="gap-2">
-          <Link href={kioskPath} target="_blank" rel="noopener noreferrer">
-            Open kiosk
-            <IconExternalLink className="h-4 w-4" aria-hidden />
-          </Link>
-        </Button>
-      </div>
-
       <Card>
         <CardHeader>
           <CardTitle>Public URLs</CardTitle>
@@ -132,6 +117,16 @@ export function CustomerEntryLinks() {
                 <IconCopy className="h-4 w-4" aria-hidden />
                 Copy
               </Button>
+              <Button asChild className="gap-2">
+                <Link
+                  href={webAppPath}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open website
+                  <IconExternalLink className="h-4 w-4" aria-hidden />
+                </Link>
+              </Button>
             </div>
           </div>
           <div className="space-y-2">
@@ -148,6 +143,16 @@ export function CustomerEntryLinks() {
               >
                 <IconCopy className="h-4 w-4" aria-hidden />
                 Copy
+              </Button>
+              <Button asChild className="gap-2">
+                <Link
+                  href={kioskPath}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open kiosk
+                  <IconExternalLink className="h-4 w-4" aria-hidden />
+                </Link>
               </Button>
             </div>
           </div>
